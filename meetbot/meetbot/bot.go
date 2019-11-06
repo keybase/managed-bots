@@ -58,8 +58,7 @@ func (s *BotServer) Start() (err error) {
 	}
 
 	if s.opts.Announcement != "" {
-		if _, err := s.kbc.SendMessageByTlfName(s.opts.Announcement, "I'm running."); err != nil {
-			s.debug("failed to announce self: %s", err)
+		if err := s.sendAnnouncement(s.opts.Announcement, "I'm running."); err != nil {
 			return err
 		}
 	}
@@ -82,6 +81,28 @@ func (s *BotServer) Start() (err error) {
 		// }
 		s.runHandler(msg.Message)
 	}
+}
+
+func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
+	defer func() {
+		if err == nil {
+			s.debug("announcement success")
+		}
+	}()
+	if _, err = s.kbc.SendMessageByConvID(announcement, running); err != nil {
+		s.debug("failed to announce self as conv ID: %s", err)
+	} else {
+		return nil
+	}
+	if _, err = s.kbc.SendMessageByTlfName(announcement, running); err != nil {
+		s.debug("failed to announce self as user: %s", err)
+	} else {
+		return nil
+	}
+	if _, err = s.kbc.SendMessageByTeamName(announcement, nil, running); err != nil {
+		s.debug("failed to announce self as team: %s", err)
+	}
+	return err
 }
 
 func (s *BotServer) debug(msg string, args ...interface{}) {
