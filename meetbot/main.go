@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/managed-bots/meetbot/meetbot"
@@ -51,10 +52,11 @@ func mainInner() int {
 		fmt.Printf("kbfsRoot must be specified\n")
 		return 3
 	}
-	cmd := exec.Command("keybase", "fs", "read", kbfsRoot)
+	configPath := filepath.Join(kbfsRoot, "credentials.json")
+	cmd := exec.Command("keybase", "fs", "read", configPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", kbfsRoot)
+	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Command finished with error: %v\n", err)
 		return 3
