@@ -2,7 +2,6 @@ package meetbot
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -102,7 +101,7 @@ func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, error) {
 		authURL = strings.TrimPrefix(authURL, "https://")
 		// TODO for teams only do this for admins, send as a DM to the user and
 		// use the state to know which identifier to store at.
-		_, err = s.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("Visit %s\n and then send me the authorization code using the `!code` command and try again", authURL))
+		_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Visit %s\n and then send me the authorization code using the `!code` command and try again", authURL)
 		return nil, err
 	}
 	return s.config.Client(context.Background(), token), nil
@@ -117,11 +116,11 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 				Commands: []chat1.UserBotCommandInput{
 					{
 						Name:        meetingTrigger,
-						Description: fmt.Sprintf("Get a URL for a new meet call"),
+						Description: "Get a URL for a new meet call",
 					},
 					{
 						Name:        codeTrigger,
-						Description: fmt.Sprintf("Authorize me to have access to your calendar with the code."),
+						Description: "Authorize me to have access to your calendar with the code.",
 					},
 				},
 			},
@@ -213,7 +212,7 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 		// identifier := identifierFromMsg(msg)
 		// if identifier != msg.Channel.Name {
 		// 	_, err = s.kbc.SendMessageByConvID(msg.ConvID,
-		// 		fmt.Sprintf("I've sent a message to @%s to authorize me. After that please try again.", msg.Sender.Username))
+		// 		"I've sent a message to @%s to authorize me. After that please try again.", msg.Sender.Username)
 		// 	return err
 		// }
 		return nil
@@ -254,7 +253,7 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 	if confData := event.ConferenceData; confData != nil {
 		for _, ep := range confData.EntryPoints {
 			if ep.EntryPointType == "video" {
-				_, err = s.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("Here you go! %s", ep.Label))
+				_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Here you go! %s", ep.Label)
 				return err
 			}
 		}
