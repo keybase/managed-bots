@@ -54,7 +54,7 @@ func mainInner() int {
 	cmd := exec.Command("keybase", "fs", "read", kbfsRoot)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %s and waiting for it to finish...\n", kbfsRoot)
+	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", kbfsRoot)
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Command finished with error: %v\n", err)
 		return 3
