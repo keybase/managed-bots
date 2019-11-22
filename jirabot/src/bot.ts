@@ -19,7 +19,7 @@ const onMessage = (context: Context, kbMessage: ChatTypes.MsgSummary) => {
     const parsedMessage = Message.parseMessage(context, kbMessage)
     console.debug({msg: 'got message', parsedMessage})
     if (!parsedMessage) {
-      // not a kira message
+      // not a jirabot message
       return
     }
     switch (parsedMessage.type) {
