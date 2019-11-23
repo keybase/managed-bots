@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "module": "commonjs",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "target": "es2017",
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "rootDir": "src/",
+    "outDir": "./.tsOuts/.tsOut/emit",
+    "declaration": true
+  },
+  "include": ["src/*"]
+}
+
