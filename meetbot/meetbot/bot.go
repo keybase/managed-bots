@@ -2,8 +2,10 @@ package meetbot
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -18,32 +20,38 @@ var log = logging.MustGetLogger("meetbot")
 
 const (
 	meetingTrigger = "meet"
-	codeTrigger    = "code"
 )
 
 type Options struct {
 	KeybaseLocation string
 	Home            string
+	HTTPAddr        string
 	Announcement    string
 }
 
 type BotServer struct {
-	opts   Options
-	kbc    *kbchat.API
-	config *oauth2.Config
-	db     *OAuthDB
+	sync.Mutex
+	opts     Options
+	kbc      *kbchat.API
+	config   *oauth2.Config
+	db       *OAuthDB
+	requests map[string]chat1.MsgSummary
 }
 
 func NewBotServer(opts Options, config *oauth2.Config, db *OAuthDB) *BotServer {
 	return &BotServer{
-		opts:   opts,
-		config: config,
-		db:     db,
+		opts:     opts,
+		config:   config,
+		db:       db,
+		requests: make(map[string]chat1.MsgSummary),
 	}
 }
 
 func (s *BotServer) Start() (err error) {
 	s.debug("Start(%+v", s.opts)
+
+	http.HandleFunc("/oauth", s.oauthHandler)
+	go http.ListenAndServe(":8081", nil)
 
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
@@ -83,6 +91,51 @@ func (s *BotServer) Start() (err error) {
 	}
 }
 
+func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
+	s.debug("oauthHandler")
+
+	var err error
+	defer func() {
+		if err != nil {
+			s.debug("oauthHandler: %v", err)
+			fmt.Fprintf(w, "Unable to complete request, please try again!")
+		}
+	}()
+
+	if r.URL == nil {
+		err = fmt.Errorf("r.URL == nil")
+		return
+	}
+
+	query := r.URL.Query()
+	state := query.Get("state")
+
+	s.Lock()
+	originatingMsg, ok := s.requests[state]
+	delete(s.requests, state)
+	s.Unlock()
+	if !ok {
+		err = fmt.Errorf("state %s not found %v", state, s.requests)
+		return
+	}
+
+	code := query.Get("code")
+	token, err := s.config.Exchange(context.TODO(), code)
+	if err != nil {
+		return
+	}
+
+	if err = s.db.PutToken(identifierFromMsg(originatingMsg), token); err != nil {
+		return
+	}
+
+	if err = s.meetHandler(originatingMsg); err != nil {
+		return
+	}
+
+	fmt.Fprintf(w, "Success! You can now close this page return to the Keybase app.")
+}
+
 func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
 	defer func() {
 		if err == nil {
@@ -109,23 +162,49 @@ func (s *BotServer) debug(msg string, args ...interface{}) {
 	log.Infof("BotServer: "+msg+"\n", args...)
 }
 
-func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, error) {
+func (s *BotServer) isAdmin(msg chat1.MsgSummary) (bool, error) {
+	switch msg.Channel.MembersType {
+	case "team": // make sure the member is an admin or owner
+	default: // authorization is per user so let anything through
+		return true, nil
+	}
+
+	res, err := s.kbc.ListMembersOfTeam(msg.Channel.Name)
+	if err != nil {
+		return false, err
+	}
+	adminLike := append(res.Owners, res.Admins...)
+	for _, member := range adminLike {
+		if member.Username == msg.Sender.Username {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
 	identifier := identifierFromMsg(msg)
 	token, err := s.db.GetToken(identifier)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	// We need to request new authorization
 	if token == nil {
-		authURL := s.config.AuthCodeURL(identifier, oauth2.AccessTypeOffline)
+		if isAdmin, err := s.isAdmin(msg); err != nil || !isAdmin {
+			return nil, isAdmin, err
+		}
+
+		state := requestID()
+		s.Lock()
+		s.requests[state] = msg
+		s.Unlock()
+		authURL := s.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
-		// TODO for teams only do this for admins, send as a DM to the user and
-		// use the state to know which identifier to store at.
-		_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Visit %s\n and then send me the authorization code using the `!code` command and try again", authURL)
-		return nil, err
+		_, err = s.kbc.SendMessageByTlfName(msg.Sender.Username, "Visit %s\n to authorize me to create events.", authURL)
+		return nil, true, err
 	}
-	return s.config.Client(context.Background(), token), nil
+	return s.config.Client(context.Background(), token), false, nil
 }
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
@@ -138,10 +217,6 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 					{
 						Name:        meetingTrigger,
 						Description: "Get a URL for a new meet call",
-					},
-					{
-						Name:        codeTrigger,
-						Description: "Authorize me to have access to your calendar with the code.",
 					},
 				},
 			},
@@ -179,33 +254,10 @@ func (s *BotServer) textMsgHandler(msg chat1.MsgSummary) error {
 	switch cmd {
 	case meetingTrigger:
 		return s.meetHandler(msg)
-	case codeTrigger:
-		// TODO instead setup a web endpoint to handle the redirect URL directly.
-		return s.codeHandler(msg)
 	default:
 		// just log and get out of there
 		return s.logHandler(msg)
 	}
-}
-
-func (s *BotServer) codeHandler(msg chat1.MsgSummary) error {
-	msgText := strings.Split(msg.Content.Text.Body, " ")
-	if len(msgText) != 2 {
-		_, err := s.kbc.SendMessageByConvID(msg.ConvID, "I wasn't able to read that code correctly. Please try again.")
-		return err
-	}
-	code := msgText[1]
-	token, err := s.config.Exchange(context.TODO(), code)
-	if err != nil {
-		return err
-	}
-
-	if err := s.db.PutToken(identifierFromMsg(msg), token); err != nil {
-		return err
-	}
-
-	_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Got it! You're all set. Type `!meet` to get a meeting link")
-	return err
 }
 
 func (s *BotServer) meetHandler(msg chat1.MsgSummary) error {
@@ -224,18 +276,21 @@ func (s *BotServer) meetHandler(msg chat1.MsgSummary) error {
 }
 
 func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
-	client, err := s.getOAuthClient(msg)
+	client, isAdmin, err := s.getOAuthClient(msg)
 	if err != nil {
 		return err
 	}
 	if client == nil {
-		// TODO uncomment once web endpoint is setup
-		// identifier := identifierFromMsg(msg)
-		// if identifier != msg.Channel.Name {
-		// 	_, err = s.kbc.SendMessageByConvID(msg.ConvID,
-		// 		"I've sent a message to @%s to authorize me. After that please try again.", msg.Sender.Username)
-		// 	return err
-		// }
+		if !isAdmin {
+			_, err = s.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
+			return err
+		}
+		identifier := identifierFromMsg(msg)
+		if identifier != msg.Channel.Name {
+			_, err = s.kbc.SendMessageByConvID(msg.ConvID,
+				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
+			return err
+		}
 		return nil
 	}
 
@@ -255,7 +310,7 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 		},
 		ConferenceData: &calendar.ConferenceData{
 			CreateRequest: &calendar.CreateConferenceRequest{
-				RequestId: randomID(10),
+				RequestId: requestID(),
 			},
 		},
 	}

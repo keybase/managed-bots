@@ -27,3 +27,7 @@ func randomID(n int) string {
 	}
 	return string(b)
 }
+
+func requestID() string {
+	return randomID(10)
+}
