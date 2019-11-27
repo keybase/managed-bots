@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -14,6 +15,7 @@ type Options struct {
 	KeybaseLocation string
 	Home            string
 	Announcement    string
+	HTTPPrefix      string
 }
 
 func newOptions() Options {
@@ -78,7 +80,6 @@ func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
 	}()
 	if _, err := s.kbc.SendMessageByConvID(announcement, running); err != nil {
 		s.debug("failed to announce self as conv ID: %s", err)
-		return err
 	} else {
 		return nil
 	}
@@ -111,7 +112,19 @@ func (s *BotServer) Start() (err error) {
 		return err
 	}
 
-	pollbot.NewHandler(s.kbc).Listen()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		pollbot.NewHandler(s.kbc, s.opts.HTTPPrefix).Listen()
+		wg.Done()
+	}()
+	go func() {
+		pollbot.NewHTTPSrv(s.kbc).Listen()
+		wg.Done()
+	}()
+	wg.Wait()
+
+	return nil
 }
 
 func main() {
@@ -122,11 +135,11 @@ func main() {
 func mainInner() int {
 	opts := newOptions()
 
-	var whitelistStr string
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
+	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
 	flag.Parse()
 
 	bs := NewBotServer(opts)

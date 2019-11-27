@@ -9,10 +9,16 @@
 			"revisionTime": "2018-04-28T03:00:07Z"
 		},
 		{
-			"checksumSHA1": "cPogJ/0y3t6k1ERb2r+pxmMpM0Q=",
+			"checksumSHA1": "uWVRLnUO1Q2e7NjTDP0QYL2gPO0=",
+			"path": "github.com/keybase/go-codec/codec",
+			"revision": "1cf5262595f30a38e4c594385d275b83653a6a89",
+			"revisionTime": "2018-08-20T23:03:36Z"
+		},
+		{
+			"checksumSHA1": "b9HPsSTwpIs7hzav40F/L1aSCqM=",
 			"path": "github.com/keybase/go-keybase-chat-bot/kbchat",
-			"revision": "741fdc0e0072c8ccbe9679b4a85e23ebf93ac864",
-			"revisionTime": "2019-11-25T02:16:00Z"
+			"revision": "2c5cda9230d09e828b558b7d4014945ddd281b35",
+			"revisionTime": "2019-11-27T19:28:41Z"
 		}
 	],
 	"rootPath": "github.com/keybase/managed-bots/pollbot"

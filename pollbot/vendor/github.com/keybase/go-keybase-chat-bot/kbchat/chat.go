@@ -67,6 +67,24 @@ func (a *API) GetConversations(unreadOnly bool) ([]chat1.ConvSummary, error) {
 	return inbox.Result.Convs, nil
 }
 
+func (a *API) GetConversation(convID string) (res chat1.ConvSummary, err error) {
+	apiInput := fmt.Sprintf(`{"method":"list", "params": { "options": { "conversation_id": "%s"}}}`, convID)
+	output, err := a.doFetch(apiInput)
+	if err != nil {
+		return res, err
+	}
+
+	var inbox Inbox
+	if err := json.Unmarshal(output, &inbox); err != nil {
+		return res, err
+	} else if inbox.Error != nil {
+		return res, errors.New(inbox.Error.Message)
+	} else if len(inbox.Result.Convs) == 0 {
+		return res, errors.New("conversation not found")
+	}
+	return inbox.Result.Convs[0], nil
+}
+
 // GetTextMessages fetches all text messages from a given channel. Optionally can filter
 // ont unread status.
 func (a *API) GetTextMessages(channel chat1.ChatChannel, unreadOnly bool) ([]chat1.MsgSummary, error) {
