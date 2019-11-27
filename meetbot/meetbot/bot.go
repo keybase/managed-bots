@@ -56,7 +56,7 @@ func (s *BotServer) Start() (err error) {
 
 	http.HandleFunc("/meetbot", s.healthCheckHandler)
 	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(s.opts.HTTPAddr, nil)
 
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
