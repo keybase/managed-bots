@@ -67,7 +67,6 @@ func mainInner() int {
 	if len(opts.HTTPAddr) == 0 {
 		opts.HTTPAddr = ":8080"
 	}
-	fmt.Printf("Using HTTPAddr: %s", opts.HTTPAddr)
 
 	// If modifying these scopes, drop the saved tokens in the db
 	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
