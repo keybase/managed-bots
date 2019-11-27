@@ -36,9 +36,11 @@ func mainInner() int {
 	var kbfsRoot string
 	flag.StringVar(&kbfsRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
 
+	flag.StringVar(&opts.HTTPAddr, "http-addr", os.Getenv("BOT_HTTP_ADDR"), "address of bots HTTP server for oauth requests")
+
 	flag.Parse()
 	if len(dsn) == 0 {
-		fmt.Printf("must specify a MySQL DSN for bot database\n")
+		fmt.Printf("must specify a BOT_DSN for bot database\n")
 		return 3
 	}
 
@@ -49,7 +51,7 @@ func mainInner() int {
 	}
 
 	if len(kbfsRoot) == 0 {
-		fmt.Printf("kbfsRoot must be specified\n")
+		fmt.Printf("BOT_KBFS_ROOT must be specified\n")
 		return 3
 	}
 	configPath := filepath.Join(kbfsRoot, "credentials.json")
@@ -59,6 +61,11 @@ func mainInner() int {
 	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("Command finished with error: %v\n", err)
+		return 3
+	}
+
+	if len(opts.HTTPAddr) == 0 {
+		fmt.Printf("BOT_HTTP_ADDR must be specified\n")
 		return 3
 	}
 
