@@ -50,8 +50,8 @@ func NewBotServer(opts Options, config *oauth2.Config, db *OAuthDB) *BotServer {
 func (s *BotServer) Start() (err error) {
 	s.debug("Start(%+v", s.opts)
 
-	http.HandleFunc("/oauth", s.oauthHandler)
-	go http.ListenAndServe(":8081", nil)
+	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
+	go http.ListenAndServe(":8080", nil)
 
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
