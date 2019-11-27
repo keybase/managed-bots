@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "cPogJ/0y3t6k1ERb2r+pxmMpM0Q=",
+			"path": "github.com/keybase/go-keybase-chat-bot/kbchat",
+			"revision": "741fdc0e0072c8ccbe9679b4a85e23ebf93ac864",
+			"revisionTime": "2019-11-25T02:16:00Z"
+		}
+	],
+	"rootPath": "github.com/keybase/managed-bots/pollbot"
+}
