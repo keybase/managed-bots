@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "aaUR0FaTkm9HdCovPv3tecD71/s=",
+			"path": "github.com/kballard/go-shellquote",
+			"revision": "95032a82bc518f77982ea72343cc1ade730072f0",
+			"revisionTime": "2018-04-28T03:00:07Z"
+		},
+		{
 			"checksumSHA1": "cPogJ/0y3t6k1ERb2r+pxmMpM0Q=",
 			"path": "github.com/keybase/go-keybase-chat-bot/kbchat",
 			"revision": "741fdc0e0072c8ccbe9679b4a85e23ebf93ac864",
