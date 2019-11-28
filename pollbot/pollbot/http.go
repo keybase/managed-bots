@@ -154,7 +154,10 @@ func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 	`)))
 }
 
+func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
+
 func (h *HTTPSrv) Listen() {
+	http.HandleFunc("/pollbot", h.handleHealthCheck)
 	http.HandleFunc("/pollbot/vote", h.handleVote)
 	http.HandleFunc("/pollbot/login", h.handleLogin)
 	http.ListenAndServe(":8080", nil)
