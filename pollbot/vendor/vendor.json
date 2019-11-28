@@ -33,6 +33,12 @@
 			"revisionTime": "2019-11-28T01:13:41Z"
 		},
 		{
+			"checksumSHA1": "o7alSoZgwgrbGsCplfvDxBENhlk=",
+			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/gregor1",
+			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
+			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
 			"checksumSHA1": "ZkhI+t9RXfp90CbP3ORvFOUjg3U=",
 			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1",
 			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
@@ -43,6 +49,12 @@
 			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/stellar1",
 			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
 			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
+			"checksumSHA1": "QELcZ0cB4PrpjIoeESHQCGDpMsk=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "85f2b59c4459e5bf57488796be8c3667cb8246d6",
+			"revisionTime": "2018-07-16T14:42:29Z"
 		},
 		{
 			"checksumSHA1": "ABkrw83kq3/d6oSRX+BFq57/BiY=",
