@@ -42,11 +42,11 @@ func (s *BotServer) debug(msg string, args ...interface{}) {
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	pollExtended := fmt.Sprintf(`Start either a public or an anonymous poll. Public polls are driven by people clicking reactions on the polling message. Anonymous polls offer a link a user can click to register their vote. The polling service will update the results of anonymous polls as they are received without revealing the voter, while also enforcing one vote person.
+	pollExtended := fmt.Sprintf(`Start either a public or an anonymous poll. Public polls are driven by people clicking reactions on the polling message. Anonymous polls offer a link a user can click to register their vote. The polling service will update the results of anonymous polls as they are received without revealing the voter, while also enforcing one vote per person.
 
 	Example:%s
 		!poll "Should we move the office to a beach?" "Yes" "No"
-		!poll "Where should the next meetup be?" --anonymous "Miami" "Las Vegas" "Houston%s`, backs, backs, backs, backs)
+		!poll "Where should the next meetup be?" --anonymous "Miami" "Las Vegas" "Houston%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{

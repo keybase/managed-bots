@@ -88,9 +88,9 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	options []string) {
 	body := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n\n", h.numberToEmoji(index+1), option)
+		body += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1), option)
 	}
-	body += "Hit one of the links below to vote for an option"
+	body += "\nHit one of the links below to vote for an option"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
 	if err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
@@ -133,7 +133,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	options []string) {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n\n", h.numberToEmoji(index+1), option)
+		body += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1), option)
 	}
 	body += "Tap a reaction below to register your vote!"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
@@ -185,7 +185,11 @@ func (h *Handler) formatTally(tally Tally) (res string) {
 		return res
 	}
 	for _, t := range tally {
-		res += fmt.Sprintf("%s  `%d`\n", h.numberToEmoji(t.choice), t.votes)
+		s := ""
+		if t.votes > 1 {
+			s = "s"
+		}
+		res += fmt.Sprintf("%s  `%d vote%s`\n", h.numberToEmoji(t.choice), t.votes, s)
 	}
 	return res
 }
