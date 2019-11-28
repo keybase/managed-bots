@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "bE6Z+IptruBvA+iZTBPjjNqzRRI=",
+			"path": "github.com/go-sql-driver/mysql",
+			"revision": "15462c1d60d42ecca11d6ef9fec0b0afd5833459",
+			"revisionTime": "2019-11-21T06:26:41Z"
+		},
+		{
 			"checksumSHA1": "aaUR0FaTkm9HdCovPv3tecD71/s=",
 			"path": "github.com/kballard/go-shellquote",
 			"revision": "95032a82bc518f77982ea72343cc1ade730072f0",
@@ -19,6 +25,30 @@
 			"path": "github.com/keybase/go-keybase-chat-bot/kbchat",
 			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
 			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
+			"checksumSHA1": "WlwvifAm/LmS+rKdpIBYsFGdOpQ=",
+			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1",
+			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
+			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
+			"checksumSHA1": "ZkhI+t9RXfp90CbP3ORvFOUjg3U=",
+			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1",
+			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
+			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
+			"checksumSHA1": "6gVB72KcS7++2g9P+ubk65gpgH8=",
+			"path": "github.com/keybase/go-keybase-chat-bot/kbchat/types/stellar1",
+			"revision": "e03a7e689d1a3fb402dc0c425a38e6c32089cfa6",
+			"revisionTime": "2019-11-28T01:13:41Z"
+		},
+		{
+			"checksumSHA1": "ABkrw83kq3/d6oSRX+BFq57/BiY=",
+			"path": "github.com/stretchr/testify/require",
+			"revision": "85f2b59c4459e5bf57488796be8c3667cb8246d6",
+			"revisionTime": "2018-07-16T14:42:29Z"
 		}
 	],
 	"rootPath": "github.com/keybase/managed-bots/pollbot"
