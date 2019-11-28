@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -99,6 +101,21 @@ func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
 	}
 }
 
+func (s *BotServer) getLoginSecret() (string, error) {
+	if s.opts.LoginSecret != "" {
+		return s.opts.LoginSecret, nil
+	}
+	path := fmt.Sprintf("/keybase/%s/private/login.secret", s.kbc.GetUsername())
+	cmd := exec.Command("keybase", "fs", "read", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	s.debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
 func (s *BotServer) Start() (err error) {
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
@@ -106,13 +123,17 @@ func (s *BotServer) Start() (err error) {
 	}); err != nil {
 		return err
 	}
+	loginSecret, err := s.getLoginSecret()
+	if err != nil {
+		s.debug("failed to get login secret: %s", err)
+		return
+	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
 		s.debug("failed to connect to MySQL: %s", err)
 		return err
 	}
 	db := pollbot.NewDB(sdb)
-
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.debug("advertise error: %s", err)
 		return err
@@ -122,7 +143,7 @@ func (s *BotServer) Start() (err error) {
 		return err
 	}
 
-	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, s.opts.LoginSecret)
+	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, loginSecret)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -156,10 +177,6 @@ func mainInner() int {
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")
-		return 3
-	}
-	if len(opts.LoginSecret) == 0 {
-		fmt.Printf("must specify a login secret\n")
 		return 3
 	}
 	bs := NewBotServer(opts)
