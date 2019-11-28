@@ -136,7 +136,7 @@ func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	username := r.URL.Query().Get("username")
 	realToken := h.LoginToken(username)
-	if realToken != token {
+	if !hmac.Equal([]byte(realToken), []byte(token)) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
