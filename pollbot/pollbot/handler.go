@@ -14,13 +14,15 @@ import (
 type Handler struct {
 	kbc        *kbchat.API
 	db         *DB
+	httpSrv    *HTTPSrv
 	httpPrefix string
 }
 
-func NewHandler(kbc *kbchat.API, db *DB, httpPrefix string) *Handler {
+func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		kbc:        kbc,
 		db:         db,
+		httpSrv:    httpSrv,
 		httpPrefix: httpPrefix,
 	}
 }
@@ -52,33 +54,6 @@ func (h *Handler) Listen() {
 	}
 }
 
-func (h *Handler) numberToEmoji(v int) string {
-	switch v {
-	case 1:
-		return ":one:"
-	case 2:
-		return ":two:"
-	case 3:
-		return ":three:"
-	case 4:
-		return ":four:"
-	case 5:
-		return ":five:"
-	case 6:
-		return ":six:"
-	case 7:
-		return ":seven:"
-	case 8:
-		return ":eight:"
-	case 9:
-		return ":nine:"
-	case 10:
-		return ":ten:"
-	default:
-		return fmt.Sprintf("%d", v)
-	}
-}
-
 func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice int) string {
 	vote := NewVote(convID, msgID, choice)
 	return fmt.Sprintf("%s/pollbot/vote?=%s", h.httpPrefix, vote.Encode())
@@ -88,9 +63,9 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	options []string) {
 	body := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1), option)
+		body += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1), option)
 	}
-	body += "\nHit one of the links below to vote for an option"
+	body += "\n"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
 	if err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
@@ -103,7 +78,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	promptMsgID := *sendRes.Result.MessageID
 	var choiceBody string
 	for index := range options {
-		choiceBody += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1),
+		choiceBody += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1),
 			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, choiceBody); err != nil {
@@ -133,7 +108,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	options []string) {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1), option)
+		body += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1), option)
 	}
 	body += "Tap a reaction below to register your vote!"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
@@ -147,7 +122,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	}
 	for index := range options {
 		if _, err := h.kbc.ReactByConvID(convID, *sendRes.Result.MessageID,
-			h.numberToEmoji(index+1)); err != nil {
+			numberToEmoji(index+1)); err != nil {
 			h.chatDebug(convID, "failed to set reaction option: %s", err)
 		}
 	}
@@ -178,61 +153,25 @@ func (h *Handler) handlePoll(cmd, convID string, msgID chat1.MessageID) {
 	}
 }
 
-func (h *Handler) formatTally(tally Tally) (res string) {
-	res = "*Results*\n"
-	if len(tally) == 0 {
-		res += "_No votes yet_"
-		return res
-	}
-	for _, t := range tally {
-		s := ""
-		if t.votes > 1 {
-			s = "s"
-		}
-		res += fmt.Sprintf("%s  `%d vote%s`\n", h.numberToEmoji(t.choice), t.votes, s)
-	}
-	return res
-}
-
-func (h *Handler) handleReactConfirm(convID, username string, reaction chat1.MessageReaction) {
-	if reaction.Body != ":white_check_mark:" {
+func (h *Handler) handleLogin(convName, username string) {
+	// make sure we are in a conv with just the person
+	if !(convName == fmt.Sprintf("%s,%s", username, h.kbc.GetUsername()) ||
+		convName == fmt.Sprintf("%s,%s", h.kbc.GetUsername(), username)) {
 		return
 	}
-	vote, err := h.db.GetStagedVote(username, reaction.MessageID)
-	if err != nil {
-		h.chatDebug(convID, "failed to find user vote: %s", err)
+	token := h.httpSrv.LoginToken(username)
+	body := fmt.Sprintf(`Thanks for using the Keybase polling service!
+	
+To login your web browser in order to vote in anonymous polls, please follow the link below. Once that is completed, you will be able to vote in anonymous polls simply by clicking the links that I provide in the polls.
+	
+%s`, fmt.Sprintf("%s/pollbot/login?token=%s&username=%s", h.httpPrefix, token, username))
+	if _, err := h.kbc.SendMessageByTlfName(username, body); err != nil {
+		h.debug("failed to send login attempt: %s", err)
 		return
-	}
-	if err := h.db.CastVote(username, vote, reaction.MessageID); err != nil {
-		h.chatDebug(convID, "failed to cast vote: %s", err)
-		return
-	}
-	resultMsgID, err := h.db.GetPollResultMsgID(vote.ConvID, vote.MsgID)
-	if err != nil {
-		h.chatDebug(convID, "failed to find poll result msg: %s", err)
-		return
-	}
-	tally, err := h.db.GetTally(vote.ConvID, vote.MsgID)
-	if err != nil {
-		h.chatDebug(convID, "failed to get tally: %s", err)
-		return
-	}
-	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, h.formatTally(tally)); err != nil {
-		h.chatDebug(convID, "failed to post result: %s", err)
-		return
-	}
-	if _, err := h.kbc.SendMessageByConvID(convID, "Congratulations! Vote recorded successfully."); err != nil {
-		h.debug("failed to send congrats: %s", err)
 	}
 }
 
 func (h *Handler) handleCommand(msg chat1.MsgSummary) {
-	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
-		h.debug("handling reaction")
-		h.handleReactConfirm(msg.ConvID, msg.Sender.Username, *msg.Content.Reaction)
-		return
-	}
-
 	if msg.Content.Text == nil {
 		h.debug("skipping non-text message")
 		return
@@ -241,6 +180,8 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
 		h.handlePoll(cmd, msg.ConvID, msg.Id)
+	case strings.HasPrefix(cmd, "!login"):
+		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	default:
 		h.debug("ignoring unknown command")
 	}

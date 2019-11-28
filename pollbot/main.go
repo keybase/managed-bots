@@ -18,6 +18,7 @@ type Options struct {
 	Announcement    string
 	HTTPPrefix      string
 	DSN             string
+	LoginSecret     string
 }
 
 func newOptions() Options {
@@ -121,14 +122,15 @@ func (s *BotServer) Start() (err error) {
 		return err
 	}
 
+	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, s.opts.LoginSecret)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		pollbot.NewHandler(s.kbc, db, s.opts.HTTPPrefix).Listen()
+		pollbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix).Listen()
 		wg.Done()
 	}()
 	go func() {
-		pollbot.NewHTTPSrv(s.kbc, db).Listen()
+		httpSrv.Listen()
 		wg.Done()
 	}()
 	wg.Wait()
@@ -150,12 +152,16 @@ func mainInner() int {
 		"Where to announce we are running")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Poll database DSN")
+	flag.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")
 		return 3
 	}
-
+	if len(opts.LoginSecret) == 0 {
+		fmt.Printf("must specify a login secret\n")
+		return 3
+	}
 	bs := NewBotServer(opts)
 	if err := bs.Start(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err.Error())

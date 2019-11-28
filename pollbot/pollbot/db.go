@@ -35,28 +35,6 @@ func (d *DB) runTxn(fn func(tx *sql.Tx) error) error {
 	return tx.Commit()
 }
 
-func (d *DB) StageVote(username string, msgID chat1.MessageID, vote Vote) error {
-	return d.runTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO staged_votes
-			(username, msg_id, vote)
-			VALUES
-			(?, ?, ?)
-		`, username, msgID, vote.Encode())
-		return err
-	})
-}
-
-func (d *DB) GetStagedVote(username string, msgID chat1.MessageID) (res Vote, err error) {
-	row := d.db.QueryRow(`SELECT vote FROM staged_votes WHERE username = ? AND msg_id = ?`,
-		username, msgID)
-	var vstr string
-	if err := row.Scan(&vstr); err != nil {
-		return res, err
-	}
-	return NewVoteFromEncoded(vstr), nil
-}
-
 func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.MessageID) error {
 	return d.runTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
@@ -97,19 +75,14 @@ func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err erro
 	return res, nil
 }
 
-func (d *DB) CastVote(username string, vote Vote, stagedMsgID chat1.MessageID) error {
+func (d *DB) CastVote(username string, vote Vote) error {
 	return d.runTxn(func(tx *sql.Tx) error {
-		if _, err := tx.Exec(`
+		_, err := tx.Exec(`
 			REPLACE INTO votes
 			(conv_id, msg_id, username, choice)
 			VALUES
 			(?, ?, ?, ?)
-		`, vote.ConvID, vote.MsgID, username, vote.Choice); err != nil {
-			return err
-		}
-		_, err := tx.Exec(`
-			DELETE FROM staged_votes WHERE username = ? AND msg_id = ?
-		`, username, stagedMsgID)
+		`, vote.ConvID, vote.MsgID, username, vote.Choice)
 		return err
 	})
 }
