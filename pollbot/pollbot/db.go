@@ -83,7 +83,7 @@ func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err erro
 		FROM votes
 		WHERE conv_id = ? AND msg_id = ?
 		GROUP BY 1 ORDER BY 2 DESC
-	`)
+	`, convID, msgID)
 	if err != nil {
 		return res, err
 	}
@@ -97,14 +97,19 @@ func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err erro
 	return res, nil
 }
 
-func (d *DB) CastVote(username string, vote Vote) error {
+func (d *DB) CastVote(username string, vote Vote, stagedMsgID chat1.MessageID) error {
 	return d.runTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
+		if _, err := tx.Exec(`
 			REPLACE INTO votes
-			(convID, msgID, username, choice)
+			(conv_id, msg_id, username, choice)
 			VALUES
 			(?, ?, ?, ?)
-		`, vote.ConvID, vote.MsgID, username, vote.Choice)
+		`, vote.ConvID, vote.MsgID, username, vote.Choice); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`
+			DELETE FROM staged_votes WHERE username = ? AND msg_id = ?
+		`, username, stagedMsgID)
 		return err
 	})
 }

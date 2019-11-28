@@ -44,9 +44,7 @@ func (h *HTTPSrv) handleConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	body := fmt.Sprintf(`Thank for you for voting! This message corresponds to your pick of option (%d) in a recent anonymous poll in %s. If you did not vote in this poll please ignore me, someone probably just made a mistake.
 
-Poll ID: %s
-
-*In order to authenticate your vote, please hit the green and white checkmark below to add a reaction.*`, vote.Choice, h.getConvName(conv), vstr)
+*In order to authenticate your vote, please hit the green and white checkmark below to add a reaction.*`, vote.Choice, h.getConvName(conv))
 
 	sendRes, err := h.kbc.SendMessageByTlfName(username, body)
 	if err != nil {
@@ -64,7 +62,9 @@ Poll ID: %s
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if _, err := h.kbc.ReactByConvID(vote.ConvID, *sendRes.Result.MessageID, ":white_check_mark:"); err != nil {
+	if _, err := h.kbc.ReactByChannel(chat1.ChatChannel{
+		Name: username,
+	}, *sendRes.Result.MessageID, ":white_check_mark:"); err != nil {
 		h.debug("failed to set reaction: %s", err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -123,7 +124,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	}
 	resultMsgID := *sendRes.Result.MessageID
 	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID); err != nil {
-		h.chatDebug(convID, "failed to create poll")
+		h.chatDebug(convID, "failed to create poll: %s", err)
 		return
 	}
 }
@@ -198,7 +199,7 @@ func (h *Handler) handleReactConfirm(convID, username string, reaction chat1.Mes
 		h.chatDebug(convID, "failed to find user vote: %s", err)
 		return
 	}
-	if err := h.db.CastVote(username, vote); err != nil {
+	if err := h.db.CastVote(username, vote, reaction.MessageID); err != nil {
 		h.chatDebug(convID, "failed to cast vote: %s", err)
 		return
 	}
@@ -222,6 +223,12 @@ func (h *Handler) handleReactConfirm(convID, username string, reaction chat1.Mes
 }
 
 func (h *Handler) handleCommand(msg chat1.MsgSummary) {
+	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
+		h.debug("handling reaction")
+		h.handleReactConfirm(msg.ConvID, msg.Sender.Username, *msg.Content.Reaction)
+		return
+	}
+
 	if msg.Content.Text == nil {
 		h.debug("skipping non-text message")
 		return
