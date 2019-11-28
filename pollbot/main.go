@@ -105,7 +105,7 @@ func (s *BotServer) getLoginSecret() (string, error) {
 	if s.opts.LoginSecret != "" {
 		return s.opts.LoginSecret, nil
 	}
-	path := fmt.Sprintf("/keybase/%s/private/login.secret", s.kbc.GetUsername())
+	path := fmt.Sprintf("/keybase/private/%s/login.secret", s.kbc.GetUsername())
 	cmd := exec.Command("keybase", "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
