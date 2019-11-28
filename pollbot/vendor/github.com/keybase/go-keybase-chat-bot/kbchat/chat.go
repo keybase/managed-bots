@@ -255,6 +255,18 @@ func (a *API) ReactByConvID(convID string, msgID chat1.MessageID, reaction strin
 	return a.doSend(arg)
 }
 
+func (a *API) EditByConvID(convID string, msgID chat1.MessageID, text string) (SendResponse, error) {
+	arg := reactionArg{
+		Method: "edit",
+		Params: reactionParams{Options: reactionOptions{
+			Message:        sendMessageBody{Body: text},
+			MsgID:          msgID,
+			ConversationID: convID,
+		}},
+	}
+	return a.doSend(arg)
+}
+
 ////////////////////////////////////////////////////////
 // Manage channels /////////////////////////////////////
 ////////////////////////////////////////////////////////

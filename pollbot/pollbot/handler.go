@@ -12,12 +12,14 @@ import (
 
 type Handler struct {
 	kbc        *kbchat.API
+	db         *DB
 	httpPrefix string
 }
 
-func NewHandler(kbc *kbchat.API, httpPrefix string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		kbc:        kbc,
+		db:         db,
 		httpPrefix: httpPrefix,
 	}
 }
@@ -103,8 +105,25 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 		choiceBody += fmt.Sprintf("%s  %s\n", h.numberToEmoji(index+1),
 			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
-	if _, err := h.kbc.SendMessageByConvID(convID, choiceBody); err != nil {
+	if sendRes, err = h.kbc.SendMessageByConvID(convID, choiceBody); err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
+		return
+	}
+	if sendRes.Result.MessageID == nil {
+		h.chatDebug(convID, "failed to get ID of choice message")
+		return
+	}
+	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
+		h.chatDebug(convID, "failed to send poll: %s", err)
+		return
+	}
+	if sendRes.Result.MessageID == nil {
+		h.chatDebug(convID, "failed to get ID of result message")
+		return
+	}
+	resultMsgID := *sendRes.Result.MessageID
+	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID); err != nil {
+		h.chatDebug(convID, "failed to create poll")
 		return
 	}
 }
@@ -158,9 +177,47 @@ func (h *Handler) handlePoll(cmd, convID string, msgID chat1.MessageID) {
 	}
 }
 
-func (h *Handler) handleReactConfirm(convID string, reaction chat1.MessageReaction) {
+func (h *Handler) formatTally(tally Tally) (res string) {
+	res = "*Results*\n"
+	if len(tally) == 0 {
+		res += "_No votes yet_"
+		return res
+	}
+	for _, t := range tally {
+		res += fmt.Sprintf("%s  `%d`\n", h.numberToEmoji(t.choice), t.votes)
+	}
+	return res
+}
+
+func (h *Handler) handleReactConfirm(convID, username string, reaction chat1.MessageReaction) {
 	if reaction.Body != ":white_check_mark:" {
 		return
+	}
+	vote, err := h.db.GetStagedVote(username, reaction.MessageID)
+	if err != nil {
+		h.chatDebug(convID, "failed to find user vote: %s", err)
+		return
+	}
+	if err := h.db.CastVote(username, vote); err != nil {
+		h.chatDebug(convID, "failed to cast vote: %s", err)
+		return
+	}
+	resultMsgID, err := h.db.GetPollResultMsgID(vote.ConvID, vote.MsgID)
+	if err != nil {
+		h.chatDebug(convID, "failed to find poll result msg: %s", err)
+		return
+	}
+	tally, err := h.db.GetTally(vote.ConvID, vote.MsgID)
+	if err != nil {
+		h.chatDebug(convID, "failed to get tally: %s", err)
+		return
+	}
+	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, h.formatTally(tally)); err != nil {
+		h.chatDebug(convID, "failed to post result: %s", err)
+		return
+	}
+	if _, err := h.kbc.SendMessageByConvID(convID, "Congratulations! Vote recorded successfully."); err != nil {
+		h.debug("failed to send congrats: %s", err)
 	}
 }
 

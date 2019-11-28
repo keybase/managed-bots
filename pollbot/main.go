@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ type Options struct {
 	Home            string
 	Announcement    string
 	HTTPPrefix      string
+	DSN             string
 }
 
 func newOptions() Options {
@@ -103,6 +105,13 @@ func (s *BotServer) Start() (err error) {
 	}); err != nil {
 		return err
 	}
+	sdb, err := sql.Open("mysql", s.opts.DSN)
+	if err != nil {
+		s.debug("failed to connect to MySQL: %s", err)
+		return err
+	}
+	db := pollbot.NewDB(sdb)
+
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.debug("advertise error: %s", err)
 		return err
@@ -115,11 +124,11 @@ func (s *BotServer) Start() (err error) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		pollbot.NewHandler(s.kbc, s.opts.HTTPPrefix).Listen()
+		pollbot.NewHandler(s.kbc, db, s.opts.HTTPPrefix).Listen()
 		wg.Done()
 	}()
 	go func() {
-		pollbot.NewHTTPSrv(s.kbc).Listen()
+		pollbot.NewHTTPSrv(s.kbc, db).Listen()
 		wg.Done()
 	}()
 	wg.Wait()
@@ -140,7 +149,12 @@ func mainInner() int {
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
+	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Poll database DSN")
 	flag.Parse()
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a poll database DSN\n")
+		return 3
+	}
 
 	bs := NewBotServer(opts)
 	if err := bs.Start(); err != nil {

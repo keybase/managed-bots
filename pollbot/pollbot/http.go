@@ -10,11 +10,13 @@ import (
 
 type HTTPSrv struct {
 	kbc *kbchat.API
+	db  *DB
 }
 
-func NewHTTPSrv(kbc *kbchat.API) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB) *HTTPSrv {
 	return &HTTPSrv{
 		kbc: kbc,
+		db:  db,
 	}
 }
 
@@ -54,6 +56,11 @@ Poll ID: %s
 	}
 	if sendRes.Result.MessageID == nil {
 		h.debug("no msgid returned")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if err := h.db.StageVote(username, *sendRes.Result.MessageID, vote); err != nil {
+		h.debug("failed to stage vote: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
