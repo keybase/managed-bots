@@ -65,7 +65,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	for index, option := range options {
 		body += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1), option)
 	}
-	body += "\n"
+	body += "\nVisit one of the following links below to vote for your choice.\n"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
 	if err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
