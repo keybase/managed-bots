@@ -180,7 +180,7 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
 		h.handlePoll(cmd, msg.ConvID, msg.Id)
-	case strings.HasPrefix(cmd, "!login"):
+	case cmd == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	default:
 		h.debug("ignoring unknown command")

@@ -1,10 +1,13 @@
 package pollbot
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -31,44 +34,15 @@ func (h *HTTPSrv) debug(msg string, args ...interface{}) {
 }
 
 func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
-	w.Write([]byte(fmt.Sprint(`
-		<html>
-		<head>
-			<title>Polling Service Confirmation</title>
-		</head>
-		<body>
-			<h1>Login Required</h1>
-			In order to vote in anonymous polls, you must first login into the polling service in your web browser. To do this, message @pollbot on Keybase with the text "!login". This can be done by just starting a new conversation with @pollbot and sending it "!login", or typing "/msg pollbot !login" in the chat input box. 
-		</body>
-		</html>
-	`)))
+	w.Write([]byte(htmlLogin))
 }
 
 func (h *HTTPSrv) showSuccess(w http.ResponseWriter) {
-	w.Write([]byte(fmt.Sprint(`
-		<html>
-		<head>
-			<title>Polling Service Confirmation</title>
-		</head>
-		<body>
-			<h1>Success!</h1>
-		</body>
-		</html>
-	`)))
+	w.Write([]byte(makeHTMLVoteResult("Vote success!")))
 }
 
 func (h *HTTPSrv) showError(w http.ResponseWriter, msg string) {
-	w.Write([]byte(fmt.Sprint(`
-		<html>
-		<head>
-			<title>Polling Service Confirmation</title>
-		</head>
-		<body>
-			<h1>Vote Failed</h1>
-			%s
-		</body>
-		</html>
-	`, msg)))
+	w.Write([]byte(makeHTMLVoteResult("Something went wrong, vote not recorded.")))
 }
 
 func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -141,17 +115,21 @@ func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Add("Set-Cookie", fmt.Sprintf("auth=%s:%s", username, token))
-	w.Write([]byte(fmt.Sprint(`
-		<html>
-		<head>
-			<title>Polling Service Confirmation</title>
-		</head>
-		<body>
-			<h1>Login Success!</h1>
-			You can now vote in anonymous polls by hitting links from @pollbot in the Keybase app.
-		</body>
-		</html>
-	`)))
+	w.Write([]byte(htmlLoginSuccess))
+}
+
+func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
+	image := r.URL.Query().Get("")
+	b64dat, ok := images[image]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	dat, _ := base64.StdEncoding.DecodeString(b64dat)
+	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
@@ -160,6 +138,7 @@ func (h *HTTPSrv) Listen() {
 	http.HandleFunc("/pollbot", h.handleHealthCheck)
 	http.HandleFunc("/pollbot/vote", h.handleVote)
 	http.HandleFunc("/pollbot/login", h.handleLogin)
+	http.HandleFunc("/pollbot/image", h.handleImage)
 	http.ListenAndServe(":8080", nil)
 }
 
