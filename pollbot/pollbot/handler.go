@@ -3,6 +3,7 @@ package pollbot
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -56,7 +57,8 @@ func (h *Handler) Listen() {
 
 func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice int) string {
 	vote := NewVote(convID, msgID, choice)
-	return fmt.Sprintf("%s/pollbot/vote?=%s", h.httpPrefix, vote.Encode())
+	link := h.httpPrefix + "/pollbot/vote?=" + url.QueryEscape(vote.Encode())
+	return strings.ReplaceAll(link, "%", "%%")
 }
 
 func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, prompt string,
@@ -78,8 +80,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	promptMsgID := *sendRes.Result.MessageID
 	var choiceBody string
 	for index := range options {
-		choiceBody += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1),
-			h.generateVoteLink(convID, promptMsgID, index+1))
+		choiceBody += numberToEmoji(index+1) + "  " + h.generateVoteLink(convID, promptMsgID, index+1) + "\n"
 	}
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, choiceBody); err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
