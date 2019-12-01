@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 )
@@ -114,7 +115,11 @@ func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	w.Header().Add("Set-Cookie", fmt.Sprintf("auth=%s:%s", username, token))
+	http.SetCookie(w, &http.Cookie{
+		Name:    "auth",
+		Value:   fmt.Sprintf("%s:%s", username, token),
+		Expires: time.Now().Add(8760 * time.Hour),
+	})
 	w.Write([]byte(htmlLoginSuccess))
 }
 
