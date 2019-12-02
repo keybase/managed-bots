@@ -31,3 +31,16 @@ func randomID(n int) string {
 func requestID() string {
 	return randomID(10)
 }
+
+func asHTML(title, msg string) []byte {
+	return []byte(`
+<html>
+<title> meetbot | ` + title + `</title>
+<body style="background-color: rgb(80,160,247);">
+  <div style="margin-top: 10%;">
+    <h2 style="text-align:center;color: white;">` + msg + `</h2>
+  </div>
+</body>
+</html>
+`)
+}

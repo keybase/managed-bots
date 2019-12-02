@@ -56,7 +56,7 @@ func (s *BotServer) Start() (err error) {
 
 	http.HandleFunc("/meetbot", s.healthCheckHandler)
 	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(s.opts.HTTPAddr, nil)
 
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
@@ -103,7 +103,7 @@ func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			s.debug("oauthHandler: %v", err)
-			fmt.Fprintf(w, "Unable to complete request, please try again!")
+			w.Write(asHTML("error", "Unable to complete request, please try again!"))
 		}
 	}()
 
@@ -120,7 +120,7 @@ func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	delete(s.requests, state)
 	s.Unlock()
 	if !ok {
-		err = fmt.Errorf("state %s not found %v", state, s.requests)
+		err = fmt.Errorf("state %q not found %v", state, s.requests)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Success! You can now close this page return to the Keybase app.")
+	w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app."))
 }
 
 func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
