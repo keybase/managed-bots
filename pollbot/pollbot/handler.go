@@ -48,7 +48,7 @@ func (h *Handler) Listen() {
 	for {
 		msg, err := sub.Read()
 		if err != nil {
-			h.debug("Listen: Read() error: %s", err.Error())
+			h.debug("Listen: Read() error: %s", err)
 			continue
 		}
 		h.handleCommand(msg.Message)
