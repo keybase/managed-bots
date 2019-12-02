@@ -75,6 +75,11 @@
 			"revisionTime": "2018-07-16T14:42:29Z"
 		},
 		{
+			"checksumSHA1": "S0DP7Pn7sZUmXc55IzZnNvERu6s=",
+			"path": "golang.org/x/sync/errgroup",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "mspriBK28mrdRiQNHoThnYEFaeQ=",
 			"path": "gopkg.in/yaml.v2",
 			"revision": "1f64d6156d11335c3f22d9330b0ad14fc1e789ce",
