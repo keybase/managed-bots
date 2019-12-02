@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func formatTally(tally Tally) (res string) {
+func formatTally(tally Tally, numChoices int) (res string) {
 	res = "*Results*\n"
 	if len(tally) == 0 {
 		res += "_No votes yet_"
@@ -17,7 +17,16 @@ func formatTally(tally Tally) (res string) {
 	for _, t := range tally {
 		total += t.votes
 	}
+	tallyMap := make(map[int]TallyResult)
 	for _, t := range tally {
+		tallyMap[t.choice] = t
+	}
+	for i := 0; i < numChoices; i++ {
+		t, ok := tallyMap[i+1]
+		if !ok {
+			t.choice = i + 1
+			t.votes = 0
+		}
 		s := ""
 		if t.votes > 1 {
 			s = "s"
@@ -25,7 +34,7 @@ func formatTally(tally Tally) (res string) {
 		prop := float64(t.votes / total)
 		num := int(math.Max(10*prop, 1))
 		bar := strings.Repeat("🟢", num)
-		res += fmt.Sprintf("%s %s\n`(%.02f%%m, %d vote%s)`\n", numberToEmoji(t.choice), bar, prop*100,
+		res += fmt.Sprintf("%s %s\n`(%.02f%%, %d vote%s)`\n\n", numberToEmoji(t.choice), bar, prop*100,
 			t.votes, s)
 	}
 	return res

@@ -35,24 +35,28 @@ func (d *DB) runTxn(fn func(tx *sql.Tx) error) error {
 	return tx.Commit()
 }
 
-func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.MessageID) error {
+func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
 	return d.runTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO polls
-			(conv_id, msg_id, result_msg_id)
+			(conv_id, msg_id, result_msg_id, choices)
 			VALUES
-			(?, ?, ?)
-		`, shortConvID(convID), msgID, resultMsgID)
+			(?, ?, ?, ?)
+		`, shortConvID(convID), msgID, resultMsgID, numChoices)
 		return err
 	})
 }
 
-func (d *DB) GetPollResultMsgID(convID string, msgID chat1.MessageID) (res chat1.MessageID, err error) {
-	row := d.db.QueryRow(`SELECT result_msg_id FROM polls WHERE conv_id = ? AND msg_id = ?`, convID, msgID)
-	if err := row.Scan(&res); err != nil {
-		return res, err
+func (d *DB) GetPollInfo(convID string, msgID chat1.MessageID) (resultMsgID chat1.MessageID, numChoices int, err error) {
+	row := d.db.QueryRow(`
+		SELECT result_msg_id, choices
+		FROM polls
+		WHERE conv_id = ? AND msg_id = ?
+	`, convID, msgID)
+	if err := row.Scan(&resultMsgID, &numChoices); err != nil {
+		return resultMsgID, numChoices, err
 	}
-	return res, nil
+	return resultMsgID, numChoices, nil
 }
 
 func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err error) {

@@ -93,7 +93,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 		return
 	}
 	resultMsgID := *sendRes.Result.MessageID
-	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID); err != nil {
+	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID, len(options)); err != nil {
 		h.chatDebug(convID, "failed to create poll: %s", err)
 		return
 	}

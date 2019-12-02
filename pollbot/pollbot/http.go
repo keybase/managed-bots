@@ -87,7 +87,7 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 		h.showError(w, err.Error())
 		return
 	}
-	resultMsgID, err := h.db.GetPollResultMsgID(vote.ConvID, vote.MsgID)
+	resultMsgID, numChoices, err := h.db.GetPollInfo(vote.ConvID, vote.MsgID)
 	if err != nil {
 		h.debug("failed to find poll result msg: %s", err)
 		h.showError(w, err.Error())
@@ -99,7 +99,7 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 		h.showError(w, err.Error())
 		return
 	}
-	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, formatTally(tally)); err != nil {
+	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, formatTally(tally, numChoices)); err != nil {
 		h.debug("failed to post result: %s", err)
 		h.showError(w, err.Error())
 		return
