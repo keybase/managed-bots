@@ -236,7 +236,7 @@ func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, er
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	return kbchat.Advertisement{
-		Alias: "MeetBot",
+		Alias: "Google Meet",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ: "public",
