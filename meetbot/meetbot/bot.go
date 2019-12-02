@@ -105,12 +105,13 @@ func (s *BotServer) chatListen() error {
 		// }
 		s.runHandler(msg.Message)
 	}
-	return nil
 }
 
 func (s *BotServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	s.debug("homeHandler")
-	w.Write(asHTML("home", "Meetbot is a Keybase chatbot which creates links to Google Meet meetings for you."))
+	if _, err := w.Write(asHTML("home", "Meetbot is a Keybase chatbot which creates links to Google Meet meetings for you.")); err != nil {
+		s.debug("homeHandler: unable to write: %v", err)
+	}
 }
 
 func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +121,9 @@ func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			s.debug("oauthHandler: %v", err)
-			w.Write(asHTML("error", "Unable to complete request, please try again!"))
+			if _, err := w.Write(asHTML("error", "Unable to complete request, please try again!")); err != nil {
+				s.debug("oauthHandler: unable to write: %v", err)
+			}
 		}
 	}()
 
@@ -155,7 +158,9 @@ func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app."))
+	if _, err := w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app.")); err != nil {
+		s.debug("oauthHandler: unable to write: %v", err)
+	}
 }
 
 func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
