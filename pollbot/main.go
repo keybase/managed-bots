@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/pollbot/pollbot"
+	"golang.org/x/sync/errgroup"
 )
 
 type Options struct {
@@ -144,18 +144,14 @@ func (s *BotServer) Start() (err error) {
 	}
 
 	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, loginSecret)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		pollbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix).Listen()
-		wg.Done()
-	}()
-	go func() {
-		httpSrv.Listen()
-		wg.Done()
-	}()
-	wg.Wait()
-
+	handler := pollbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix)
+	var eg errgroup.Group
+	eg.Go(handler.Listen)
+	eg.Go(httpSrv.Listen)
+	if err := eg.Wait(); err != nil {
+		s.debug("wait error: %s", err)
+		return err
+	}
 	return nil
 }
 

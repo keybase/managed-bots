@@ -1,6 +1,11 @@
 package pollbot
 
-import "fmt"
+import (
+	"encoding/base64"
+	"fmt"
+	"math"
+	"strings"
+)
 
 func formatTally(tally Tally) (res string) {
 	res = "*Results*\n"
@@ -8,12 +13,20 @@ func formatTally(tally Tally) (res string) {
 		res += "_No votes yet_"
 		return res
 	}
+	total := 0
+	for _, t := range tally {
+		total += t.votes
+	}
 	for _, t := range tally {
 		s := ""
 		if t.votes > 1 {
 			s = "s"
 		}
-		res += fmt.Sprintf("%s  `%d vote%s`\n", numberToEmoji(t.choice), t.votes, s)
+		prop := float64(t.votes / total)
+		num := int(math.Max(10*prop, 1))
+		bar := strings.Repeat("🟢", num)
+		res += fmt.Sprintf("%s %s\n`(%.02f%%m, %d vote%s)`\n", numberToEmoji(t.choice), bar, prop*100,
+			t.votes, s)
 	}
 	return res
 }
@@ -43,4 +56,15 @@ func numberToEmoji(v int) string {
 	default:
 		return fmt.Sprintf("%d", v)
 	}
+}
+
+func shortConvID(convID string) string {
+	if len(convID) <= 20 {
+		return convID
+	}
+	return convID[:20]
+}
+
+func encoder() *base64.Encoding {
+	return base64.URLEncoding.WithPadding(base64.NoPadding)
 }

@@ -34,15 +34,16 @@ func (h *Handler) debug(msg string, args ...interface{}) {
 
 func (h *Handler) chatDebug(convID, msg string, args ...interface{}) {
 	h.debug(msg, args...)
-	if _, err := h.kbc.SendMessageByConvID(convID, msg, args...); err != nil {
+	if _, err := h.kbc.SendMessageByConvID(convID, "Something went wrong!"); err != nil {
 		h.debug("chatDebug: failed to send error message: %s", err)
 	}
 }
 
-func (h *Handler) Listen() {
+func (h *Handler) Listen() error {
 	sub, err := h.kbc.ListenForNewTextMessages()
 	if err != nil {
 		h.debug("Listen: failed to listen: %s", err)
+		return err
 	}
 	h.debug("startup success, listening for messages...")
 	for {
@@ -63,12 +64,8 @@ func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice 
 
 func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, prompt string,
 	options []string) {
-	body := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
-	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1), option)
-	}
-	body += "\nVisit one of the following links below to vote for your choice.\n"
-	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
+	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
+	sendRes, err := h.kbc.SendMessageByConvID(convID, promptBody)
 	if err != nil {
 		h.chatDebug(convID, "failed to send poll: %s", err)
 		return
@@ -78,16 +75,13 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 		return
 	}
 	promptMsgID := *sendRes.Result.MessageID
-	var choiceBody string
-	for index := range options {
-		choiceBody += numberToEmoji(index+1) + "  " + h.generateVoteLink(convID, promptMsgID, index+1) + "\n"
+	var body string
+	for index, option := range options {
+		body += fmt.Sprintf("\n%s  *%s*\n%s\n", numberToEmoji(index+1), option,
+			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
-	if sendRes, err = h.kbc.SendMessageByConvID(convID, choiceBody); err != nil {
-		h.chatDebug(convID, "failed to send poll: %s", err)
-		return
-	}
-	if sendRes.Result.MessageID == nil {
-		h.chatDebug(convID, "failed to get ID of choice message")
+	if _, err = h.kbc.SendMessageByConvID(convID, body); err != nil {
+		h.chatDebug(convID, "failed to send choices: %s", err)
 		return
 	}
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
@@ -162,9 +156,9 @@ func (h *Handler) handleLogin(convName, username string) {
 	}
 	token := h.httpSrv.LoginToken(username)
 	body := fmt.Sprintf(`Thanks for using the Keybase polling service!
-	
+
 To login your web browser in order to vote in anonymous polls, please follow the link below. Once that is completed, you will be able to vote in anonymous polls simply by clicking the links that I provide in the polls.
-	
+
 %s`, fmt.Sprintf("%s/pollbot/login?token=%s&username=%s", h.httpPrefix, token, username))
 	if _, err := h.kbc.SendMessageByTlfName(username, body); err != nil {
 		h.debug("failed to send login attempt: %s", err)

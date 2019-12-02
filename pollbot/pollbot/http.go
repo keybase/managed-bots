@@ -139,12 +139,12 @@ func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
 
-func (h *HTTPSrv) Listen() {
+func (h *HTTPSrv) Listen() error {
 	http.HandleFunc("/pollbot", h.handleHealthCheck)
 	http.HandleFunc("/pollbot/vote", h.handleVote)
 	http.HandleFunc("/pollbot/login", h.handleLogin)
 	http.HandleFunc("/pollbot/image", h.handleImage)
-	http.ListenAndServe(":8080", nil)
+	return http.ListenAndServe(":8080", nil)
 }
 
 func (h *HTTPSrv) LoginToken(username string) string {

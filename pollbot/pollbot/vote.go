@@ -1,7 +1,6 @@
 package pollbot
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 
 	"github.com/keybase/go-codec/codec"
@@ -30,7 +29,7 @@ func NewVote(convID string, msgID chat1.MessageID, choice int) Vote {
 
 func NewVoteFromEncoded(sdat string) Vote {
 	var ve voteToEncode
-	dat, _ := base64.StdEncoding.DecodeString(sdat)
+	dat, _ := encoder().DecodeString(sdat)
 	msgpackDecode(&ve, dat)
 	return Vote{
 		ConvID: hex.EncodeToString(ve.ConvID),
@@ -40,13 +39,13 @@ func NewVoteFromEncoded(sdat string) Vote {
 }
 
 func (v Vote) Encode() string {
-	cdat, _ := hex.DecodeString(v.ConvID)
+	cdat, _ := hex.DecodeString(shortConvID(v.ConvID))
 	mdat, _ := msgpackEncode(voteToEncode{
 		ConvID: cdat,
 		MsgID:  v.MsgID,
 		Choice: v.Choice,
 	})
-	return base64.StdEncoding.EncodeToString(mdat)
+	return encoder().EncodeToString(mdat)
 }
 
 func codecHandle() *codec.MsgpackHandle {
