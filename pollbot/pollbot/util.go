@@ -31,7 +31,7 @@ func formatTally(tally Tally, numChoices int) (res string) {
 		if t.votes > 1 {
 			s = "s"
 		}
-		prop := float64(t.votes / total)
+		prop := float64(t.votes) / float64(total)
 		num := int(math.Max(10*prop, 1))
 		bar := strings.Repeat("🟢", num)
 		res += fmt.Sprintf("%s %s\n`(%.02f%%, %d vote%s)`\n\n", numberToEmoji(t.choice), bar, prop*100,
