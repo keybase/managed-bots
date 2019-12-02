@@ -236,7 +236,7 @@ func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, er
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	return kbchat.Advertisement{
-		Alias: "meetbot",
+		Alias: "MeetBot",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ: "public",
@@ -312,8 +312,7 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 			_, err = s.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
 			return err
 		}
-		identifier := identifierFromMsg(msg)
-		if identifier != msg.Channel.Name {
+		if msg.Sender.Username != msg.Channel.Name {
 			_, err = s.kbc.SendMessageByConvID(msg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 			return err
