@@ -356,7 +356,15 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 	if confData := event.ConferenceData; confData != nil {
 		for _, ep := range confData.EntryPoints {
 			if ep.EntryPointType == "video" {
-				_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Here you go! %s", ep.Label)
+				link := ep.Label
+				if link == "" {
+					// strip protocol to skip unfurl prompt
+					link = strings.TrimPrefix(ep.Uri, "https://")
+				}
+				if link == "" {
+					continue
+				}
+				_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Here you go! %s", link)
 				return err
 			}
 		}
