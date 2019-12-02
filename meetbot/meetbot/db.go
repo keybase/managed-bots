@@ -21,7 +21,7 @@ func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 
 	var token oauth2.Token
 	var expiry int64
-	row := d.db.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry)*1000)
+	row := d.db.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType,

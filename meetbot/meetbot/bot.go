@@ -11,6 +11,7 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/op/go-logging"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -54,10 +55,6 @@ func (s *BotServer) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func (s *BotServer) Start() (err error) {
 	s.debug("Start(%+v", s.opts)
 
-	http.HandleFunc("/meetbot", s.healthCheckHandler)
-	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
-	go http.ListenAndServe(s.opts.HTTPAddr, nil)
-
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: s.opts.KeybaseLocation,
 		HomeDir:         s.opts.Home,
@@ -76,6 +73,20 @@ func (s *BotServer) Start() (err error) {
 		}
 	}
 
+	var eg errgroup.Group
+	eg.Go(s.httpListen)
+	eg.Go(s.chatListen)
+	return eg.Wait()
+}
+
+func (s *BotServer) httpListen() error {
+	http.HandleFunc("/meetbot", s.healthCheckHandler)
+	http.HandleFunc("/meetbot/home", s.homeHandler)
+	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
+	return http.ListenAndServe(s.opts.HTTPAddr, nil)
+}
+
+func (s *BotServer) chatListen() error {
 	sub, err := s.kbc.ListenForNewTextMessages()
 	if err != nil {
 		return err
@@ -94,6 +105,12 @@ func (s *BotServer) Start() (err error) {
 		// }
 		s.runHandler(msg.Message)
 	}
+	return nil
+}
+
+func (s *BotServer) homeHandler(w http.ResponseWriter, r *http.Request) {
+	s.debug("homeHandler")
+	w.Write(asHTML("home", "Meetbot is a Keybase chatbot which creates links to Google Meet meetings for you."))
 }
 
 func (s *BotServer) oauthHandler(w http.ResponseWriter, r *http.Request) {
