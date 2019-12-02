@@ -236,7 +236,7 @@ func (s *BotServer) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, er
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	return kbchat.Advertisement{
-		Alias: "MeetBot",
+		Alias: "Google Meet",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ: "public",
@@ -363,7 +363,7 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 				if link == "" {
 					continue
 				}
-				_, err = s.kbc.SendMessageByConvID(msg.ConvID, "Here you go! %s", link)
+				_, err = s.kbc.SendMessageByConvID(msg.ConvID, link)
 				return err
 			}
 		}
