@@ -1,12 +1,12 @@
 import Bot from './bot'
 import {init} from './context'
-import * as Config from './config'
+import * as BotConfig from './bot-config'
 
-const config = Config.parse(process.env.JIRABOT_CONFIG || '')
-if (!config) {
-  console.error('invalid config')
+const botConfig = BotConfig.parse(process.env.JIRABOT_CONFIG || '')
+if (!botConfig) {
+  console.error('invalid bot-config')
   console.error(process.env.JIRABOT_CONFIG)
   process.exit(1)
 } else {
-  init(config).then(Bot)
+  init(botConfig).then(Bot)
 }

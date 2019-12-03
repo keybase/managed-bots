@@ -1,6 +1,6 @@
 import JiraClient from 'jira-connector'
 import {Issue as JiraIssue} from 'jira-connector/api/issue'
-import {Config} from './config'
+import {BotConfig} from './bot-config'
 
 const looksLikeIssueKey = (str: string) => !!str.match(/[A-Za-z]+-[0-9]+/)
 
@@ -12,16 +12,16 @@ export type Issue = {
 }
 
 export default class {
-  _config: Config
+  _botConfig: BotConfig
   _jira: JiraClient
 
-  constructor(config: Config) {
-    this._config = config
+  constructor(botConfig: BotConfig) {
+    this._botConfig = botConfig
     this._jira = new JiraClient({
-      host: config.jira.host,
+      host: botConfig.jira.host,
       basic_auth: {
-        email: config.jira.email,
-        api_token: config.jira.apiToken,
+        email: botConfig.jira.email,
+        api_token: botConfig.jira.apiToken,
       },
     })
   }
@@ -30,7 +30,7 @@ export default class {
     key: issue.key,
     summary: issue.fields.summary,
     status: issue.fields.status.statusCategory.name,
-    url: `https://${this._config.jira.host}/browse/${issue.key}`,
+    url: `https://${this._botConfig.jira.host}/browse/${issue.key}`,
   })
 
   getOrSearch({
@@ -75,7 +75,7 @@ export default class {
         issueKey,
         comment: {body: comment},
       })
-      .then(({id}: {id: string}) => `https://${this._config.jira.host}/browse/${issueKey}?focusedCommentId=${id}`)
+      .then(({id}: {id: string}) => `https://${this._botConfig.jira.host}/browse/${issueKey}?focusedCommentId=${id}`)
   }
 
   createIssue({
@@ -109,6 +109,6 @@ export default class {
           description,
         },
       })
-      .then(({key}: {key: string}) => `https://${this._config.jira.host}/browse/${key}`)
+      .then(({key}: {key: string}) => `https://${this._botConfig.jira.host}/browse/${key}`)
   }
 }

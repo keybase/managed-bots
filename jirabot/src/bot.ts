@@ -1,22 +1,46 @@
 import ChatTypes from 'keybase-bot/lib/types/chat1'
 import * as Message from './message'
-import search from './search'
-import comment from './comment'
+import * as Errors from './errors'
+import CmdSearch from './cmd-search'
+import CmdComment from './cmd-comment'
 import reacji from './reacji'
-import create from './create'
+import CmdNew from './cmd-new'
+import CmdConfig from './cmd-config'
 import {Context} from './context'
 
-const reportError = (context: Context, channel: ChatTypes.ChatChannel, parsedMessage: Message.Message) =>
-  context.bot.chat.send(channel, {
-    body: parsedMessage.type === 'unknown' ? `Invalid command: ${parsedMessage.error}` : 'Unknown command',
+const reportError = (context: Context, parsedMessage: Message.Message) =>
+  context.bot.chat.send(parsedMessage.context.chatChannel, {
+    body:
+      parsedMessage.type === 'unknown'
+        ? `Invalid command: ${parsedMessage.error}`
+        : 'Unknown command',
   })
 
-const reactAck = (context: Context, channel: ChatTypes.ChatChannel, id: number) => context.bot.chat.react(channel, id, ':eyes:')
+const reactAck = (
+  context: Context,
+  channel: ChatTypes.ChatChannel,
+  id: number
+) => context.bot.chat.react(channel, id, ':eyes:')
 
-const onMessage = (context: Context, kbMessage: ChatTypes.MsgSummary) => {
+const reactDone = (
+  context: Context,
+  channel: ChatTypes.ChatChannel,
+  id: number
+) => context.bot.chat.react(channel, id, ':white_check_mark:')
+
+const reactFail = (
+  context: Context,
+  channel: ChatTypes.ChatChannel,
+  id: number
+) => context.bot.chat.react(channel, id, ':x:')
+
+const onMessage = async (
+  context: Context,
+  kbMessage: ChatTypes.MsgSummary
+): Promise<void> => {
   try {
     // console.debug(kbMessage)
-    const parsedMessage = Message.parseMessage(context, kbMessage)
+    const parsedMessage = await Message.parseMessage(context, kbMessage)
     console.debug({msg: 'got message', parsedMessage})
     if (!parsedMessage) {
       // not a jirabot message
@@ -24,25 +48,32 @@ const onMessage = (context: Context, kbMessage: ChatTypes.MsgSummary) => {
     }
     switch (parsedMessage.type) {
       case Message.BotMessageType.Unknown:
-        reportError(context, kbMessage.channel, parsedMessage)
+        reportError(context, parsedMessage)
         return
       case Message.BotMessageType.Search:
         reactAck(context, kbMessage.channel, kbMessage.id)
-        search(context, kbMessage.channel, parsedMessage)
+        CmdSearch(context, parsedMessage)
         return
       case Message.BotMessageType.Comment:
         reactAck(context, kbMessage.channel, kbMessage.id)
-        comment(context, kbMessage.channel, parsedMessage)
+        CmdComment(context, parsedMessage)
         return
       case Message.BotMessageType.Reacji:
-        reacji(context, kbMessage.channel, parsedMessage)
+        reacji(context, parsedMessage)
         return
       case Message.BotMessageType.Create:
         reactAck(context, kbMessage.channel, kbMessage.id)
-        create(context, kbMessage.channel, parsedMessage)
+        CmdNew(context, parsedMessage)
+        return
+      case Message.BotMessageType.Config:
+        reactAck(context, kbMessage.channel, kbMessage.id)
+        const {type} = await CmdConfig(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, kbMessage.channel, kbMessage.id)
+          : reactFail(context, kbMessage.channel, kbMessage.id)
         return
       default:
-        console.error({error: 'how could this happen'})
+        console.error({error: 'we forgot to handle a case in onMessage'})
         return
     }
   } catch (err) {
@@ -55,10 +86,11 @@ const commands = [
   {
     name: 'jira new',
     description: 'make a Jira ticket',
-    usage: `[issue-type] in <PROJECT> [for|assignee <kb-username>] "multi word summary" <description>`,
+    usage: `[issue-type] [in <PROJECT>] [for|assignee <kb-username>] "multi word summary" <description>`,
     title: 'Create a Jira ticket',
     body:
       'Examples:\n\n' +
+      `!jira new "blah ticket" blah is broken!\n` +
       `!jira new _in_ FRONTEND "UI tweaks for menu" margin should be 16px on desktop and 24px on mobile\n` +
       `!jira new bug _in_ frontend _for_ @songgao "fix fs offline bug" app thinks it's offline when it's not\n`,
   },
@@ -78,7 +110,22 @@ const commands = [
     description: `Comment on a Jira tickets.`,
     usage: `on <ticket-key> <content>`,
     title: 'Comment on a Jira ticket',
-    body: 'Examples:\n\n' + `!jira comment on TRIAGE-1024 this is already fixed\n`,
+    body:
+      'Examples:\n\n' + `!jira comment on TRIAGE-1024 this is already fixed\n`,
+  },
+  {
+    name: 'jira config',
+    description: `Show or change jirabot configuration for this team or channel`,
+    usage: `team [<param-name> <param-value>] | channel [<param-name> <param-value>]`,
+    title: 'Jirabot Configuration',
+    body:
+      'Examples:\n\n' +
+      `!jira config team\n` +
+      `!jira config channel\n` +
+      // `!jira config team\n`+
+      `!jira config channel defaultNewIssueProject DESIGN\n` +
+      `!jira config channel enabledProjects DESIGN,FRONTEND\n` +
+      `!jira config channel enabledProjects *\n`,
   },
 ]
 
@@ -103,5 +150,7 @@ export default (context: Context) => {
     alias: 'Jira',
     advertisements,
   })
-  context.bot.chat.watchAllChannelsForNewMessages(message => onMessage(context, message))
+  context.bot.chat.watchAllChannelsForNewMessages(message =>
+    onMessage(context, message)
+  )
 }

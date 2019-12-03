@@ -2,9 +2,10 @@ import Bot from 'keybase-bot'
 import {Issue} from './jira'
 import {CommentMessage} from './message'
 import util from 'util'
-import * as Config from './config'
+import * as BotConfig from './bot-config'
 import Jira from './jira'
 import Aliases from './aliases'
+import Configs from './configs'
 
 const setTimeoutPromise = util.promisify(setTimeout)
 
@@ -18,32 +19,42 @@ class CommentContext {
 
   add = (responseID: number, message: CommentMessage, issues: Array<Issue>) => {
     this._respMsgIDToCommentMessage.set(responseID, {message, issues})
-    setTimeoutPromise(1000 * 120 /* 2min */).then(() => this._respMsgIDToCommentMessage.delete(responseID))
+    setTimeoutPromise(1000 * 120 /* 2min */).then(() =>
+      this._respMsgIDToCommentMessage.delete(responseID)
+    )
   }
 
-  get = (responseID: number): null | CommentContextItem => this._respMsgIDToCommentMessage.get(responseID)
+  get = (responseID: number): null | CommentContextItem =>
+    this._respMsgIDToCommentMessage.get(responseID)
 }
 
 export type Context = {
   aliases: Aliases
   bot: Bot
-  config: Config.Config
+  botConfig: BotConfig.BotConfig
   comment: CommentContext
+  configs: Configs
   jira: Jira
 }
 
-export const init = (config: Config.Config): Promise<Context> => {
+export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
+  var bot = new Bot()
   const context = {
     aliases: new Aliases({}),
-    bot: new Bot(),
-    config,
+    bot,
+    botConfig,
     comment: new CommentContext(),
-    jira: new Jira(config),
+    configs: new Configs(bot, botConfig),
+    jira: new Jira(botConfig),
   }
   return context.bot
-    .init(context.config.keybase.username, context.config.keybase.paperkey, {
-      verbose: true,
-    })
+    .init(
+      context.botConfig.keybase.username,
+      context.botConfig.keybase.paperkey,
+      {
+        verbose: true,
+      }
+    )
     .then(() => {
       console.debug({msg: 'init done'})
       return context
