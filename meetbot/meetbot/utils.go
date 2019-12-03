@@ -35,11 +35,38 @@ func requestID() string {
 func asHTML(title, msg string) []byte {
 	return []byte(`
 <html>
+<head>
+<style>
+body {
+	background-color: rgb(80,160,247);
+	display: flex;
+	min-height: 99vh;
+	flex-direction: column;
+}
+.content{
+	flex: 1;
+}
+.msg {
+	text-align: center;
+	color: white;
+	margin-top: 20vh;
+}
+
+a {
+	color: white;
+}
+</style>
 <title> meetbot | ` + title + `</title>
-<body style="background-color: rgb(80,160,247);">
-  <div style="margin-top: 10%;">
-    <h2 style="text-align:center;color: white;">` + msg + `</h2>
-  </div>
+</head>
+<body>
+  <main class="content">
+	  <div>
+		<h1 class="msg">` + msg + `</h1>
+	  </div>
+  </main>
+  <footer>
+		<a href="https://keybase.io/docs/privacypolicy">Privacy Policy</a>
+  </footer>
 </body>
 </html>
 `)
