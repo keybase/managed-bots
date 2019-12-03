@@ -1,8 +1,11 @@
 package meetbot
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -83,6 +86,7 @@ func (s *BotServer) httpListen() error {
 	http.HandleFunc("/meetbot", s.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", s.homeHandler)
 	http.HandleFunc("/meetbot/oauth", s.oauthHandler)
+	http.HandleFunc("/meetbot/image", s.handleImage)
 	return http.ListenAndServe(s.opts.HTTPAddr, nil)
 }
 
@@ -109,8 +113,28 @@ func (s *BotServer) chatListen() error {
 
 func (s *BotServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	s.debug("homeHandler")
-	if _, err := w.Write(asHTML("home", "Meetbot is a Keybase chatbot which creates links to Google Meet meetings for you.")); err != nil {
+	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
+	which creates links to Google Meet meetings for you.
+	<div style="padding-top:10px;">
+		<img style="width:300px;" src="/meetbot/image?=mobile">
+	</div>
+	`
+	if _, err := w.Write(asHTML("home", homePage)); err != nil {
 		s.debug("homeHandler: unable to write: %v", err)
+	}
+}
+
+func (s *BotServer) handleImage(w http.ResponseWriter, r *http.Request) {
+	image := r.URL.Query().Get("")
+	b64dat, ok := images[image]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	dat, _ := base64.StdEncoding.DecodeString(b64dat)
+	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 
