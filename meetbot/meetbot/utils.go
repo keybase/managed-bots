@@ -61,7 +61,7 @@ a {
 <body>
   <main class="content">
 	  <div>
-		<h2 class="msg">` + msg + `</h2>
+		<h1 class="msg">` + msg + `</h1>
 	  </div>
   </main>
   <footer>
