@@ -142,7 +142,7 @@ const checkAndGetProjectName = async (
       projectName: project,
     })
   }
-  return Errors.makeResult<string>(project)
+  return Errors.makeResult<string>(project.toLowerCase())
 }
 
 const checkStatusError = (

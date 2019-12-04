@@ -1,0 +1,48 @@
+#!env bash
+
+set -e
+
+dir=$(realpath "$(dirname $0)")
+ws=$(mktemp -d)
+
+function cleanup {
+  echo -n removing $ws ...
+	rm -r "$ws"
+  echo " done"
+}
+trap cleanup EXIT
+
+cd "$ws"
+
+echo Workspace: $ws
+echo -n Coping dist/main.js to workspace ...
+cp "$dir/dist/main.js" "$ws/main.js"
+echo " done"
+
+echo -n Getting latest keybase version ...
+version=$(curl -s http://prerelease.keybase.io.s3.amazonaws.com/update-linux-prod.json | jq -r '.version' | sed  's/+/./')
+echo " $version"
+
+url="https://s3.amazonaws.com/prerelease.keybase.io/linux_binaries/deb/keybase_${version}_amd64.deb"
+echo -n Downloading keybase deb package from $url ...
+curl -s "$url" > deb
+echo " done"
+echo -n Extracting keybase binary from $url ...
+ar -p deb data.tar.xz | tar -xJ --strip-components 3 ./usr/bin/keybase
+echo " done"
+
+cat <<EOF >Dockerfile
+FROM node:8
+USER 1000:1000
+COPY main.js /main.js
+COPY keybase /bin/keybase
+CMD ["node", "/main.js"]
+EOF
+
+if [ -z "$1" ]
+then
+  docker build -t jirabot .
+else
+  docker build -t "$1" .
+fi
+
