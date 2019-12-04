@@ -229,6 +229,7 @@ export const parseMessage = async (
 ): Promise<Message | undefined> => {
   const messageContext = msgSummaryToMessageContext(kbMessage)
   if (!shouldProcessMessageContext(context, messageContext)) {
+    console.log('ignoring message from', messageContext.teamName)
     return undefined
   }
 
