@@ -203,6 +203,22 @@ const msgSummaryToMessageContext = (
   channelName: kbMessage.channel.topicName ?? '',
 })
 
+const shouldProcessMessageContext = (
+  context: Context,
+  messageContext: MessageContext
+) => {
+  if (messageContext.chatChannel.membersType !== 'team') {
+    return false
+  }
+  if (
+    context.botConfig.allowedTeams &&
+    !context.botConfig.allowedTeams.includes(messageContext.teamName)
+  ) {
+    return false
+  }
+  return true
+}
+
 const newArgs = new Set(['in', 'for', 'assignee'])
 const searchArgs = new Set(['in', 'assignee', 'status'])
 const commentArgs = new Set(['on'])
@@ -211,6 +227,12 @@ export const parseMessage = async (
   context: Context,
   kbMessage: ChatTypes.MsgSummary
 ): Promise<Message | undefined> => {
+  const messageContext = msgSummaryToMessageContext(kbMessage)
+  if (!shouldProcessMessageContext(context, messageContext)) {
+    console.log('ignoring message from', messageContext.teamName)
+    return undefined
+  }
+
   if (
     kbMessage.channel.membersType !== 'team' ||
     kbMessage.channel.topicType !== 'chat'
@@ -226,8 +248,6 @@ export const parseMessage = async (
   if (!textBody.startsWith('!jira')) {
     return undefined
   }
-
-  const messageContext = msgSummaryToMessageContext(kbMessage)
 
   const fields = Utils.split2(textBody)
 
