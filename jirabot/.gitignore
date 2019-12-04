@@ -2,4 +2,3 @@ node_modules
 /config.js
 yarn-error.log
 .tsOuts
-Session.vim
