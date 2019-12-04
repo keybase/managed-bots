@@ -57,3 +57,10 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 	res += evt.GetPullRequest().GetHTMLURL()
 	return res
 }
+
+func shortConvID(convID string) string {
+	if len(convID) <= 20 {
+		return convID
+	}
+	return convID[:20]
+}

@@ -5,6 +5,8 @@ github.com/google/go-github/v28 v28.1.1 h1:kORf5ekX5qwXO2mGzXXOjMe/g6ap8ahVe0sBE
 github.com/google/go-github/v28 v28.1.1/go.mod h1:bsqJWQX05omyWVmc00nEUql9mhQyv38lDZ8kPZcQVoM=
 github.com/google/go-querystring v1.0.0 h1:Xkwi/a1rcvNg1PPYe5vI8GbeBY/jrVuDX5ASuANWTrk=
 github.com/google/go-querystring v1.0.0/go.mod h1:odCYkC5MyYFN7vkCjXpyrEuKhc/BUO6wN/zVPAxq5ck=
+github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
+github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51/go.mod h1:CzGEWj7cYgsdH8dAjBGEr58BoE7ScuLd+fwFZ44+/x8=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20191127192841-2c5cda9230d0 h1:Aed/S6Ih90sAhHgZHweHGh1XIw2YhH4D7cJ/WIB23f0=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20191127192841-2c5cda9230d0/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

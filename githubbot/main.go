@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -44,16 +45,33 @@ func (s *BotServer) debug(msg string, args ...interface{}) {
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	pollExtended := fmt.Sprintf(`Configure the GitHub bot for your team.`)
+	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
+
+	Example:%s
+		!github subscribe keybase/client%s`, backs, backs)
+
+	watchExtended := fmt.Sprintf(`Subscribes to updates on a non-default branch on the provided repo.
+	
+	Example:%s
+		!github watch facebook/react gh-pages%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
-			Name:        "configure",
+			Name:        "github subscribe",
 			Description: "Configure GitHub bot",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!configure*`,
-				DesktopBody: pollExtended,
-				MobileBody:  pollExtended,
+				Title:       `*!github subscribe* <username/repo>`,
+				DesktopBody: subExtended,
+				MobileBody:  subExtended,
+			},
+		},
+		{
+			Name:        "github watch",
+			Description: "Watch pushes from branch",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       `*!github watch* <username/repo> <branch>`,
+				DesktopBody: watchExtended,
+				MobileBody:  watchExtended,
 			},
 		},
 	}
@@ -122,12 +140,12 @@ func (s *BotServer) Start() (err error) {
 	// 	s.debug("failed to get login secret: %s", err)
 	// 	return
 	// }
-	// sdb, err := sql.Open("mysql", s.opts.DSN)
-	// if err != nil {
-	// 	s.debug("failed to connect to MySQL: %s", err)
-	// 	return err
-	// }
-	// db := githubbot.NewDB(sdb)
+	sdb, err := sql.Open("mysql", s.opts.DSN)
+	if err != nil {
+		s.debug("failed to connect to MySQL: %s", err)
+		return err
+	}
+	db := githubbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.debug("advertise error: %s", err)
 		return err
@@ -137,8 +155,8 @@ func (s *BotServer) Start() (err error) {
 	// 	return err
 	// }
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc)
-	handler := githubbot.NewHandler(s.kbc, httpSrv, s.opts.HTTPPrefix)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db)
+	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)
@@ -162,13 +180,13 @@ func mainInner() int {
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
-	// flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Poll database DSN")
+	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 	flag.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
 	flag.Parse()
-	// if len(opts.DSN) == 0 {
-	// 	fmt.Printf("must specify a poll database DSN\n")
-	// 	return 3
-	// }
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a poll database DSN\n")
+		return 3
+	}
 	bs := NewBotServer(opts)
 	if err := bs.Start(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err.Error())
