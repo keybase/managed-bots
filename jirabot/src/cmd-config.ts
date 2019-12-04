@@ -16,7 +16,10 @@ const makeNewTeamChannelConfig = (
       // TODO check for project existence with jira
       return Errors.makeResult<Configs.TeamChannelConfig>({
         ...oldConfig,
-        enabledProjects: value.split(',').filter(Boolean),
+        enabledProjects: value
+          .split(',')
+          .filter(Boolean)
+          .map(s => s.toLowerCase()),
       })
     }
     case 'defaultNewIssueProject': {
@@ -28,13 +31,13 @@ const makeNewTeamChannelConfig = (
       }
       return Errors.makeResult<Configs.TeamChannelConfig>({
         ...oldConfig,
-        defaultNewIssueProject: value,
+        defaultNewIssueProject: value.toLowerCase(),
       })
     }
     default:
       return Errors.makeError<Errors.UnknownParamError>({
         type: Errors.ErrorType.UnknownParam,
-        paramName: value,
+        paramName: name,
       })
   }
 }
