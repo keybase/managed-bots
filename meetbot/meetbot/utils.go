@@ -38,9 +38,9 @@ func asHTML(title, msg string) []byte {
 <head>
 <style>
 body {
-	background-color: rgb(80,160,247);
+	background-color: white;
 	display: flex;
-	min-height: 99vh;
+	min-height: 98vh;
 	flex-direction: column;
 }
 .content{
@@ -48,18 +48,22 @@ body {
 }
 .msg {
 	text-align: center;
-	color: white;
-	margin-top: 20vh;
+	color: rgb(80,160,247);
+	margin-top: 15vh;
 }
-
 a {
-	color: white;
+	color: rgb(80,160,247);
+}
+.logo {
+	width: 80px;
+	padding: 5px;
 }
 </style>
 <title> meetbot | ` + title + `</title>
 </head>
 <body>
   <main class="content">
+	  <a href="https://keybase.io"><img class="logo" src="/meetbot/image?=logo"></a>
 	  <div>
 		<h1 class="msg">` + msg + `</h1>
 	  </div>
