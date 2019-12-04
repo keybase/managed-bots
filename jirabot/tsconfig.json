@@ -6,6 +6,7 @@
     "esModuleInterop": true,
     "target": "es2017",
     "noImplicitAny": true,
+    "noImplicitReturns": true,
     "moduleResolution": "node",
     "sourceMap": true,
     "rootDir": "src/",
