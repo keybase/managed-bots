@@ -39,8 +39,17 @@ func (d *DB) CreateSubscription(convID string, repo string, branch string) error
 	})
 }
 
-func (d *DB) DeleteSubscription(convID string, repo string) error {
-	// TODO: ignore dupes with feedback?
+func (d *DB) DeleteOneSubscription(convID string, repo string, branch string) error {
+	return d.runTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM subscriptions
+			WHERE (conv_id = ? AND repo = ? AND branch = ?)
+		`, shortConvID(convID), repo, branch)
+		return err
+	})
+}
+
+func (d *DB) DeleteAllSubscriptions(convID string, repo string) error {
 	return d.runTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions

@@ -56,10 +56,15 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	Example:%s
 		!github unsubscribe keybase/client%s`, backs, backs)
 
-	watchExtended := fmt.Sprintf(`Subscribes to updates on a non-default branch on the provided repo.
+	watchExtended := fmt.Sprintf(`Subscribes to updates from a non-default branch on the provided repo.
 	
 	Example:%s
 		!github watch facebook/react gh-pages%s`, backs, backs)
+
+	unwatchExtended := fmt.Sprintf(`Disables updates from a non-default branch on the provided repo.
+	
+	Example:%s
+		!github unwatch facebook/react gh-pages%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
@@ -87,6 +92,15 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 				Title:       `*!github unsubscribe* <username/repo>`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
+			},
+		},
+		{
+			Name:        "github unwatch",
+			Description: "Disable updates from branch",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       `*!github unwatch* <username/repo> <branch>`,
+				DesktopBody: unwatchExtended,
+				MobileBody:  unwatchExtended,
 			},
 		},
 	}

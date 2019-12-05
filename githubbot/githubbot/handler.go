@@ -44,50 +44,63 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	cmd := strings.Trim(msg.Content.Text.Body, " ")
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
-		h.handleSubscribe(cmd, msg.ConvID)
+		h.handleSubscribe(cmd, msg.ConvID, true)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
-		h.handleUnsubscribe(cmd, msg.ConvID)
+		h.handleSubscribe(cmd, msg.ConvID, false)
 	case strings.HasPrefix(cmd, "!github watch"):
-		h.handleWatch(cmd, msg.ConvID)
+		h.handleWatch(cmd, msg.ConvID, true)
+	case strings.HasPrefix(cmd, "!github unwatch"):
+		h.handleWatch(cmd, msg.ConvID, false)
 	default:
 		h.debug("ignoring unknown command")
 	}
 }
 
-func (h *Handler) handleSubscribe(cmd string, convID string) {
+func (h *Handler) handleSubscribe(cmd string, convID string, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
-	h.debug("array: %s", args)
-	err = h.db.CreateSubscription(convID, args[0], "master")
-	if err != nil {
-		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
-		return
+	var message string
+	if create {
+		err = h.db.CreateSubscription(convID, args[0], "master")
+		if err != nil {
+			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			return
+		}
+		// todo: add webhook docs
+		message = "Okay, you'll now receive updates for %s here!"
+	} else {
+		err = h.db.DeleteAllSubscriptions(convID, args[0])
+		if err != nil {
+			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			return
+		}
+		message = "Okay, I'll stop sending updates for %s here."
 	}
-	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Ok, you'll now receive updates for %s here!", args[0]))
+
+	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0]))
+
 }
 
-func (h *Handler) handleUnsubscribe(cmd string, convID string) {
+func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
-	h.debug("array: %s", args)
-	err = h.db.DeleteSubscription(convID, args[0])
-	if err != nil {
-		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
-		return
+	var message string
+	if create {
+		err = h.db.CreateSubscription(convID, args[0], args[1])
+		if err != nil {
+			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			return
+		}
+		message = "Now watching for commits on %s/%s."
+	} else {
+		err = h.db.DeleteOneSubscription(convID, args[0], args[1])
+		if err != nil {
+			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			return
+		}
+		message = "Okay, you'll no longer receive notifications for commits in %s/%s."
 	}
-	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Okay, I'll stop sending updates for %s here.", args[0]))
-}
-
-func (h *Handler) handleWatch(cmd string, convID string) {
-	toks, err := shellquote.Split(cmd)
-	args := toks[2:]
-	h.debug("array: %s", args)
-	err = h.db.CreateSubscription(convID, args[0], args[1])
-	if err != nil {
-		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
-		return
-	}
-	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Now watching for commits on %s/%s.", args[0], args[1]))
+	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
 }
 
 func (h *Handler) Listen() error {
