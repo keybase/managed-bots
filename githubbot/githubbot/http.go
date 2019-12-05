@@ -62,10 +62,18 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-		// TODO: implement branch filtering
+
 		message = formatPushMsg(event)
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
+		break
+	case *github.CheckSuiteEvent:
+		if len(event.GetCheckSuite().PullRequests) == 0 {
+			// this is a branch test, not associated with a PR
+			branch = event.GetCheckSuite().GetHeadBranch()
+		}
+		message = formatCheckSuiteMsg(event)
+		repo = event.GetRepo().GetFullName()
 		break
 	default:
 		break

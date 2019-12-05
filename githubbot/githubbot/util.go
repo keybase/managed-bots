@@ -52,11 +52,14 @@ func formatIssueMsg(evt *github.IssuesEvent) (res string) {
 		switch *action {
 		case "opened":
 			res = fmt.Sprintf("%s opened issue #%d on %s: \"%s\"\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
+			res += evt.GetIssue().GetHTMLURL()
+			break
 		case "closed":
 			res = fmt.Sprintf("%s closed issue #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
+			res += evt.GetIssue().GetHTMLURL()
+			break
 		}
 	}
-	res += evt.GetIssue().GetHTMLURL()
 	return res
 }
 
@@ -66,17 +69,52 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 		switch *action {
 		case "opened":
 			res = fmt.Sprintf("%s opened pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
+			res += evt.GetPullRequest().GetHTMLURL()
+			break
 		case "closed":
 			if evt.GetPullRequest().GetMerged() {
 				// PR was merged
 				res = fmt.Sprintf("%s merged pull request #%d into %s/%s.\n", evt.GetPullRequest().GetMergedBy().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetBase().GetRef())
+				res += evt.GetPullRequest().GetHTMLURL()
 			} else {
 				// PR was closed without merging
 				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
+				res += evt.GetPullRequest().GetHTMLURL()
 			}
+			break
 		}
 	}
-	res += evt.GetPullRequest().GetHTMLURL()
+	return res
+}
+
+func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
+	action := evt.Action
+	if *action == "completed" {
+		suite := evt.GetCheckSuite()
+		repo := evt.GetRepo().GetName()
+		isPullRequest := len(suite.PullRequests) > 0
+		switch suite.GetConclusion() {
+		case "success":
+			if !isPullRequest {
+				res = fmt.Sprintf("Tests passed for %s/%s.", repo, suite.GetHeadBranch())
+				break
+			}
+			// TODO: mention PR author when tests pass?
+			pr := suite.PullRequests[0]
+			res = fmt.Sprintf("All tests passed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
+			break
+		case "failure":
+		case "timed_out":
+			if !isPullRequest {
+				res = fmt.Sprintf("Tests failed for %s/%s.", repo, suite.GetHeadBranch())
+				break
+			}
+			// TODO: mention PR author when tests fail?
+			pr := suite.PullRequests[0]
+			res = fmt.Sprintf("Tests failed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
+			break
+		}
+	}
 	return res
 }
 
