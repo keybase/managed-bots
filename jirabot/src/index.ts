@@ -2,6 +2,7 @@ import Bot from './bot'
 import {init} from './context'
 import * as BotConfig from './bot-config'
 import http from 'http'
+import logger from './logger'
 
 const handleElbHealthCheck = () =>
   http
@@ -21,8 +22,7 @@ const handleElbHealthCheck = () =>
 
 const botConfig = BotConfig.parse(process.env.JIRABOT_CONFIG || '')
 if (!botConfig) {
-  console.error('invalid bot-config')
-  console.error(process.env.JIRABOT_CONFIG)
+  logger.fatal('invalid bot-config')
   process.exit(1)
 } else {
   handleElbHealthCheck()

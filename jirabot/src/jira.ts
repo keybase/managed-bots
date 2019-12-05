@@ -1,6 +1,7 @@
 import JiraClient from 'jira-connector'
 import {Issue as JiraIssue} from 'jira-connector/api/issue'
 import {BotConfig} from './bot-config'
+import logger from './logger'
 
 const looksLikeIssueKey = (str: string) => !!str.match(/[A-Za-z]+-[0-9]+/)
 
@@ -49,7 +50,7 @@ export default class {
       (status ? `status = "${status}" AND ` : '') +
       (assigneeJira ? `assignee = "${assigneeJira}" AND ` : '') +
       `text ~ "${query}"`
-    console.debug({msg: 'getOrSearch', jql})
+    logger.debug({msg: 'getOrSearch', jql})
     return Promise.all([
       looksLikeIssueKey(query)
         ? this._jira.issue.getIssue({
@@ -65,7 +66,10 @@ export default class {
       }),
     ]).then(([fromGet, fromSearch]) => ({
       jql,
-      issues: [...(fromGet ? [fromGet] : []), ...(fromSearch ? fromSearch.issues : [])].map(this.jiraRespMapper),
+      issues: [
+        ...(fromGet ? [fromGet] : []),
+        ...(fromSearch ? fromSearch.issues : []),
+      ].map(this.jiraRespMapper),
     }))
   }
 
@@ -75,7 +79,10 @@ export default class {
         issueKey,
         comment: {body: comment},
       })
-      .then(({id}: {id: string}) => `https://${this._botConfig.jira.host}/browse/${issueKey}?focusedCommentId=${id}`)
+      .then(
+        ({id}: {id: string}) =>
+          `https://${this._botConfig.jira.host}/browse/${issueKey}?focusedCommentId=${id}`
+      )
   }
 
   createIssue({
@@ -91,7 +98,7 @@ export default class {
     name: string
     project: string
   }): Promise<any> {
-    console.log({
+    logger.debug({
       msg: 'createIssue',
       assigneeJira,
       issueType,
@@ -109,6 +116,9 @@ export default class {
           description,
         },
       })
-      .then(({key}: {key: string}) => `https://${this._botConfig.jira.host}/browse/${key}`)
+      .then(
+        ({key}: {key: string}) =>
+          `https://${this._botConfig.jira.host}/browse/${key}`
+      )
   }
 }

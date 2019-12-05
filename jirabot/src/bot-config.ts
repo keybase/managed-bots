@@ -1,3 +1,5 @@
+import logger from './logger'
+
 export type BotConfig = {
   keybase: {
     username: string
@@ -22,23 +24,23 @@ export type BotConfig = {
 
 const checkBotConfig = (obj: any): null | BotConfig => {
   if (typeof obj !== 'object') {
-    console.error('unexpect obj type', typeof obj)
+    logger.error('unexpect obj type', typeof obj)
     return null
   }
 
   if (typeof obj.keybase !== 'object') {
-    console.error('unexpect obj.keybase type', typeof obj.keybase)
+    logger.error('unexpect obj.keybase type', typeof obj.keybase)
     return null
   }
   if (typeof obj.keybase.username !== 'string') {
-    console.error(
+    logger.error(
       'unexpect obj.keybase.username type',
       typeof obj.keybase.username
     )
     return null
   }
   if (typeof obj.keybase.paperkey !== 'string') {
-    console.error(
+    logger.error(
       'unexpect obj.keybase.paperkey type',
       typeof obj.keybase.paperkey
     )
@@ -46,7 +48,7 @@ const checkBotConfig = (obj: any): null | BotConfig => {
   }
 
   if (obj.allowedTeams && !Array.isArray(obj.allowedTeams)) {
-    console.error(
+    logger.error(
       'unexpect obj.allowedTeam type: not an array',
       obj.allowedTeams
     )
@@ -54,40 +56,37 @@ const checkBotConfig = (obj: any): null | BotConfig => {
   }
 
   if (typeof obj.jira !== 'object') {
-    console.error('unexpect obj.jira type', typeof obj.jira)
+    logger.error('unexpect obj.jira type', typeof obj.jira)
     return null
   }
   if (typeof obj.jira.host !== 'string') {
-    console.error('unexpect obj.jira.host type', typeof obj.jira.host)
+    logger.error('unexpect obj.jira.host type', typeof obj.jira.host)
     return null
   }
   if (typeof obj.jira.email !== 'string') {
-    console.error('unexpect obj.jira.email type', typeof obj.jira.email)
+    logger.error('unexpect obj.jira.email type', typeof obj.jira.email)
     return null
   }
   if (typeof obj.jira.apiToken !== 'string') {
-    console.error('unexpect obj.jira.apiToken type', typeof obj.jira.apiToken)
+    logger.error('unexpect obj.jira.apiToken type', typeof obj.jira.apiToken)
     return null
   }
   if (!Array.isArray(obj.jira.projects)) {
-    console.error(
+    logger.error(
       'unexpect obj.jira.projects type: not an array',
       obj.jira.projects
     )
     return null
   }
   if (!Array.isArray(obj.jira.issueTypes)) {
-    console.error(
+    logger.error(
       'unexpect obj.jira.issueTypes type: not an array',
       obj.jira.issueTypes
     )
     return null
   }
   if (!Array.isArray(obj.jira.status)) {
-    console.error(
-      'unexpect obj.jira.status type: not an array',
-      obj.jira.status
-    )
+    logger.error('unexpect obj.jira.status type: not an array', obj.jira.status)
     return null
   }
 
@@ -121,7 +120,7 @@ export const parse = (base64BotConfig: string): null | BotConfig => {
       JSON.parse(Buffer.from(base64BotConfig, 'base64').toString())
     )
   } catch (e) {
-    console.error(e)
+    logger.error(e)
     return null
   }
 }
