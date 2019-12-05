@@ -21,7 +21,7 @@ type Options struct {
 	Announcement    string
 	HTTPPrefix      string
 	DSN             string
-	LoginSecret     string
+	Secret          string
 }
 
 func newOptions() Options {
@@ -142,11 +142,11 @@ func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
 	}
 }
 
-func (s *BotServer) getLoginSecret() (string, error) {
-	if s.opts.LoginSecret != "" {
-		return s.opts.LoginSecret, nil
+func (s *BotServer) getSecret() (string, error) {
+	if s.opts.Secret != "" {
+		return s.opts.Secret, nil
 	}
-	path := fmt.Sprintf("/keybase/private/%s/login.secret", s.kbc.GetUsername())
+	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
 	cmd := exec.Command("keybase", "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -164,11 +164,11 @@ func (s *BotServer) Start() (err error) {
 	}); err != nil {
 		return err
 	}
-	// loginSecret, err := s.getLoginSecret()
-	// if err != nil {
-	// 	s.debug("failed to get login secret: %s", err)
-	// 	return
-	// }
+	secret, err := s.getSecret()
+	if err != nil {
+		s.debug("failed to get secret: %s", err)
+		return
+	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
 		s.debug("failed to connect to MySQL: %s", err)
@@ -184,8 +184,8 @@ func (s *BotServer) Start() (err error) {
 	// 	return err
 	// }
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
+	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)
 	var eg errgroup.Group
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)
@@ -210,7 +210,7 @@ func mainInner() int {
 		"Where to announce we are running")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
-	flag.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
+	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")

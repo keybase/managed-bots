@@ -1,11 +1,16 @@
 package githubbot
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
 	"github.com/google/go-github/v28/github"
 )
+
+func makeSecret(repo string, secret string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+secret)))
+}
 
 func refToName(ref string) (branch string) {
 	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
@@ -15,6 +20,19 @@ func refToName(ref string) (branch string) {
 	}
 	// if we got a tag ref, just leave it as "tags/{tag name}"
 	return branch
+}
+
+func formatSetupInstructions(repo string, httpAddress string, secret string) (res string) {
+	back := "`"
+	message := fmt.Sprintf(`
+To configure your repository to send notifications, go to https://github.com/%s/settings/hooks and add a new webhook.
+For "Payload URL", enter %s%s/githubbot/webhook%s.
+Set "Content Type" to %sapplication/json%s.
+For "Secret", enter %s%s%s.
+
+Happy coding!`,
+		repo, back, httpAddress, back, back, back, back, makeSecret(repo, secret), back)
+	return message
 }
 
 func formatPushMsg(evt *github.PushEvent) (res string) {

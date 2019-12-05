@@ -78,3 +78,20 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err e
 	}
 	return res, nil
 }
+
+func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (exists bool, err error) {
+	row := d.db.QueryRow(`
+		SELECT conv_id
+		FROM subscriptions
+		WHERE (conv_id = ? AND repo = ? AND branch = ?)
+		LIMIT 1
+	`, convID, repo, branch)
+	var rowRes string
+	if err := row.Scan(&rowRes); err != nil {
+		if err != sql.ErrNoRows {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}

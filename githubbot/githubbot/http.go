@@ -10,14 +10,16 @@ import (
 )
 
 type HTTPSrv struct {
-	kbc *kbchat.API
-	db  *DB
+	kbc    *kbchat.API
+	db     *DB
+	secret string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
 	return &HTTPSrv{
-		kbc: kbc,
-		db:  db,
+		kbc:    kbc,
+		db:     db,
+		secret: secret,
 	}
 }
 
@@ -35,6 +37,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		h.debug("Error reading payload: %s", err)
 		return
 	}
+	signature := r.Header.Get("X-Hub-Signature")
 	defer r.Body.Close()
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
@@ -69,6 +72,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if message != "" && repo != "" {
+		if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, h.secret))); err != nil {
+			h.debug("Error validating payload signature: %s", err)
+			return
+		}
+
 		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
 			h.debug("Error getting subscriptions for repo: %s", err)

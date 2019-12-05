@@ -14,14 +14,16 @@ type Handler struct {
 	db         *DB
 	httpSrv    *HTTPSrv
 	httpPrefix string
+	secret     string
 }
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		kbc:        kbc,
 		db:         db,
 		httpSrv:    httpSrv,
 		httpPrefix: httpPrefix,
+		secret:     secret,
 	}
 }
 
@@ -44,9 +46,9 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	cmd := strings.Trim(msg.Content.Text.Body, " ")
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
-		h.handleSubscribe(cmd, msg.ConvID, true)
+		h.handleSubscribe(cmd, msg.ConvID, msg.Sender.Username, true)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
-		h.handleSubscribe(cmd, msg.ConvID, false)
+		h.handleSubscribe(cmd, msg.ConvID, msg.Sender.Username, false)
 	case strings.HasPrefix(cmd, "!github watch"):
 		h.handleWatch(cmd, msg.ConvID, true)
 	case strings.HasPrefix(cmd, "!github unwatch"):
@@ -56,25 +58,30 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	}
 }
 
-func (h *Handler) handleSubscribe(cmd string, convID string, create bool) {
+func (h *Handler) handleSubscribe(cmd string, convID string, sender string, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
 	var message string
+	alreadyExists, _ := h.db.GetSubscriptionExists(convID, args[0], "master")
 	if create {
 		err = h.db.CreateSubscription(convID, args[0], "master")
 		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			h.chatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
 		}
-		// todo: add webhook docs
-		message = "Okay, you'll now receive updates for %s here!"
+		if !alreadyExists {
+			h.kbc.SendMessageByTlfName(sender, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
+			message = fmt.Sprintf("Okay! I've sent instructions to @%s to set up notifications on", sender) + " %s."
+		} else {
+			message = "You're already receiving notifications for %s here!"
+		}
 	} else {
 		err = h.db.DeleteAllSubscriptions(convID, args[0])
 		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			h.chatDebug(convID, fmt.Sprintf("Error deleting subscriptions: %s", err))
 			return
 		}
-		message = "Okay, I'll stop sending updates for %s here."
+		message = "Okay, you won't receive updates for %s here."
 	}
 
 	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0]))
@@ -85,20 +92,28 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
 	var message string
+	if exists, err := h.db.GetSubscriptionExists(convID, args[0], "master"); !exists {
+		if err != nil {
+			h.chatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
+			return
+		}
+		h.kbc.SendMessageByConvID(convID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
+		return
+	}
 	if create {
 		err = h.db.CreateSubscription(convID, args[0], args[1])
 		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			h.chatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
 		}
 		message = "Now watching for commits on %s/%s."
 	} else {
 		err = h.db.DeleteOneSubscription(convID, args[0], args[1])
 		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+			h.chatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
 			return
 		}
-		message = "Okay, you'll no longer receive notifications for commits in %s/%s."
+		message = "Okay, you wont receive notifications for commits in %s/%s."
 	}
 	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
 }
