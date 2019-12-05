@@ -10,20 +10,20 @@ import (
 )
 
 type Handler struct {
-	kbc        *kbchat.API
-	db         *DB
-	httpSrv    *HTTPSrv
-	httpPrefix string
-	secret     string
+	kbc      *kbchat.API
+	db       *DB
+	httpSrv  *HTTPSrv
+	httpAddr string
+	secret   string
 }
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpAddr string, secret string) *Handler {
 	return &Handler{
-		kbc:        kbc,
-		db:         db,
-		httpSrv:    httpSrv,
-		httpPrefix: httpPrefix,
-		secret:     secret,
+		kbc:      kbc,
+		db:       db,
+		httpSrv:  httpSrv,
+		httpAddr: httpAddr,
+		secret:   secret,
 	}
 }
 
@@ -91,7 +91,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			}
 
 			// setting up phase - send instructions
-			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
+			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpAddr, h.secret))
 			if strings.HasPrefix(msg.Channel.Name, msg.Sender.Username) {
 				// don't send add'l message if in a 1:1 convo with sender
 				return

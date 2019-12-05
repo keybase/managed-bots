@@ -10,16 +10,18 @@ import (
 )
 
 type HTTPSrv struct {
-	kbc    *kbchat.API
-	db     *DB
-	secret string
+	kbc      *kbchat.API
+	db       *DB
+	httpAddr string
+	secret   string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string, httpAddr string) *HTTPSrv {
 	return &HTTPSrv{
-		kbc:    kbc,
-		db:     db,
-		secret: secret,
+		kbc:      kbc,
+		db:       db,
+		secret:   secret,
+		httpAddr: httpAddr,
 	}
 }
 
@@ -100,5 +102,5 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) Listen() error {
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
-	return http.ListenAndServe(":8088", nil) // TODO: make this configurable via opts?
+	return http.ListenAndServe(h.httpAddr, nil)
 }

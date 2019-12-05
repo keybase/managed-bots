@@ -5,12 +5,3 @@ CREATE TABLE `subscriptions` (
   `repo` varchar(128) NOT NULL,
   `branch` varchar(128) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-/*
-repos
-repoID (1) => convID (many)
-
-subscriptions
-convID (1) => [repoID, enabledFeatures, allowedBranches]
-
-*/
