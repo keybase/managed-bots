@@ -2,6 +2,7 @@ import ChatTypes from 'keybase-bot/lib/types/chat1'
 import * as Utils from './utils'
 import {Context} from './context'
 import * as Errors from './errors'
+import logger from './logger'
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -229,7 +230,10 @@ export const parseMessage = async (
 ): Promise<Message | undefined> => {
   const messageContext = msgSummaryToMessageContext(kbMessage)
   if (!shouldProcessMessageContext(context, messageContext)) {
-    console.log('ignoring message from', messageContext.teamName)
+    logger.debug({
+      msg: 'ignoring message from',
+      teamName: messageContext.teamName,
+    })
     return undefined
   }
 

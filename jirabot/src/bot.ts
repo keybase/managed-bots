@@ -7,6 +7,7 @@ import reacji from './reacji'
 import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
 import {Context} from './context'
+import logger from './logger'
 
 const reportError = (context: Context, parsedMessage: Message.Message) =>
   context.bot.chat.send(parsedMessage.context.chatChannel, {
@@ -39,9 +40,8 @@ const onMessage = async (
   kbMessage: ChatTypes.MsgSummary
 ): Promise<void> => {
   try {
-    // console.debug(kbMessage)
     const parsedMessage = await Message.parseMessage(context, kbMessage)
-    console.debug({msg: 'got message', parsedMessage})
+    logger.debug({msg: 'got message', messageContext: parsedMessage.context})
     if (!parsedMessage) {
       // not a jirabot message
       return
@@ -73,12 +73,12 @@ const onMessage = async (
           : reactFail(context, kbMessage.channel, kbMessage.id)
         return
       default:
-        console.error({error: 'we forgot to handle a case in onMessage'})
+        logger.error({error: 'we forgot to handle a case in onMessage'})
         return
     }
   } catch (err) {
     // otherwise keybase-bot seems to swallow exceptions
-    console.error(err)
+    logger.error(err)
   }
 }
 

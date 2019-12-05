@@ -1,5 +1,6 @@
 import * as Message from './message'
 import {Context} from './context'
+import logger from './logger'
 
 export enum ReturnType {
   Ok = 'ok',
@@ -95,7 +96,7 @@ export const reportErrorAndReplyChat = (
 ): Promise<any> => {
   switch (error.type) {
     case ErrorType.Unknown:
-      console.warn('unknown error', error, messageContext)
+      logger.warn({msg: 'unknown error', error, messageContext})
       return context.bot.chat.send(messageContext.chatChannel, {
         body: 'Whoops. Something happened and your command has failed.',
       })

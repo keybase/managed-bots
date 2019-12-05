@@ -6,6 +6,7 @@ import * as BotConfig from './bot-config'
 import Jira from './jira'
 import Aliases from './aliases'
 import Configs from './configs'
+import logger from './logger'
 
 const setTimeoutPromise = util.promisify(setTimeout)
 
@@ -56,7 +57,7 @@ export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
       }
     )
     .then(() => {
-      console.debug({msg: 'init done'})
+      logger.info('init done')
       return context
     })
 }
