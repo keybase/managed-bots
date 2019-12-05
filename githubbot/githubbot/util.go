@@ -7,14 +7,18 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
-func formatPushMsg(evt *github.PushEvent) (res string) {
+func refToName(ref string) (branch string) {
 	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
-	branch := strings.Split(evt.GetRef(), "refs/")[1]
+	branch = strings.Split(ref, "refs/")[1]
 	if strings.HasPrefix(branch, "heads/") {
 		branch = strings.Split(branch, "heads/")[1]
 	}
-
 	// if we got a tag ref, just leave it as "tags/{tag name}"
+	return branch
+}
+
+func formatPushMsg(evt *github.PushEvent) (res string) {
+	branch := refToName(evt.GetRef())
 
 	res = fmt.Sprintf("%s pushed %d commit", evt.GetPusher().GetName(), len(evt.Commits))
 	if len(evt.Commits) != 1 {

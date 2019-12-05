@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/githubbot/githubbot"
@@ -50,6 +51,11 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	Example:%s
 		!github subscribe keybase/client%s`, backs, backs)
 
+	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
+
+	Example:%s
+		!github unsubscribe keybase/client%s`, backs, backs)
+
 	watchExtended := fmt.Sprintf(`Subscribes to updates on a non-default branch on the provided repo.
 	
 	Example:%s
@@ -58,7 +64,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "github subscribe",
-			Description: "Configure GitHub bot",
+			Description: "Enable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       `*!github subscribe* <username/repo>`,
 				DesktopBody: subExtended,
@@ -72,6 +78,15 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 				Title:       `*!github watch* <username/repo> <branch>`,
 				DesktopBody: watchExtended,
 				MobileBody:  watchExtended,
+			},
+		},
+		{
+			Name:        "github unsubscribe",
+			Description: "Disable updates from GitHub repos",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       `*!github unsubscribe* <username/repo>`,
+				DesktopBody: unsubExtended,
+				MobileBody:  unsubExtended,
 			},
 		},
 	}

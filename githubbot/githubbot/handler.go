@@ -45,6 +45,10 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
 		h.handleSubscribe(cmd, msg.ConvID)
+	case strings.HasPrefix(cmd, "!github unsubscribe"):
+		h.handleUnsubscribe(cmd, msg.ConvID)
+	case strings.HasPrefix(cmd, "!github watch"):
+		h.handleWatch(cmd, msg.ConvID)
 	default:
 		h.debug("ignoring unknown command")
 	}
@@ -52,16 +56,38 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 
 func (h *Handler) handleSubscribe(cmd string, convID string) {
 	toks, err := shellquote.Split(cmd)
-	args := toks[1:]
-	if len(args) < 2 {
-		h.chatDebug(convID, "must specify a prompt and at least one option")
-	}
-	err = h.db.CreateSubscription(convID, args[0])
+	args := toks[2:]
+	h.debug("array: %s", args)
+	err = h.db.CreateSubscription(convID, args[0], "master")
 	if err != nil {
-		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong."))
+		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
 		return
 	}
 	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Ok, you'll now receive updates for %s here!", args[0]))
+}
+
+func (h *Handler) handleUnsubscribe(cmd string, convID string) {
+	toks, err := shellquote.Split(cmd)
+	args := toks[2:]
+	h.debug("array: %s", args)
+	err = h.db.DeleteSubscription(convID, args[0])
+	if err != nil {
+		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+		return
+	}
+	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Okay, I'll stop sending updates for %s here.", args[0]))
+}
+
+func (h *Handler) handleWatch(cmd string, convID string) {
+	toks, err := shellquote.Split(cmd)
+	args := toks[2:]
+	h.debug("array: %s", args)
+	err = h.db.CreateSubscription(convID, args[0], args[1])
+	if err != nil {
+		h.chatDebug(convID, fmt.Sprintf("Sorry, something went wrong: %s", err))
+		return
+	}
+	h.kbc.SendMessageByConvID(convID, fmt.Sprintf("Now watching for commits on %s/%s.", args[0], args[1]))
 }
 
 func (h *Handler) Listen() error {

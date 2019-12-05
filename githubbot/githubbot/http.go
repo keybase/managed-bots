@@ -45,6 +45,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	var message string
 	var repo string
+	branch := "master"
 	switch event := event.(type) {
 	case *github.IssuesEvent:
 		message = formatIssueMsg(event)
@@ -61,13 +62,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		// TODO: implement branch filtering
 		message = formatPushMsg(event)
 		repo = event.GetRepo().GetFullName()
+		branch = refToName(event.GetRef())
 		break
 	default:
 		break
 	}
 
 	if message != "" && repo != "" {
-		convs, err := h.db.GetSubscribedConvs(repo)
+		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
 			h.debug("Error getting subscriptions for repo: %s", err)
 			return
@@ -82,5 +84,5 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) Listen() error {
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
-	return http.ListenAndServe(":8081", nil) // TODO: make this configurable via opts?
+	return http.ListenAndServe(":8088", nil) // TODO: make this configurable via opts?
 }
