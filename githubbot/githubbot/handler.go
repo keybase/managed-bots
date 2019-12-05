@@ -62,9 +62,9 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
-		h.handleSubscribe(cmd, msg.ConvID, msg.Sender.Username, true)
+		h.handleSubscribe(cmd, msg, true)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
-		h.handleSubscribe(cmd, msg.ConvID, msg.Sender.Username, false)
+		h.handleSubscribe(cmd, msg, false)
 	case strings.HasPrefix(cmd, "!github watch"):
 		h.handleWatch(cmd, msg.ConvID, true)
 	case strings.HasPrefix(cmd, "!github unwatch"):
@@ -74,33 +74,48 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 	}
 }
 
-func (h *Handler) handleSubscribe(cmd string, convID string, sender string, create bool) {
+func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
 	var message string
-	alreadyExists, _ := h.db.GetSubscriptionExists(convID, args[0], "master")
+	alreadyExists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], "master")
+	if err != nil {
+		h.chatDebug(msg.ConvID, "error checking subscription: %s", err)
+	}
 	if create {
-		err = h.db.CreateSubscription(convID, args[0], "master")
-		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
-			return
-		}
 		if !alreadyExists {
-			h.kbc.SendMessageByTlfName(sender, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
-			message = fmt.Sprintf("Okay! I've sent instructions to @%s to set up notifications on", sender) + " %s."
+			err = h.db.CreateSubscription(msg.ConvID, args[0], "master")
+			if err != nil {
+				h.chatDebug(msg.ConvID, fmt.Sprintf("Error creating subscription: %s", err))
+				return
+			}
+
+			// setting up phase - send instructions
+			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
+			if strings.HasPrefix(msg.Channel.Name, msg.Sender.Username) {
+				// don't send add'l message if in a 1:1 convo with sender
+				return
+			}
+
+			message = fmt.Sprintf("Okay! I've sent instructions to @%s to set up notifications on", msg.Sender.Username) + " %s."
+
 		} else {
 			message = "You're already receiving notifications for %s here!"
 		}
 	} else {
-		err = h.db.DeleteAllSubscriptions(convID, args[0])
-		if err != nil {
-			h.chatDebug(convID, fmt.Sprintf("Error deleting subscriptions: %s", err))
-			return
+		if alreadyExists {
+			err = h.db.DeleteAllSubscriptions(msg.ConvID, args[0])
+			if err != nil {
+				h.chatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
+				return
+			}
+			message = "Okay, you won't receive updates for %s here."
+		} else {
+			message = "You aren't subscribed to updates for %s!"
 		}
-		message = "Okay, you won't receive updates for %s here."
 	}
 
-	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0]))
+	h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
 
 }
 

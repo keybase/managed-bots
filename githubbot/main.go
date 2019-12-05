@@ -48,23 +48,27 @@ const backs = "```"
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
 
-	Example:%s
-		!github subscribe keybase/client%s`, backs, backs)
+Example:%s
+!github subscribe keybase/client%s`,
+		backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
 
-	Example:%s
-		!github unsubscribe keybase/client%s`, backs, backs)
+Example:%s
+!github unsubscribe keybase/client%s`,
+		backs, backs)
 
 	watchExtended := fmt.Sprintf(`Subscribes to updates from a non-default branch on the provided repo.
 	
-	Example:%s
-		!github watch facebook/react gh-pages%s`, backs, backs)
+Example:%s
+!github watch facebook/react gh-pages%s`,
+		backs, backs)
 
 	unwatchExtended := fmt.Sprintf(`Disables updates from a non-default branch on the provided repo.
-	
-	Example:%s
-		!github unwatch facebook/react gh-pages%s`, backs, backs)
+
+Example:%s
+!github unwatch facebook/react gh-pages%s
+	`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
