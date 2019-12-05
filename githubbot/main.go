@@ -179,10 +179,10 @@ func (s *BotServer) Start() (err error) {
 		s.debug("advertise error: %s", err)
 		return err
 	}
-	// if err := s.sendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-	// 	s.debug("failed to announce self: %s", err)
-	// 	return err
-	// }
+	if err := s.sendAnnouncement(s.opts.Announcement, "I'M ALIIIIIIVE 🤖"); err != nil {
+		s.debug("failed to announce self: %s", err)
+		return err
+	}
 
 	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
 	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)

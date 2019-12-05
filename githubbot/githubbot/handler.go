@@ -44,6 +44,22 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 		return
 	}
 	cmd := strings.Trim(msg.Content.Text.Body, " ")
+
+	if !strings.HasPrefix(cmd, "!github") {
+		h.debug("ignoring non-command message")
+		return
+	}
+
+	isAdmin, err := h.isAdmin(msg)
+	if err != nil {
+		h.chatDebug(msg.ConvID, "Error getting admin status: %s", err)
+		return
+	}
+	if !isAdmin {
+		h.kbc.SendMessageByConvID(msg.ConvID, "You must be an admin to configure me for a team!")
+		return
+	}
+
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
 		h.handleSubscribe(cmd, msg.ConvID, msg.Sender.Username, true)
@@ -133,4 +149,24 @@ func (h *Handler) Listen() error {
 		}
 		h.handleCommand(msg.Message)
 	}
+}
+
+func (h *Handler) isAdmin(msg chat1.MsgSummary) (bool, error) {
+	switch msg.Channel.MembersType {
+	case "team": // make sure the member is an admin or owner
+	default: // authorization is per user so let anything through
+		return true, nil
+	}
+
+	res, err := h.kbc.ListMembersOfTeam(msg.Channel.Name)
+	if err != nil {
+		return false, err
+	}
+	adminLike := append(res.Owners, res.Admins...)
+	for _, member := range adminLike {
+		if member.Username == msg.Sender.Username {
+			return true, nil
+		}
+	}
+	return false, nil
 }
