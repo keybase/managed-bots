@@ -39,7 +39,7 @@ func (d *DB) CreateSubscription(convID string, repo string, branch string) error
 	})
 }
 
-func (d *DB) DeleteOneSubscription(convID string, repo string, branch string) error {
+func (d *DB) DeleteSubscription(convID string, repo string, branch string) error {
 	return d.runTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
@@ -49,7 +49,7 @@ func (d *DB) DeleteOneSubscription(convID string, repo string, branch string) er
 	})
 }
 
-func (d *DB) DeleteAllSubscriptions(convID string, repo string) error {
+func (d *DB) DeleteSubscriptionsForRepo(convID string, repo string) error {
 	return d.runTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
@@ -81,7 +81,7 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err e
 
 func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (exists bool, err error) {
 	row := d.db.QueryRow(`
-	SELECT conv_id
+	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id

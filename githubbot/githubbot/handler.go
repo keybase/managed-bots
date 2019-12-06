@@ -104,7 +104,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		}
 	} else {
 		if alreadyExists {
-			err = h.db.DeleteAllSubscriptions(msg.ConvID, args[0])
+			err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, args[0])
 			if err != nil {
 				h.chatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
 				return
@@ -139,7 +139,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		}
 		message = "Now watching for commits on %s/%s."
 	} else {
-		err = h.db.DeleteOneSubscription(convID, args[0], args[1])
+		err = h.db.DeleteSubscription(convID, args[0], args[1])
 		if err != nil {
 			h.chatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
 			return
