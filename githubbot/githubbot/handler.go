@@ -81,7 +81,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
 	if len(args) < 1 {
-		h.chatDebug(msg.ConvID, "bad args: %s", args)
+		h.chatDebug(msg.ConvID, "bad args for subscribe: %s", args)
 		return
 	}
 
@@ -138,6 +138,10 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	args := toks[2:]
 	var message string
 
+	if len(args) < 2 {
+		h.chatDebug(convID, "bad args for watch: %s", args)
+		return
+	}
 	defaultBranch, err := getDefaultBranch(h.ctx, args[0])
 	if err != nil {
 		h.chatDebug(convID, "error getting default branch: %s", err)

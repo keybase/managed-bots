@@ -42,7 +42,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		h.debug("Error reading payload: %s", err)
 		return
 	}
-	signature := r.Header.Get("X-Hub-Signature")
 	defer r.Body.Close()
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
@@ -100,6 +99,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if message != "" && repo != "" {
+		signature := r.Header.Get("X-Hub-Signature")
 		if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, h.secret))); err != nil {
 			h.debug("Error validating payload signature: %s", err)
 			return
