@@ -1,8 +1,10 @@
 package githubbot
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/google/go-github/v28/github"
@@ -122,4 +124,22 @@ func shortConvID(convID string) string {
 		return convID
 	}
 	return convID[:20]
+}
+
+func getDefaultBranch(ctx context.Context, repo string) (branch string, err error) {
+	client := github.NewClient(nil)
+	args := strings.Split(repo, "/")
+	if len(args) != 2 {
+		return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
+	}
+
+	repoObject, res, err := client.Repositories.Get(ctx, args[0], args[1])
+	if res.StatusCode == http.StatusNotFound {
+		return "master", nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return repoObject.GetDefaultBranch(), nil
 }

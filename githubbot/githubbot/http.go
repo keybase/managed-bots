@@ -1,6 +1,7 @@
 package githubbot
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,14 +15,16 @@ type HTTPSrv struct {
 	db       *DB
 	httpAddr string
 	secret   string
+	ctx      context.Context
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string, httpAddr string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string, httpAddr string, ctx context.Context) *HTTPSrv {
 	return &HTTPSrv{
 		kbc:      kbc,
 		db:       db,
 		secret:   secret,
 		httpAddr: httpAddr,
+		ctx:      ctx,
 	}
 }
 
@@ -55,10 +58,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *github.IssuesEvent:
 		message = formatIssueMsg(event)
 		repo = event.GetRepo().GetFullName()
+		branch, err = getDefaultBranch(h.ctx, repo)
+		if err != nil {
+			h.debug("error getting default branch: %s", err)
+			return
+		}
 		break
 	case *github.PullRequestEvent:
 		message = formatPRMsg(event)
 		repo = event.GetRepo().GetFullName()
+		branch, err = getDefaultBranch(h.ctx, repo)
+		if err != nil {
+			h.debug("error getting default branch: %s", err)
+			return
+		}
 		break
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
@@ -76,6 +89,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		message = formatCheckSuiteMsg(event)
 		repo = event.GetRepo().GetFullName()
+		branch, err = getDefaultBranch(h.ctx, repo)
+		if err != nil {
+			h.debug("error getting default branch: %s", err)
+			return
+		}
 		break
 	default:
 		break

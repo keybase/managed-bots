@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -188,8 +189,10 @@ func (s *BotServer) Start() (err error) {
 		return err
 	}
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret, s.opts.HTTPAddr)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPAddr, secret)
+	ctx := context.Background()
+
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret, s.opts.HTTPAddr, ctx)
+	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPAddr, secret, ctx)
 	var eg errgroup.Group
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)

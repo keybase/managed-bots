@@ -1,6 +1,7 @@
 package githubbot
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -15,15 +16,17 @@ type Handler struct {
 	httpSrv  *HTTPSrv
 	httpAddr string
 	secret   string
+	ctx      context.Context
 }
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpAddr string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpAddr string, secret string, ctx context.Context) *Handler {
 	return &Handler{
 		kbc:      kbc,
 		db:       db,
 		httpSrv:  httpSrv,
 		httpAddr: httpAddr,
 		secret:   secret,
+		ctx:      ctx,
 	}
 }
 
@@ -77,14 +80,25 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
+	if len(args) < 1 {
+		h.chatDebug(msg.ConvID, "bad args: %s", args)
+		return
+	}
+
 	var message string
-	alreadyExists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], "master")
+	defaultBranch, err := getDefaultBranch(h.ctx, args[0])
+	if err != nil {
+		h.chatDebug(msg.ConvID, "error getting default branch: %s", err)
+		return
+	}
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, args[0])
 	if err != nil {
 		h.chatDebug(msg.ConvID, "error checking subscription: %s", err)
+		return
 	}
 	if create {
 		if !alreadyExists {
-			err = h.db.CreateSubscription(msg.ConvID, args[0], "master")
+			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch)
 			if err != nil {
 				h.chatDebug(msg.ConvID, fmt.Sprintf("Error creating subscription: %s", err))
 				return
@@ -92,7 +106,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 
 			// setting up phase - send instructions
 			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpAddr, h.secret))
-			if strings.HasPrefix(msg.Channel.Name, msg.Sender.Username) {
+			if strings.HasPrefix(msg.Channel.Name, msg.Sender.Username+",") {
 				// don't send add'l message if in a 1:1 convo with sender
 				return
 			}
@@ -123,7 +137,13 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	toks, err := shellquote.Split(cmd)
 	args := toks[2:]
 	var message string
-	if exists, err := h.db.GetSubscriptionExists(convID, args[0], "master"); !exists {
+
+	defaultBranch, err := getDefaultBranch(h.ctx, args[0])
+	if err != nil {
+		h.chatDebug(convID, "error getting default branch: %s", err)
+		return
+	}
+	if exists, err := h.db.GetSubscriptionExists(convID, args[0], defaultBranch); !exists {
 		if err != nil {
 			h.chatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
 			return
