@@ -103,8 +103,7 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 			pr := suite.PullRequests[0]
 			res = fmt.Sprintf("All tests passed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
 			break
-		case "failure":
-		case "timed_out":
+		case "failure", "timed_out":
 			if !isPullRequest {
 				res = fmt.Sprintf("Tests failed for %s/%s.", repo, suite.GetHeadBranch())
 				break
