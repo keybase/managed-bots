@@ -43,7 +43,7 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 		h.debug("skipping non-text message")
 		return
 	}
-	cmd := strings.Trim(msg.Content.Text.Body, " ")
+	cmd := strings.TrimSpace(msg.Content.Text.Body, " ")
 
 	if !strings.HasPrefix(cmd, "!github") {
 		h.debug("ignoring non-command message")
