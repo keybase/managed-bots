@@ -113,7 +113,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID string, repo string) (exists bo
 	case sql.ErrNoRows:
 		return false, nil
 	case nil:
-		return true, err
+		return true, nil
 	default:
 		return false, err
 	}
