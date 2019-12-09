@@ -59,7 +59,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			h.debug("error getting default branch: %s", err)
 			return
 		}
-		break
 	case *github.PullRequestEvent:
 		message = formatPRMsg(event)
 		repo = event.GetRepo().GetFullName()
@@ -68,7 +67,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			h.debug("error getting default branch: %s", err)
 			return
 		}
-		break
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
 			break
@@ -77,22 +75,19 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		message = formatPushMsg(event)
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
-		break
 	case *github.CheckSuiteEvent:
 		if len(event.GetCheckSuite().PullRequests) == 0 {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckSuite().GetHeadBranch()
+		} else {
+			branch, err = getDefaultBranch(repo)
 		}
 		message = formatCheckSuiteMsg(event)
 		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo)
 		if err != nil {
 			h.debug("error getting default branch: %s", err)
 			return
 		}
-		break
-	default:
-		break
 	}
 
 	if message != "" && repo != "" {
@@ -109,7 +104,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			h.kbc.SendMessageByConvID(convID, message)
+			_, err = h.kbc.SendMessageByConvID(convID, message)
+			if err != nil {
+				h.debug("Error sending message: %s", err)
+				return
+			}
 		}
 	}
 }

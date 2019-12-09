@@ -20,7 +20,10 @@ func (d *DB) runTxn(fn func(tx *sql.Tx) error) error {
 		return err
 	}
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		rollbackErr := tx.Rollback()
+		if rollbackErr != nil {
+			return rollbackErr
+		}
 		return err
 	}
 	return tx.Commit()

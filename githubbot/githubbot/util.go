@@ -55,11 +55,9 @@ func formatIssueMsg(evt *github.IssuesEvent) (res string) {
 		case "opened":
 			res = fmt.Sprintf("%s opened issue #%d on %s: \"%s\"\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
 			res += evt.GetIssue().GetHTMLURL()
-			break
 		case "closed":
 			res = fmt.Sprintf("%s closed issue #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
 			res += evt.GetIssue().GetHTMLURL()
-			break
 		}
 	}
 	return res
@@ -72,7 +70,6 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 		case "opened":
 			res = fmt.Sprintf("%s opened pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
 			res += evt.GetPullRequest().GetHTMLURL()
-			break
 		case "closed":
 			if evt.GetPullRequest().GetMerged() {
 				// PR was merged
@@ -83,7 +80,6 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
 				res += evt.GetPullRequest().GetHTMLURL()
 			}
-			break
 		}
 	}
 	return res
@@ -104,7 +100,6 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 			// TODO: mention PR author when tests pass?
 			pr := suite.PullRequests[0]
 			res = fmt.Sprintf("All tests passed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
-			break
 		case "failure", "timed_out":
 			if !isPullRequest {
 				res = fmt.Sprintf("Tests failed for %s/%s.", repo, suite.GetHeadBranch())
@@ -113,7 +108,6 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 			// TODO: mention PR author when tests fail?
 			pr := suite.PullRequests[0]
 			res = fmt.Sprintf("Tests failed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
-			break
 		}
 	}
 	return res

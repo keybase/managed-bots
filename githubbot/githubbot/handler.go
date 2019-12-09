@@ -56,7 +56,11 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 		return
 	}
 	if !isAdmin {
-		h.kbc.SendMessageByConvID(msg.ConvID, "You must be an admin to configure me for a team!")
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You must be an admin to configure me for a team!")
+		if err != nil {
+			h.chatDebug(msg.ConvID, "Error sending message: %s", err)
+			return
+		}
 		return
 	}
 
@@ -76,6 +80,10 @@ func (h *Handler) handleCommand(msg chat1.MsgSummary) {
 
 func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) {
 	toks, err := shellquote.Split(cmd)
+	if err != nil {
+		h.debug("error splitting command: %s", err)
+		return
+	}
 	args := toks[2:]
 	if len(args) < 1 {
 		h.chatDebug(msg.ConvID, "bad args for subscribe: %s", args)
@@ -102,7 +110,11 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			}
 
 			// setting up phase - send instructions
-			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpAddr, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpAddr, h.secret))
+			if err != nil {
+				h.chatDebug(msg.ConvID, "Error sending message: %s", err)
+				return
+			}
 
 			if msg.Channel.MembersType != "team" && (msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
 				// don't send add'l message if in a 1:1 convo with sender
@@ -127,12 +139,20 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		}
 	}
 
-	h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
+	_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
+	if err != nil {
+		h.chatDebug(msg.ConvID, "Error sending message: %s", err)
+		return
+	}
 
 }
 
 func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	toks, err := shellquote.Split(cmd)
+	if err != nil {
+		h.debug("error splitting command: %s", err)
+		return
+	}
 	args := toks[2:]
 	var message string
 
@@ -150,7 +170,11 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 			h.chatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
 			return
 		}
-		h.kbc.SendMessageByConvID(convID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
+		_, err := h.kbc.SendMessageByConvID(convID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
+		if err != nil {
+			h.chatDebug(convID, "Error sending message: %s", err)
+			return
+		}
 		return
 	}
 	if create {
@@ -168,7 +192,11 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		}
 		message = "Okay, you wont receive notifications for commits in %s/%s."
 	}
-	h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
+	_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
+	if err != nil {
+		h.chatDebug(convID, "Error sending message: %s", err)
+		return
+	}
 }
 
 func (h *Handler) Listen() error {
