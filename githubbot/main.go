@@ -19,7 +19,7 @@ type Options struct {
 	KeybaseLocation string
 	Home            string
 	Announcement    string
-	HTTPAddr        string
+	HTTPPrefix      string
 	DSN             string
 	Secret          string
 }
@@ -188,8 +188,8 @@ func (s *BotServer) Start() (err error) {
 		return err
 	}
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret, s.opts.HTTPAddr)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPAddr, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
+	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)
 	var eg errgroup.Group
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)
@@ -213,7 +213,7 @@ func mainInner() int {
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
-	flag.StringVar(&opts.HTTPAddr, "http-addr", os.Getenv("BOT_HTTP_ADDR"), "address of bots HTTP server for oauth requests")
+	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
