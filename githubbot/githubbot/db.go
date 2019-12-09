@@ -103,16 +103,15 @@ func (d *DB) GetSubscriptionForRepoExists(convID string, repo string) (exists bo
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	GROUP BY conv_id
 	`, shortConvID(convID), repo)
 	var rowRes string
-	scanErr := row.Scan(&rowRes)
-	switch scanErr {
+	err = row.Scan(&rowRes)
+	switch err {
 	case sql.ErrNoRows:
 		return false, nil
 	case nil:
-		return true, nil
+		return true, err
 	default:
-		return false, scanErr
+		return false, err
 	}
 }

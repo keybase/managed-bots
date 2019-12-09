@@ -1,7 +1,6 @@
 package githubbot
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -16,17 +15,15 @@ type Handler struct {
 	httpSrv  *HTTPSrv
 	httpAddr string
 	secret   string
-	ctx      context.Context
 }
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpAddr string, secret string, ctx context.Context) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpAddr string, secret string) *Handler {
 	return &Handler{
 		kbc:      kbc,
 		db:       db,
 		httpSrv:  httpSrv,
 		httpAddr: httpAddr,
 		secret:   secret,
-		ctx:      ctx,
 	}
 }
 
@@ -86,7 +83,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	}
 
 	var message string
-	defaultBranch, err := getDefaultBranch(h.ctx, args[0])
+	defaultBranch, err := getDefaultBranch(args[0])
 	if err != nil {
 		h.chatDebug(msg.ConvID, "error getting default branch: %s", err)
 		return
@@ -106,7 +103,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 
 			// setting up phase - send instructions
 			h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpAddr, h.secret))
-			if strings.HasPrefix(msg.Channel.Name, msg.Sender.Username+",") {
+
+			if msg.Channel.MembersType != "team" && (msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
 				// don't send add'l message if in a 1:1 convo with sender
 				return
 			}
@@ -142,7 +140,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		h.chatDebug(convID, "bad args for watch: %s", args)
 		return
 	}
-	defaultBranch, err := getDefaultBranch(h.ctx, args[0])
+	defaultBranch, err := getDefaultBranch(args[0])
 	if err != nil {
 		h.chatDebug(convID, "error getting default branch: %s", err)
 		return
