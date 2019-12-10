@@ -28,9 +28,10 @@ func formatSetupInstructions(repo string, httpAddress string, secret string) (re
 	back := "`"
 	message := fmt.Sprintf(`
 To configure your repository to send notifications, go to https://github.com/%s/settings/hooks and add a new webhook.
-For "Payload URL", enter %s%s/githubbot/webhook%s.
-Set "Content Type" to %sapplication/json%s.
-For "Secret", enter %s%s%s.
+For “Payload URL”, enter %s%s/githubbot/webhook%s.
+Set “Content Type” to %sapplication/json%s.
+For “Secret”, enter %s%s%s.
+Remember to select “just send me *everything*” if you want notifications for more than commit messages!
 
 Happy coding!`,
 		repo, back, httpAddress, back, back, back, back, makeSecret(repo, secret), back)
