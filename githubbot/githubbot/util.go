@@ -44,8 +44,20 @@ func formatPushMsg(evt *github.PushEvent) (res string) {
 	if len(evt.Commits) != 1 {
 		res += "s"
 	}
-	res += fmt.Sprintf(" to %s/%s.\n%s", evt.GetRepo().GetName(), branch, evt.GetCompare())
+	res += fmt.Sprintf(" to %s/%s:\n", evt.GetRepo().GetName(), branch)
+	for _, commit := range evt.Commits {
+		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.GetMessage(), 50))
+	}
+	res += fmt.Sprintf("\n%s", evt.GetCompare())
 	return res
+}
+
+func formatCommitString(commit string, maxLen int) string {
+	firstLine := strings.Split(commit, "\n")[0]
+	if len(firstLine) > maxLen {
+		firstLine = strings.TrimSpace(firstLine[:maxLen]) + "..."
+	}
+	return firstLine
 }
 
 func formatIssueMsg(evt *github.IssuesEvent) (res string) {
@@ -53,7 +65,7 @@ func formatIssueMsg(evt *github.IssuesEvent) (res string) {
 	if action != nil {
 		switch *action {
 		case "opened":
-			res = fmt.Sprintf("%s opened issue #%d on %s: \"%s\"\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
+			res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
 			res += evt.GetIssue().GetHTMLURL()
 		case "closed":
 			res = fmt.Sprintf("%s closed issue #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
@@ -68,7 +80,7 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 	if action != nil {
 		switch *action {
 		case "opened":
-			res = fmt.Sprintf("%s opened pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
+			res = fmt.Sprintf("%s opened pull request #%d on %s: “%s”\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetTitle())
 			res += evt.GetPullRequest().GetHTMLURL()
 		case "closed":
 			if evt.GetPullRequest().GetMerged() {
