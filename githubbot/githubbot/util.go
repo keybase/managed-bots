@@ -49,7 +49,13 @@ func formatPushMsg(evt *github.PushEvent) (res string) {
 	for _, commit := range evt.Commits {
 		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.GetMessage(), 50))
 	}
-	res += fmt.Sprintf("\n%s", evt.GetCompare())
+
+	urlSplit := strings.Split(evt.GetCompare(), "://")
+	if len(urlSplit) != 2 {
+		// if the compare URL isn't formatted as expected, just skip it
+		return res
+	}
+	res += fmt.Sprintf("\n%s", urlSplit[1])
 	return res
 }
 
