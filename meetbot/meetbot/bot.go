@@ -336,7 +336,9 @@ func (s *BotServer) meetHandlerInner(msg chat1.MsgSummary) error {
 			_, err = s.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
 			return err
 		}
-		if msg.Sender.Username != msg.Channel.Name {
+		// If we are in a 1-1 conv directly or as a bot user with the sender,
+		// skip this message.
+		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
 			_, err = s.kbc.SendMessageByConvID(msg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 			return err
