@@ -1,7 +1,6 @@
 package pollbot
 
 import (
-	"encoding/base64"
 	"fmt"
 	"math"
 	"strings"
@@ -65,15 +64,4 @@ func numberToEmoji(v int) string {
 	default:
 		return fmt.Sprintf("%d", v)
 	}
-}
-
-func shortConvID(convID string) string {
-	if len(convID) <= 20 {
-		return convID
-	}
-	return convID[:20]
-}
-
-func encoder() *base64.Encoding {
-	return base64.URLEncoding.WithPadding(base64.NoPadding)
 }

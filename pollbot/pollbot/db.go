@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 )
 
 type TallyResult struct {
@@ -42,7 +43,7 @@ func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.
 			(conv_id, msg_id, result_msg_id, choices)
 			VALUES
 			(?, ?, ?, ?)
-		`, shortConvID(convID), msgID, resultMsgID, numChoices)
+		`, base.ShortConvID(convID), msgID, resultMsgID, numChoices)
 		return err
 	})
 }
@@ -86,7 +87,7 @@ func (d *DB) CastVote(username string, vote Vote) error {
 			(conv_id, msg_id, username, choice)
 			VALUES
 			(?, ?, ?, ?)
-		`, shortConvID(vote.ConvID), vote.MsgID, username, vote.Choice)
+		`, base.ShortConvID(vote.ConvID), vote.MsgID, username, vote.Choice)
 		return err
 	})
 }
