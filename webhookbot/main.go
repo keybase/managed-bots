@@ -8,6 +8,7 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/webhookbot/webhookbot"
 	"golang.org/x/sync/errgroup"
 )
@@ -25,18 +26,17 @@ func newOptions() Options {
 }
 
 type BotServer struct {
+	*base.Server
+
 	opts Options
 	kbc  *kbchat.API
 }
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		opts: opts,
+		Server: base.NewServer(opts.Announcement),
+		opts:   opts,
 	}
-}
-
-func (s *BotServer) debug(msg string, args ...interface{}) {
-	fmt.Printf("BotServer: "+msg+"\n", args...)
 }
 
 const backs = "```"
@@ -45,12 +45,12 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook.
 
 	Example:%s
-		!webhook create alerts`, backs, backs)
+		!webhook create alerts%s`, backs, backs)
 	removeExtended := fmt.Sprintf(`Remove a webhook from the current conversation. You can supply either the URL or the name given to it.
 
 	Example:%s
 		!webhook remove alerts
-		!webhook remove https://bots.keybase.io/webhookbot?783abc`, backs, backs)
+		!webhook remove https://bots.keybase.io/webhookbot?783abc%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
@@ -89,52 +89,22 @@ Start a poll`,
 	}
 }
 
-func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
-	if s.opts.Announcement == "" {
-		return nil
-	}
-	defer func() {
-		if err == nil {
-			s.debug("announcement success")
-		}
-	}()
-	if _, err := s.kbc.SendMessageByConvID(announcement, running); err != nil {
-		s.debug("failed to announce self as conv ID: %s", err)
-	} else {
-		return nil
-	}
-	if _, err := s.kbc.SendMessageByTlfName(announcement, running); err != nil {
-		s.debug("failed to announce self as user: %s", err)
-	} else {
-		return nil
-	}
-	if _, err := s.kbc.SendMessageByTeamName(announcement, nil, running); err != nil {
-		s.debug("failed to announce self as team: %s", err)
-		return err
-	} else {
-		return nil
-	}
-}
-
-func (s *BotServer) Start() (err error) {
-	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
-		KeybaseLocation: s.opts.KeybaseLocation,
-		HomeDir:         s.opts.Home,
-	}); err != nil {
+func (s *BotServer) Go() (err error) {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.debug("failed to connect to MySQL: %s", err)
+		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
 	db := webhookbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.debug("advertise error: %s", err)
+		s.Debug("advertise error: %s", err)
 		return err
 	}
-	if err := s.sendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.debug("failed to announce self: %s", err)
+	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
+		s.Debug("failed to announce self: %s", err)
 		return err
 	}
 
@@ -144,7 +114,7 @@ func (s *BotServer) Start() (err error) {
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)
 	if err := eg.Wait(); err != nil {
-		s.debug("wait error: %s", err)
+		s.Debug("wait error: %s", err)
 		return err
 	}
 	return nil
@@ -170,7 +140,7 @@ func mainInner() int {
 		return 3
 	}
 	bs := NewBotServer(opts)
-	if err := bs.Start(); err != nil {
+	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err.Error())
 	}
 	return 0

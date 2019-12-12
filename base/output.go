@@ -29,6 +29,13 @@ func (d *DebugOutput) ChatDebug(convID, msg string, args ...interface{}) {
 	}
 }
 
+func (d *DebugOutput) ChatDebugFull(convID, msg string, args ...interface{}) {
+	d.Debug(msg, args...)
+	if _, err := d.kbc.SendMessageByConvID(convID, msg, args...); err != nil {
+		d.Debug("chatDebug: failed to send error message: %s", err)
+	}
+}
+
 func (d *DebugOutput) ChatEcho(convID, msg string, args ...interface{}) {
 	if _, err := d.kbc.SendMessageByConvID(convID, msg, args...); err != nil {
 		d.Debug("chatEcho: failed to send echo message: %s", err)
