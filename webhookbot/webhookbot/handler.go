@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 )
 
 type Handler struct {
@@ -92,7 +92,7 @@ func (h *Handler) handleCreate(cmd, convID string) {
 		h.chatDebug(convID, "handleCreate: failed to create webhook: %s", err)
 		return
 	}
-	h.chatEcho(convID, "Success! %s", h.formURL(h.httpPrefix, id))
+	h.chatEcho(convID, "Success! %s", h.formURL(id))
 }
 
 func (h *Handler) handleCommand(msg chat1.MsgSummary) {
