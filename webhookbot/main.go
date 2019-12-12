@@ -39,26 +39,26 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
+const back = "`"
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook.
+	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s.
 
 	Example:%s
-		!webhook create alerts%s`, backs, backs)
-	removeExtended := fmt.Sprintf(`Remove a webhook from the current conversation. You can supply either the URL or the name given to it.
+		!webhook create alerts%s`, back, back, back, back, backs, backs)
+	removeExtended := fmt.Sprintf(`Remove a webhook from the current conversation. You must supply the name of the webhook.
 
 	Example:%s
-		!webhook remove alerts
-		!webhook remove https://bots.keybase.io/webhookbot?783abc%s`, backs, backs)
+		!webhook remove alerts%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "webhook create",
 			Description: "Create a new webhook for sending into the current conversation",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title: `*webhook create* <name>
-Start a poll`,
+				Title: `*!webhook create* <name>
+Create a webhook`,
 				DesktopBody: createExtended,
 				MobileBody:  createExtended,
 			},
@@ -72,7 +72,7 @@ Start a poll`,
 			Description: "Remove a webhook from the current conversation",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title: `*!webhook remove* <name>
-Start a poll`,
+Remove a webhook`,
 				DesktopBody: removeExtended,
 				MobileBody:  removeExtended,
 			},
