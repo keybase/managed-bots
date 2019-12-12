@@ -3,8 +3,8 @@ package pollbot
 import (
 	"encoding/hex"
 
-	"github.com/keybase/go-codec/codec"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 )
 
 type Vote struct {
@@ -29,8 +29,8 @@ func NewVote(convID string, msgID chat1.MessageID, choice int) Vote {
 
 func NewVoteFromEncoded(sdat string) Vote {
 	var ve voteToEncode
-	dat, _ := encoder().DecodeString(sdat)
-	msgpackDecode(&ve, dat)
+	dat, _ := base.URLEncoder().DecodeString(sdat)
+	base.MsgpackDecode(&ve, dat)
 	return Vote{
 		ConvID: hex.EncodeToString(ve.ConvID),
 		MsgID:  ve.MsgID,
@@ -39,32 +39,11 @@ func NewVoteFromEncoded(sdat string) Vote {
 }
 
 func (v Vote) Encode() string {
-	cdat, _ := hex.DecodeString(shortConvID(v.ConvID))
-	mdat, _ := msgpackEncode(voteToEncode{
+	cdat, _ := hex.DecodeString(base.ShortConvID(v.ConvID))
+	mdat, _ := base.MsgpackEncode(voteToEncode{
 		ConvID: cdat,
 		MsgID:  v.MsgID,
 		Choice: v.Choice,
 	})
-	return encoder().EncodeToString(mdat)
-}
-
-func codecHandle() *codec.MsgpackHandle {
-	var mh codec.MsgpackHandle
-	mh.WriteExt = true
-	return &mh
-}
-
-func msgpackDecode(dst interface{}, src []byte) error {
-	h := codecHandle()
-	return codec.NewDecoderBytes(src, h).Decode(dst)
-}
-
-func msgpackEncode(src interface{}) ([]byte, error) {
-	h := codecHandle()
-	var ret []byte
-	err := codec.NewEncoderBytes(&ret, h).Encode(src)
-	if err != nil {
-		return nil, err
-	}
-	return ret, nil
+	return base.URLEncoder().EncodeToString(mdat)
 }
