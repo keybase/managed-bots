@@ -47,7 +47,7 @@ func (h *Handler) Listen() error {
 }
 
 func (h *Handler) formURL(id string) string {
-	return fmt.Sprintf("%s/%s", h.httpPrefix, id)
+	return fmt.Sprintf("%s/webhookbot/%s", h.httpPrefix, id)
 }
 
 func (h *Handler) handleRemove(cmd, convID string) {
@@ -68,6 +68,10 @@ func (h *Handler) handleList(cmd, convID string) {
 	hooks, err := h.db.List(convID)
 	if err != nil {
 		h.ChatDebug(convID, "handleList: failed to list hook: %s", err)
+		return
+	}
+	if len(hooks) == 0 {
+		h.ChatEcho(convID, "No hooks in this conversation")
 		return
 	}
 	var body string
