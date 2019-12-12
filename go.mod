@@ -6,6 +6,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/google/go-github/v28 v28.1.1
+	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20191212013139-6edf0259a3e9
