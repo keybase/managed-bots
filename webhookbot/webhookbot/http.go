@@ -1,7 +1,7 @@
 package webhookbot
 
 import (
-	"errors"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -24,12 +24,22 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB) *HTTPSrv {
 	}
 }
 
+type msgPayload struct {
+	Msg string
+}
+
 func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 	msg := r.URL.Query().Get("msg")
-	if len(msg) == 0 {
-		return "", errors.New("no message given")
+	if len(msg) > 0 {
+		return msg, nil
 	}
-	return msg, nil
+
+	var payload msgPayload
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&payload); err != nil {
+		return msg, err
+	}
+	return payload.Msg, nil
 }
 
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {

@@ -84,7 +84,10 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) {
 	for _, hook := range hooks {
 		body += fmt.Sprintf("%s, %s\n", hook.name, h.formURL(hook.id))
 	}
-	h.ChatEcho(convID, body)
+	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, body); err != nil {
+		h.Debug(convID, "handleList: failed to send hook: %s", err)
+	}
+	h.ChatEcho(convID, "List sent to @%s", msg.Sender.Username)
 }
 
 func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) {
