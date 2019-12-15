@@ -65,7 +65,7 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
 func (h *HTTPSrv) Listen() error {
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
-	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9]+}", h.handleHook)
+	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)
 	http.Handle("/", rtr)
 	return http.ListenAndServe(":8080", nil)
 }
