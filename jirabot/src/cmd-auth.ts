@@ -83,7 +83,11 @@ export default async (
     )
   }
 
-  const oauthResultOrError = await JiraOauth.doOauth(teamJiraConfig, onAuthUrl)
+  const oauthResultOrError = await JiraOauth.doOauth(
+    context,
+    teamJiraConfig,
+    onAuthUrl
+  )
   if (oauthResultOrError.type === Errors.ReturnType.Error) {
     switch (oauthResultOrError.error.type) {
       case Errors.ErrorType.Unknown:

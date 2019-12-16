@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import * as Constants from './constants'
 import * as Errors from './errors'
 import * as Configs from './configs'
+import {Context} from './context'
 
 export type OauthResult = Readonly<{
   accessToken: string
@@ -21,7 +22,12 @@ export const onJiraCallback = (oauthToken: string, oauthVerifier: string) => {
   tokenCallback && tokenCallback({oauthToken, oauthVerifier})
 }
 
-const step1 = (host: string, consumerKey: string, privateKey: string) =>
+const step1 = (
+  jiraHost: string,
+  consumerKey: string,
+  privateKey: string,
+  httpAddressPrefix: string
+) =>
   new Promise<
     Errors.ResultOrError<
       {
@@ -34,11 +40,11 @@ const step1 = (host: string, consumerKey: string, privateKey: string) =>
   >(resolve => {
     JiraClient.oauth_util.getAuthorizeURL(
       {
-        host,
+        host: jiraHost,
         oauth: {
           consumer_key: consumerKey,
           private_key: privateKey,
-          callback_url: `http://localhost:8080${Constants.jiraOauthCallbackPathname}`,
+          callback_url: `${httpAddressPrefix}${Constants.jiraOauthCallbackPathname}`,
         },
       },
       (error: any, oauth: any) => {
@@ -96,6 +102,7 @@ const getAccessToken = (
   })
 
 export const doOauth = async (
+  context: Context,
   teamJiraConfig: Configs.TeamJiraConfig,
   onAuthUrl: (url: string) => void
 ): Promise<Errors.ResultOrError<
@@ -105,7 +112,8 @@ export const doOauth = async (
   const step1ResultOrError = await step1(
     teamJiraConfig.jiraHost,
     teamJiraConfig.jiraAuth.consumerKey,
-    teamJiraConfig.jiraAuth.privateKey
+    teamJiraConfig.jiraAuth.privateKey,
+    context.botConfig.httpAddressPrefix
   )
   if (step1ResultOrError.type === Errors.ReturnType.Error) {
     return step1ResultOrError

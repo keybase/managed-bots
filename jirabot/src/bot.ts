@@ -151,7 +151,7 @@ const commands = [
   {
     name: 'jira auth',
     description: `Connect Jirabot to your Jira account`,
-    usage: `auth`,
+    usage: ``,
     title: 'Jira Authorization',
   },
 ]

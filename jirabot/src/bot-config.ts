@@ -1,6 +1,7 @@
 import logger from './logger'
 
 export type BotConfig = {
+  httpAddressPrefix: string // e.g. https://example.com
   keybase: {
     username: string
     paperkey: string
@@ -26,6 +27,20 @@ const checkBotConfig = (obj: any): null | BotConfig => {
   if (typeof obj !== 'object') {
     logger.error('unexpect obj type', typeof obj)
     return null
+  }
+
+  if (typeof obj.httpAddressPrefix !== 'string') {
+    logger.error(
+      'unexpect obj.httpAddressPrefix type',
+      typeof obj.keybase.username
+    )
+    return null
+  }
+  if (obj.httpAddressPrefix.endsWith('/')) {
+    obj.httpAddressPrefix = obj.httpAddressPrefix.slice(
+      0,
+      obj.httpAddressPrefix.length - 1
+    )
   }
 
   if (typeof obj.keybase !== 'object') {

@@ -157,9 +157,13 @@ const handleChannelConfig = async (
   return Errors.makeError(undefined)
 }
 
-const jiraConfigToMessageBody = (jiraConfig: Configs.TeamJiraConfig) =>
+const jiraConfigToMessageBody = (
+  context: Context,
+  jiraConfig: Configs.TeamJiraConfig
+) =>
   `This team is now configured for \`${jiraConfig.jiraHost}\`. ` +
   'In Jira admin settings, create an application link of type "Generic Application".' +
+  ` Use \`${context.botConfig.httpAddressPrefix}\` as the URL of the application.` +
   `\n\n_Tip: Can't find application link settings on Jira? Try the "Search Jira Admin" box in the top right corner of admin settings._` +
   '\n\nAfter the application link has been created, edit the link and configure "Incoming Authentication" as following:' +
   `\n\n*Consumer Key:* \`${jiraConfig.jiraAuth.consumerKey}\`` +
@@ -201,7 +205,7 @@ const handleTeamConfig = async (
       ? replyChat(
           context,
           parsedMessage,
-          jiraConfigToMessageBody(oldCachedConfig.config)
+          jiraConfigToMessageBody(context, oldCachedConfig.config)
         )
       : Errors.reportErrorAndReplyChat(
           context,
@@ -245,7 +249,11 @@ const handleTeamConfig = async (
         )
         return Errors.makeError(undefined)
       }
-      replyChat(context, parsedMessage, jiraConfigToMessageBody(newConfig))
+      replyChat(
+        context,
+        parsedMessage,
+        jiraConfigToMessageBody(context, newConfig)
+      )
       return Errors.makeResult(undefined)
     default:
       Errors.reportErrorAndReplyChat(context, parsedMessage.context, {
