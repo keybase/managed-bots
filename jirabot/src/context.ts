@@ -3,7 +3,7 @@ import {Issue} from './jira'
 import {CommentMessage} from './message'
 import util from 'util'
 import * as BotConfig from './bot-config'
-import Jira from './jira'
+import * as Jira from './jira'
 import Aliases from './aliases'
 import Configs from './configs'
 import logger from './logger'
@@ -35,7 +35,7 @@ export type Context = {
   botConfig: BotConfig.BotConfig
   comment: CommentContext
   configs: Configs
-  jira: Jira
+  getJiraFromTeamnameAndUsername: typeof Jira.getJiraFromTeamnameAndUsername
 }
 
 export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
@@ -46,7 +46,7 @@ export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
     botConfig,
     comment: new CommentContext(),
     configs: new Configs(bot, botConfig),
-    jira: new Jira(botConfig),
+    getJiraFromTeamnameAndUsername: Jira.getJiraFromTeamnameAndUsername,
   }
   return context.bot
     .init(

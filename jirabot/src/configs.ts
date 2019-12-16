@@ -7,6 +7,7 @@ export type TeamJiraConfig = Readonly<{
   jiraHost: string
   jiraAuth: Readonly<{
     consumerKey: string
+    publicKey: string
     privateKey: string
   }>
 }>
@@ -42,6 +43,7 @@ const jsonToTeamJiraConfig = (
     typeof objectFromJson.jiraHost !== 'string' ||
     !objectFromJson.jiraAuth ||
     typeof objectFromJson.jiraAuth.consumerKey !== 'string' ||
+    typeof objectFromJson.jiraAuth.publicKey !== 'string' ||
     typeof objectFromJson.jiraAuth.privateKey !== 'string'
   ) {
     return undefined
@@ -50,6 +52,7 @@ const jsonToTeamJiraConfig = (
     jiraHost: objectFromJson.jiraHost,
     jiraAuth: {
       consumerKey: objectFromJson.jiraAuth.consumerKey,
+      publicKey: objectFromJson.jiraAuth.publicKey,
       privateKey: objectFromJson.jiraAuth.privateKey,
     },
   } as TeamJiraConfig
@@ -172,11 +175,7 @@ export default class Configs {
       configCache.set(cacheKey, cachedConfig)
       return Errors.makeResult<CachedConfig<T>>(cachedConfig)
     } catch (err) {
-      return Errors.makeError({
-        type: Errors.ErrorType.Unknown,
-        description:
-          err && typeof err.toString === 'function' ? err.toString() : '',
-      })
+      return Errors.makeUnknownError(err)
     }
   }
 
@@ -210,11 +209,7 @@ export default class Configs {
       return Errors.makeResult(undefined)
     } catch (err) {
       // TODO check and return KVStoreRevisionError
-      return Errors.makeError({
-        type: Errors.ErrorType.Unknown,
-        description:
-          err && typeof err.toString === 'function' ? err.toString() : '',
-      })
+      return Errors.makeUnknownError(err)
     }
   }
 

@@ -11,6 +11,7 @@ export enum BotMessageType {
   Comment = 'comment',
   Reacji = 'reacji',
   Config = 'config',
+  Auth = 'auth',
 }
 
 export type MessageContext = Readonly<{
@@ -75,6 +76,11 @@ export type ConfigMessage = Readonly<{
   }>
 }>
 
+export type AuthMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Auth
+}>
+
 export type Message =
   | UnknownMessage
   | SearchMessage
@@ -82,6 +88,7 @@ export type Message =
   | ReacjiMessage
   | CreateMessage
   | ConfigMessage
+  | AuthMessage
 
 const getTextMessage = (message: ChatTypes.MsgSummary): string | undefined => {
   if (!message || !message.content) {
@@ -397,6 +404,19 @@ export const parseMessage = async (
         comment: rest.join(' '),
       }
     }
+    case 'auth': {
+      if (fields.length > 2) {
+        return {
+          context: messageContext,
+          type: BotMessageType.Unknown,
+          error: 'The `auth` command takes not argument.',
+        }
+      }
+      return {
+        context: messageContext,
+        type: BotMessageType.Auth,
+      }
+    }
     case 'config': {
       if (fields[2] !== 'team' && fields[2] !== 'channel') {
         return {
@@ -409,13 +429,31 @@ export const parseMessage = async (
         fields[2] === 'team' ? ConfigType.Team : ConfigType.Channel
       const toSetName = fields[3]
       const toSetValue = fields[4]
+      if (toSetName && !toSetValue) {
+        return {
+          context: messageContext,
+          type: BotMessageType.Unknown,
+          error: 'setting config parameters requires a value',
+        }
+      }
       switch (configType) {
         case ConfigType.Team:
-          if (toSetName !== undefined || toSetValue !== undefined) {
+          if (toSetName) {
+            if (toSetName !== 'jiraHost') {
+              return {
+                context: messageContext,
+                type: BotMessageType.Unknown,
+                error: `unknown team config parameter ${toSetName}`,
+              }
+            }
             return {
               context: messageContext,
-              type: BotMessageType.Unknown,
-              error: 'team configs are not implemented yet',
+              type: BotMessageType.Config,
+              configType,
+              toSet: {
+                name: toSetName,
+                value: toSetValue,
+              },
             }
           }
           return {
@@ -432,13 +470,6 @@ export const parseMessage = async (
                 context: messageContext,
                 type: BotMessageType.Unknown,
                 error: `unknown config parameter ${toSetName}`,
-              }
-            }
-            if (toSetValue === undefined) {
-              return {
-                context: messageContext,
-                type: BotMessageType.Unknown,
-                error: 'setting config parameters requires a value',
               }
             }
             return {
