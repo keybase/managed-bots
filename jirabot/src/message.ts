@@ -444,7 +444,6 @@ export const parseMessage = async (
                 context: messageContext,
                 type: BotMessageType.Unknown,
                 error: `unknown team config parameter ${toSetName}`,
-              }
             }
             return {
               context: messageContext,
