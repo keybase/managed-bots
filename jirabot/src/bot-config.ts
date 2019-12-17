@@ -32,7 +32,7 @@ const checkBotConfig = (obj: any): null | BotConfig => {
   if (typeof obj.httpAddressPrefix !== 'string') {
     logger.error(
       'unexpect obj.httpAddressPrefix type',
-      typeof obj.keybase.username
+      typeof obj.httpAddressPrefix
     )
     return null
   }
