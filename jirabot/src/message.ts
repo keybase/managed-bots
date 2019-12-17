@@ -439,7 +439,6 @@ export const parseMessage = async (
       switch (configType) {
         case ConfigType.Team:
           if (toSetName && toSetName !== 'jiraHost') {
-            if (toSetName !== 'jiraHost') {
               return {
                 context: messageContext,
                 type: BotMessageType.Unknown,
