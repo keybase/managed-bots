@@ -409,7 +409,7 @@ export const parseMessage = async (
         return {
           context: messageContext,
           type: BotMessageType.Unknown,
-          error: 'The `auth` command takes not argument.',
+          error: 'The `auth` command takes no arguments.',
         }
       }
       return {
