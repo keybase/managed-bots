@@ -75,29 +75,29 @@ const handleChannelConfig = async (
     return Errors.makeError(undefined)
   }
   loop: for (let attempt = 0; attempt < 2; ++attempt) {
-    const oldConfigResultOrError = await context.configs.getTeamChannelConfig(
+    const oldConfigRet = await context.configs.getTeamChannelConfig(
       parsedMessage.context.teamName,
       parsedMessage.context.channelName
     )
     let oldCachedConfig = undefined
     let newConfigBase = undefined
-    if (oldConfigResultOrError.type === Errors.ReturnType.Error) {
-      switch (oldConfigResultOrError.error.type) {
+    if (oldConfigRet.type === Errors.ReturnType.Error) {
+      switch (oldConfigRet.error.type) {
         case Errors.ErrorType.Unknown:
           Errors.reportErrorAndReplyChat(
             context,
             parsedMessage.context,
-            oldConfigResultOrError.error
+            oldConfigRet.error
           )
           return Errors.makeError(undefined)
         case Errors.ErrorType.KVStoreNotFound:
           newConfigBase = Configs.emptyTeamChannelConfig
           break
         default:
-          let _: never = oldConfigResultOrError.error
+          let _: never = oldConfigRet.error
       }
     } else {
-      oldCachedConfig = oldConfigResultOrError.result
+      oldCachedConfig = oldConfigRet.result
       newConfigBase = oldCachedConfig.config
     }
 
@@ -116,39 +116,39 @@ const handleChannelConfig = async (
       return Errors.makeResult(undefined)
     }
 
-    const newConfigResultOrError = makeNewTeamChannelConfig(
+    const newConfigRet = makeNewTeamChannelConfig(
       newConfigBase,
       parsedMessage.toSet.name,
       parsedMessage.toSet.value
     )
-    if (newConfigResultOrError.type === Errors.ReturnType.Error) {
+    if (newConfigRet.type === Errors.ReturnType.Error) {
       Errors.reportErrorAndReplyChat(
         context,
         parsedMessage.context,
-        newConfigResultOrError.error
+        newConfigRet.error
       )
       return Errors.makeError(undefined)
     }
 
-    const updateResultOrError = await context.configs.updateTeamChannelConfig(
+    const updateRet = await context.configs.updateTeamChannelConfig(
       parsedMessage.context.teamName,
       parsedMessage.context.channelName,
       oldCachedConfig,
-      newConfigResultOrError.result
+      newConfigRet.result
     )
-    if (updateResultOrError.type === Errors.ReturnType.Error) {
-      switch (updateResultOrError.error.type) {
+    if (updateRet.type === Errors.ReturnType.Error) {
+      switch (updateRet.error.type) {
         case Errors.ErrorType.KVStoreRevision:
           continue loop
         case Errors.ErrorType.Unknown:
           Errors.reportErrorAndReplyChat(
             context,
             parsedMessage.context,
-            updateResultOrError.error
+            updateRet.error
           )
           return Errors.makeError(undefined)
         default:
-          let _: never = updateResultOrError.error
+          let _: never = updateRet.error
       }
     } else {
       return Errors.makeResult(undefined)
@@ -179,26 +179,26 @@ const handleTeamConfig = async (
   if (parsedMessage.configType !== Message.ConfigType.Team) {
     return Errors.makeError(undefined)
   }
-  const teamJiraConfigResultOrError = await context.configs.getTeamJiraConfig(
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
     parsedMessage.context.teamName
   )
   let oldCachedConfig = undefined
-  if (teamJiraConfigResultOrError.type === Errors.ReturnType.Error) {
-    switch (teamJiraConfigResultOrError.error.type) {
+  if (teamJiraConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamJiraConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
         Errors.reportErrorAndReplyChat(
           context,
           parsedMessage.context,
-          teamJiraConfigResultOrError.error
+          teamJiraConfigRet.error
         )
         return Errors.makeError(undefined)
       case Errors.ErrorType.KVStoreNotFound:
         break
       default:
-        let _: never = teamJiraConfigResultOrError.error
+        let _: never = teamJiraConfigRet.error
     }
   } else {
-    oldCachedConfig = teamJiraConfigResultOrError.result
+    oldCachedConfig = teamJiraConfigRet.result
   }
   if (!parsedMessage.toSet) {
     oldCachedConfig
@@ -217,16 +217,16 @@ const handleTeamConfig = async (
   switch (parsedMessage.toSet.name) {
     case 'jiraHost':
       // TODO check admin
-      const detailsResultOrError = await JiraOauth.generarteNewJiraLinkDetails()
-      if (detailsResultOrError.type === Errors.ReturnType.Error) {
+      const detailsRet = await JiraOauth.generateNewJiraLinkDetails()
+      if (detailsRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           parsedMessage.context,
-          detailsResultOrError.error
+          detailsRet.error
         )
         return Errors.makeError(undefined)
       }
-      const details = detailsResultOrError.result
+      const details = detailsRet.result
       const newConfig = {
         jiraHost: parsedMessage.toSet.value,
         jiraAuth: {
@@ -235,17 +235,17 @@ const handleTeamConfig = async (
           privateKey: details.privateKey,
         },
       }
-      const updateResultOrError = await context.configs.updateTeamJiraConfig(
+      const updateRet = await context.configs.updateTeamJiraConfig(
         parsedMessage.context.teamName,
         // just override setting in this case and skip the revision check
         undefined,
         newConfig
       )
-      if (updateResultOrError.type === Errors.ReturnType.Error) {
+      if (updateRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           parsedMessage.context,
-          updateResultOrError.error
+          updateRet.error
         )
         return Errors.makeError(undefined)
       }

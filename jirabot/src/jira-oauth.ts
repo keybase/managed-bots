@@ -109,16 +109,16 @@ export const doOauth = async (
   OauthResult,
   Errors.UnknownError | Errors.TimeoutError
 >> => {
-  const step1ResultOrError = await step1(
+  const step1Ret = await step1(
     teamJiraConfig.jiraHost,
     teamJiraConfig.jiraAuth.consumerKey,
     teamJiraConfig.jiraAuth.privateKey,
     context.botConfig.httpAddressPrefix
   )
-  if (step1ResultOrError.type === Errors.ReturnType.Error) {
-    return step1ResultOrError
+  if (step1Ret.type === Errors.ReturnType.Error) {
+    return step1Ret
   }
-  const res1 = step1ResultOrError.result
+  const res1 = step1Ret.result
 
   if (
     typeof res1.token !== 'string' ||
@@ -130,25 +130,25 @@ export const doOauth = async (
 
   onAuthUrl(res1.url)
 
-  const waitForJiraCallbackResultOrError = await waitForJiraCallback(res1.token)
-  if (waitForJiraCallbackResultOrError.type === Errors.ReturnType.Error) {
-    return waitForJiraCallbackResultOrError
+  const waitForJiraCallbackRet = await waitForJiraCallback(res1.token)
+  if (waitForJiraCallbackRet.type === Errors.ReturnType.Error) {
+    return waitForJiraCallbackRet
   }
-  const tokenCallbackData = waitForJiraCallbackResultOrError.result
+  const tokenCallbackData = waitForJiraCallbackRet.result
 
-  const accessTokenResultOrError = await getAccessToken(
+  const accessTokenRet = await getAccessToken(
     teamJiraConfig.jiraHost,
     teamJiraConfig.jiraAuth.consumerKey,
     teamJiraConfig.jiraAuth.privateKey,
     res1.token_secret,
     tokenCallbackData
   )
-  if (accessTokenResultOrError.type === Errors.ReturnType.Error) {
-    return accessTokenResultOrError
+  if (accessTokenRet.type === Errors.ReturnType.Error) {
+    return accessTokenRet
   }
 
   return Errors.makeResult({
-    accessToken: accessTokenResultOrError.result,
+    accessToken: accessTokenRet.result,
     tokenSecret: res1.token_secret,
   })
 }

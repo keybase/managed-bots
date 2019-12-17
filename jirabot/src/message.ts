@@ -123,19 +123,19 @@ const checkAndGetProjectName = async (
   | Errors.ChannelNotConfiguredError
   | Errors.MissingProjectError
 >> => {
-  const teamChannelConfigResultOrError = await context.configs.getTeamChannelConfig(
+  const teamChannelConfigRet = await context.configs.getTeamChannelConfig(
     messageContext.teamName,
     messageContext.channelName
   )
-  if (teamChannelConfigResultOrError.type === Errors.ReturnType.Error) {
-    switch (teamChannelConfigResultOrError.error.type) {
+  if (teamChannelConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamChannelConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
-        return Errors.makeError(teamChannelConfigResultOrError.error)
+        return Errors.makeError(teamChannelConfigRet.error)
       case Errors.ErrorType.KVStoreNotFound:
         return Errors.channelNotConfiguredError
     }
   }
-  const teamChannelConfig = teamChannelConfigResultOrError.result
+  const teamChannelConfig = teamChannelConfigRet.result
   if (!project) {
     const defaultProject = teamChannelConfig.config.defaultNewIssueProject
     return required
@@ -294,19 +294,17 @@ export const parseMessage = async (
         }
       }
 
-      const checkAndGetProjectNameResultOrError = await checkAndGetProjectName(
+      const checkAndGetProjectNameRet = await checkAndGetProjectName(
         context,
         messageContext,
         args.in,
         true
       )
-      if (
-        checkAndGetProjectNameResultOrError.type === Errors.ReturnType.Error
-      ) {
+      if (checkAndGetProjectNameRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           messageContext,
-          checkAndGetProjectNameResultOrError.error
+          checkAndGetProjectNameRet.error
         )
         return undefined
       }
@@ -327,7 +325,7 @@ export const parseMessage = async (
         context: messageContext,
         type: BotMessageType.Create,
         name: rest[0],
-        project: checkAndGetProjectNameResultOrError.result,
+        project: checkAndGetProjectNameRet.result,
         assignee,
         description: rest.slice(1).join(' '),
         issueType,
@@ -343,19 +341,17 @@ export const parseMessage = async (
         }
       }
 
-      const checkAndGetProjectNameResultOrError = await checkAndGetProjectName(
+      const checkAndGetProjectNameRet = await checkAndGetProjectName(
         context,
         messageContext,
         args.in,
         false
       )
-      if (
-        checkAndGetProjectNameResultOrError.type === Errors.ReturnType.Error
-      ) {
+      if (checkAndGetProjectNameRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           messageContext,
-          checkAndGetProjectNameResultOrError.error
+          checkAndGetProjectNameRet.error
         )
         return undefined
       }
@@ -383,7 +379,7 @@ export const parseMessage = async (
         context: messageContext,
         type: BotMessageType.Search,
         query: rest.join(' '),
-        project: checkAndGetProjectNameResultOrError.result,
+        project: checkAndGetProjectNameRet.result,
         assignee,
         status: args.status,
       }
@@ -439,10 +435,10 @@ export const parseMessage = async (
       switch (configType) {
         case ConfigType.Team:
           if (toSetName && toSetName !== 'jiraHost') {
-              return {
-                context: messageContext,
-                type: BotMessageType.Unknown,
-                error: `unknown team config parameter ${toSetName}`,
+            return {
+              context: messageContext,
+              type: BotMessageType.Unknown,
+              error: `unknown team config parameter ${toSetName}`,
             }
             return {
               context: messageContext,

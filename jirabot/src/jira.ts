@@ -168,38 +168,36 @@ export const getJiraFromTeamnameAndUsername = async (
   JiraClientWrapper,
   Errors.JirabotNotEnabledError | Errors.UnknownError
 >> => {
-  const teamJiraConfigResultOrError = await context.configs.getTeamJiraConfig(
-    teamname
-  )
-  if (teamJiraConfigResultOrError.type === Errors.ReturnType.Error) {
-    switch (teamJiraConfigResultOrError.error.type) {
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(teamname)
+  if (teamJiraConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamJiraConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
-        return Errors.makeError(teamJiraConfigResultOrError.error)
+        return Errors.makeError(teamJiraConfigRet.error)
       case Errors.ErrorType.KVStoreNotFound:
         return Errors.makeError(Errors.JirabotNotEnabledForTeamError)
       default:
-        let _: never = teamJiraConfigResultOrError.error
+        let _: never = teamJiraConfigRet.error
         return Errors.makeError(undefined)
     }
   }
-  const teamJiraConfig = teamJiraConfigResultOrError.result.config
+  const teamJiraConfig = teamJiraConfigRet.result.config
 
-  const teamUserConfigResultOrError = await context.configs.getTeamUserConfig(
+  const teamUserConfigRet = await context.configs.getTeamUserConfig(
     teamname,
     username
   )
-  if (teamUserConfigResultOrError.type === Errors.ReturnType.Error) {
-    switch (teamUserConfigResultOrError.error.type) {
+  if (teamUserConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamUserConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
-        return Errors.makeError(teamUserConfigResultOrError.error)
+        return Errors.makeError(teamUserConfigRet.error)
       case Errors.ErrorType.KVStoreNotFound:
         return Errors.makeError(Errors.JirabotNotEnabledForUserError)
       default:
-        let _: never = teamUserConfigResultOrError.error
+        let _: never = teamUserConfigRet.error
         return Errors.makeError(undefined)
     }
   }
-  const teamUserConfig = teamUserConfigResultOrError.result.config
+  const teamUserConfig = teamUserConfigRet.result.config
 
   const jiraClient = getJiraClient(
     teamJiraConfig.jiraHost,

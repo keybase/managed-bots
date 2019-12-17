@@ -44,16 +44,16 @@ export default async (
   context: Context,
   parsedMessage: Message.AuthMessage
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
-  const teamJiraConfigResultOrError = await context.configs.getTeamJiraConfig(
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
     parsedMessage.context.teamName
   )
-  if (teamJiraConfigResultOrError.type === Errors.ReturnType.Error) {
-    switch (teamJiraConfigResultOrError.error.type) {
+  if (teamJiraConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamJiraConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
         Errors.reportErrorAndReplyChat(
           context,
           parsedMessage.context,
-          teamJiraConfigResultOrError.error
+          teamJiraConfigRet.error
         )
         return Errors.makeError(undefined)
       case Errors.ErrorType.KVStoreNotFound:
@@ -64,11 +64,11 @@ export default async (
         )
         return Errors.makeError(undefined)
       default:
-        let _: never = teamJiraConfigResultOrError.error
+        let _: never = teamJiraConfigRet.error
         return Errors.makeError(undefined)
     }
   }
-  const teamJiraConfig = teamJiraConfigResultOrError.result.config
+  const teamJiraConfig = teamJiraConfigRet.result.config
 
   const onAuthUrl = (url: string) => {
     replyInPrivate(
@@ -83,50 +83,40 @@ export default async (
     )
   }
 
-  const oauthResultOrError = await JiraOauth.doOauth(
-    context,
-    teamJiraConfig,
-    onAuthUrl
-  )
-  if (oauthResultOrError.type === Errors.ReturnType.Error) {
-    switch (oauthResultOrError.error.type) {
+  const oauthRet = await JiraOauth.doOauth(context, teamJiraConfig, onAuthUrl)
+  if (oauthRet.type === Errors.ReturnType.Error) {
+    switch (oauthRet.error.type) {
       case Errors.ErrorType.Unknown:
-        Errors.reportErrorAndReplyChat(
-          context,
-          parsedMessage.context,
-          oauthResultOrError.error
-        )
-        return Errors.makeError(undefined)
       case Errors.ErrorType.Timeout:
         Errors.reportErrorAndReplyChat(
           context,
           parsedMessage.context,
-          oauthResultOrError.error
+          oauthRet.error
         )
         return Errors.makeError(undefined)
       default:
-        let _: never = oauthResultOrError.error
+        let _: never = oauthRet.error
         return Errors.makeError(undefined)
     }
   }
-  const oauthResult = oauthResultOrError.result
+  const oauthResult = oauthRet.result
 
-  const jiraAccountIDResultOrError = await Jira.getAccountId(
+  const jiraAccountIDRet = await Jira.getAccountId(
     teamJiraConfig,
     oauthResult.accessToken,
     oauthResult.tokenSecret
   )
-  if (jiraAccountIDResultOrError.type === Errors.ReturnType.Error) {
+  if (jiraAccountIDRet.type === Errors.ReturnType.Error) {
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
-      jiraAccountIDResultOrError.error
+      jiraAccountIDRet.error
     )
     return Errors.makeError(undefined)
   }
-  const jiraAccountID = jiraAccountIDResultOrError.result
+  const jiraAccountID = jiraAccountIDRet.result
 
-  const updateResultOrError = await context.configs.updateTeamUserConfig(
+  const updateRet = await context.configs.updateTeamUserConfig(
     parsedMessage.context.teamName,
     parsedMessage.context.senderUsername,
     undefined,
@@ -136,11 +126,11 @@ export default async (
       tokenSecret: oauthResult.tokenSecret,
     }
   )
-  if (updateResultOrError.type === Errors.ReturnType.Error) {
+  if (updateRet.type === Errors.ReturnType.Error) {
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
-      updateResultOrError.error
+      updateRet.error
     )
     return Errors.makeError(undefined)
   }

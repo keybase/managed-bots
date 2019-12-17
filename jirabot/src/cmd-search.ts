@@ -33,20 +33,20 @@ export default async (
   parsedMessage: SearchMessage,
   additional?: string
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
-  const jiraResultOrError = await context.getJiraFromTeamnameAndUsername(
+  const jiraRet = await context.getJiraFromTeamnameAndUsername(
     context,
     parsedMessage.context.teamName,
     parsedMessage.context.senderUsername
   )
-  if (jiraResultOrError.type === Errors.ReturnType.Error) {
+  if (jiraRet.type === Errors.ReturnType.Error) {
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
-      jiraResultOrError.error
+      jiraRet.error
     )
     return Errors.makeError(undefined)
   }
-  const jira = jiraResultOrError.result
+  const jira = jiraRet.result
   try {
     await jira
       .getOrSearch({
