@@ -159,7 +159,7 @@ export type JiraLinkDetails = {
   consumerKey: string
 }
 
-export const generarteNewJiraLinkDetails = async (): Promise<Errors.ResultOrError<
+export const generateNewJiraLinkDetails = async (): Promise<Errors.ResultOrError<
   JiraLinkDetails,
   Errors.UnknownError
 >> =>
