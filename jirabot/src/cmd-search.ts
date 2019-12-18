@@ -3,11 +3,19 @@ import {Issue as JiraIssue} from './jira'
 import {numToEmoji, statusToEmoji} from './emoji'
 import {SearchMessage} from './message'
 import {Context} from './context'
+import * as Errors from './errors'
 
 const issueToLine = (issue: JiraIssue, index: number) =>
-  `${numToEmoji(index)} *${issue.key}* ${statusToEmoji(issue.status)} ${issue.summary} - ${issue.url}`
+  `${numToEmoji(index)} *${issue.key}* ${statusToEmoji(issue.status)} ${
+    issue.summary
+  } - ${issue.url}`
 
-const buildSearchResultBody = (parsedMessage: SearchMessage, jql: string, issues: Array<JiraIssue>, additional?: string) => {
+const buildSearchResultBody = (
+  parsedMessage: SearchMessage,
+  jql: string,
+  issues: Array<JiraIssue>,
+  additional?: string
+) => {
   const begin = '```\n' + jql + '\n```\n'
   if (!issues.length) {
     return begin + 'I got nothing from Jira.'
@@ -20,28 +28,52 @@ const buildSearchResultBody = (parsedMessage: SearchMessage, jql: string, issues
   return begin + head + body + (additional ? '\n\n' + additional : '')
 }
 
-export const getOrSearch = (
+export default async (
   context: Context,
   parsedMessage: SearchMessage,
   additional?: string
-): Promise<{issues: Array<JiraIssue>; count: number; id: number}> =>
-  context.jira
-    .getOrSearch({
-      query: parsedMessage.query,
-      project: parsedMessage.project,
-      status: parsedMessage.status,
-      assigneeJira: context.botConfig.jira.usernameMapper[parsedMessage.assignee] || '',
-    })
-    .then(({jql, issues}) =>
-      context.bot.chat
-        .send(parsedMessage.context.chatChannel, {
-          body: buildSearchResultBody(parsedMessage, jql, issues, additional),
-        })
-        .then(({id}) => ({
-          count: issues.length > 11 ? 11 : issues.length,
-          id,
-          issues,
-        }))
+): Promise<Errors.ResultOrError<undefined, undefined>> => {
+  const jiraRet = await context.getJiraFromTeamnameAndUsername(
+    context,
+    parsedMessage.context.teamName,
+    parsedMessage.context.senderUsername
+  )
+  if (jiraRet.type === Errors.ReturnType.Error) {
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      jiraRet.error
     )
-
-export default (context: Context, parsedMessage: SearchMessage) => getOrSearch(context, parsedMessage)
+    return Errors.makeError(undefined)
+  }
+  const jira = jiraRet.result
+  try {
+    await jira
+      .getOrSearch({
+        query: parsedMessage.query,
+        project: parsedMessage.project,
+        status: parsedMessage.status,
+        assigneeJira:
+          context.botConfig.jira.usernameMapper[parsedMessage.assignee] || '',
+      })
+      .then(({jql, issues}) =>
+        context.bot.chat
+          .send(parsedMessage.context.chatChannel, {
+            body: buildSearchResultBody(parsedMessage, jql, issues, additional),
+          })
+          .then(({id}) => ({
+            count: issues.length > 11 ? 11 : issues.length,
+            id,
+            issues,
+          }))
+      )
+    return Errors.makeResult(undefined)
+  } catch (err) {
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      Errors.makeUnknownError(err).error
+    )
+    return Errors.makeError(undefined)
+  }
+}

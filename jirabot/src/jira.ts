@@ -1,7 +1,11 @@
 import JiraClient from 'jira-connector'
 import {Issue as JiraIssue} from 'jira-connector/api/issue'
 import {BotConfig} from './bot-config'
+import * as Configs from './configs'
 import logger from './logger'
+import * as Errors from './errors'
+import {Context} from './context'
+import mem from 'mem'
 
 const looksLikeIssueKey = (str: string) => !!str.match(/[A-Za-z]+-[0-9]+/)
 
@@ -12,26 +16,20 @@ export type Issue = {
   url: string
 }
 
-export default class {
-  _botConfig: BotConfig
-  _jira: JiraClient
+class JiraClientWrapper {
+  private jiraClient: JiraClient
+  private jiraHost: string
 
-  constructor(botConfig: BotConfig) {
-    this._botConfig = botConfig
-    this._jira = new JiraClient({
-      host: botConfig.jira.host,
-      basic_auth: {
-        email: botConfig.jira.email,
-        api_token: botConfig.jira.apiToken,
-      },
-    })
+  constructor(jiraClient: JiraClient, jiraHost: string) {
+    this.jiraClient = jiraClient
+    this.jiraHost = jiraHost
   }
 
   jiraRespMapper = (issue: JiraIssue): Issue => ({
     key: issue.key,
     summary: issue.fields.summary,
     status: issue.fields.status.statusCategory.name,
-    url: `https://${this._botConfig.jira.host}/browse/${issue.key}`,
+    url: `https://${this.jiraHost}/browse/${issue.key}`,
   })
 
   getOrSearch({
@@ -53,12 +51,12 @@ export default class {
     logger.debug({msg: 'getOrSearch', jql})
     return Promise.all([
       looksLikeIssueKey(query)
-        ? this._jira.issue.getIssue({
+        ? this.jiraClient.issue.getIssue({
             issueKey: query,
             //fields: ['key', 'summary', 'status'],
           })
         : new Promise(r => r()),
-      this._jira.search.search({
+      this.jiraClient.search.search({
         jql,
         fields: ['key', 'summary', 'status'],
         method: 'GET',
@@ -74,14 +72,14 @@ export default class {
   }
 
   addComment(issueKey: string, comment: string): Promise<any> {
-    return this._jira.issue
+    return this.jiraClient.issue
       .addComment({
         issueKey,
-        comment: {body: comment},
+        body: comment,
       })
       .then(
         ({id}: {id: string}) =>
-          `https://${this._botConfig.jira.host}/browse/${issueKey}?focusedCommentId=${id}`
+          `https://${this.jiraHost}/browse/${issueKey}?focusedCommentId=${id}`
       )
   }
 
@@ -106,7 +104,7 @@ export default class {
       name,
       description,
     })
-    return this._jira.issue
+    return this.jiraClient.issue
       .createIssue({
         fields: {
           assignee: assigneeJira ? {name: assigneeJira} : undefined,
@@ -116,9 +114,100 @@ export default class {
           description,
         },
       })
-      .then(
-        ({key}: {key: string}) =>
-          `https://${this._botConfig.jira.host}/browse/${key}`
-      )
+      .then(({key}: {key: string}) => `https://${this.jiraHost}/browse/${key}`)
   }
+}
+
+const jiraClientCacheTimeout = 60 * 1000 // 1min
+
+const getJiraClient = mem(
+  (
+    jiraHost: string,
+    accessToken: string,
+    tokenSecret: string,
+    consumerKey: string,
+    privateKey: string
+  ): JiraClient =>
+    new JiraClient({
+      host: jiraHost,
+      oauth: {
+        token: accessToken,
+        token_secret: tokenSecret,
+        consumer_key: consumerKey,
+        private_key: privateKey,
+      },
+    }),
+  {maxAge: jiraClientCacheTimeout, cacheKey: JSON.stringify}
+)
+
+export const getAccountId = async (
+  teamJiraConfig: Configs.TeamJiraConfig,
+  accessToken: string,
+  tokenSecret: string
+): Promise<Errors.ResultOrError<string, Errors.UnknownError>> => {
+  const tempJiraClient = getJiraClient(
+    teamJiraConfig.jiraHost,
+    accessToken,
+    tokenSecret,
+    teamJiraConfig.jiraAuth.consumerKey,
+    teamJiraConfig.jiraAuth.privateKey
+  )
+  try {
+    const accountDetail = await tempJiraClient.myself.getMyself()
+    return Errors.makeResult(accountDetail.accountId)
+  } catch (err) {
+    return Errors.makeUnknownError(err)
+  }
+}
+
+export const getJiraFromTeamnameAndUsername = async (
+  context: Context,
+  teamname: string,
+  username: string
+): Promise<Errors.ResultOrError<
+  JiraClientWrapper,
+  Errors.JirabotNotEnabledError | Errors.UnknownError
+>> => {
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(teamname)
+  if (teamJiraConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamJiraConfigRet.error.type) {
+      case Errors.ErrorType.Unknown:
+        return Errors.makeError(teamJiraConfigRet.error)
+      case Errors.ErrorType.KVStoreNotFound:
+        return Errors.makeError(Errors.JirabotNotEnabledForTeamError)
+      default:
+        let _: never = teamJiraConfigRet.error
+        return Errors.makeError(undefined)
+    }
+  }
+  const teamJiraConfig = teamJiraConfigRet.result.config
+
+  const teamUserConfigRet = await context.configs.getTeamUserConfig(
+    teamname,
+    username
+  )
+  if (teamUserConfigRet.type === Errors.ReturnType.Error) {
+    switch (teamUserConfigRet.error.type) {
+      case Errors.ErrorType.Unknown:
+        return Errors.makeError(teamUserConfigRet.error)
+      case Errors.ErrorType.KVStoreNotFound:
+        return Errors.makeError(Errors.JirabotNotEnabledForUserError)
+      default:
+        let _: never = teamUserConfigRet.error
+        return Errors.makeError(undefined)
+    }
+  }
+  const teamUserConfig = teamUserConfigRet.result.config
+
+  const jiraClient = getJiraClient(
+    teamJiraConfig.jiraHost,
+    teamUserConfig.accessToken,
+    teamUserConfig.tokenSecret,
+    teamJiraConfig.jiraAuth.consumerKey,
+    teamJiraConfig.jiraAuth.privateKey
+  )
+
+  return Errors.makeResult(
+    new JiraClientWrapper(jiraClient, teamJiraConfig.jiraHost)
+  )
 }

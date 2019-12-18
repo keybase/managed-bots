@@ -3,6 +3,7 @@ import * as Message from './message'
 import * as Errors from './errors'
 import CmdSearch from './cmd-search'
 import CmdComment from './cmd-comment'
+import CmdAuth from './cmd-auth'
 import reacji from './reacji'
 import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
@@ -50,31 +51,51 @@ const onMessage = async (
       case Message.BotMessageType.Unknown:
         reportError(context, parsedMessage)
         return
-      case Message.BotMessageType.Search:
+      case Message.BotMessageType.Search: {
         reactAck(context, kbMessage.channel, kbMessage.id)
-        CmdSearch(context, parsedMessage)
+        const {type} = await CmdSearch(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, kbMessage.channel, kbMessage.id)
+          : reactFail(context, kbMessage.channel, kbMessage.id)
         return
-      case Message.BotMessageType.Comment:
+      }
+      case Message.BotMessageType.Comment: {
         reactAck(context, kbMessage.channel, kbMessage.id)
-        CmdComment(context, parsedMessage)
+        const {type} = await CmdComment(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, kbMessage.channel, kbMessage.id)
+          : reactFail(context, kbMessage.channel, kbMessage.id)
         return
+      }
       case Message.BotMessageType.Reacji:
         reacji(context, parsedMessage)
         return
-      case Message.BotMessageType.Create:
+      case Message.BotMessageType.Create: {
         reactAck(context, kbMessage.channel, kbMessage.id)
-        CmdNew(context, parsedMessage)
+        const {type} = await CmdNew(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, kbMessage.channel, kbMessage.id)
+          : reactFail(context, kbMessage.channel, kbMessage.id)
         return
-      case Message.BotMessageType.Config:
+      }
+      case Message.BotMessageType.Config: {
         reactAck(context, kbMessage.channel, kbMessage.id)
         const {type} = await CmdConfig(context, parsedMessage)
         type === Errors.ReturnType.Ok
           ? reactDone(context, kbMessage.channel, kbMessage.id)
           : reactFail(context, kbMessage.channel, kbMessage.id)
         return
-      default:
-        logger.error({error: 'we forgot to handle a case in onMessage'})
+      }
+      case Message.BotMessageType.Auth: {
+        reactAck(context, kbMessage.channel, kbMessage.id)
+        const {type} = await CmdAuth(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, kbMessage.channel, kbMessage.id)
+          : reactFail(context, kbMessage.channel, kbMessage.id)
         return
+      }
+      default:
+        let _: never = parsedMessage
     }
   } catch (err) {
     // otherwise keybase-bot seems to swallow exceptions
@@ -120,12 +141,18 @@ const commands = [
     title: 'Jirabot Configuration',
     body:
       'Examples:\n\n' +
-      `!jira config team\n` +
+      `!jira config team jiraHost foo.atlassian.net\n` +
       `!jira config channel\n` +
       // `!jira config team\n`+
       `!jira config channel defaultNewIssueProject DESIGN\n` +
       `!jira config channel enabledProjects DESIGN,FRONTEND\n` +
       `!jira config channel enabledProjects *\n`,
+  },
+  {
+    name: 'jira auth',
+    description: `Connect Jirabot to your Jira account`,
+    usage: ``,
+    title: 'Jira Authorization',
   },
 ]
 

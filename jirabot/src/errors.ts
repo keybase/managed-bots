@@ -18,16 +18,32 @@ export type ResultOrError<T, E extends Errors> = Result<T> | Error<E>
 
 export enum ErrorType {
   Unknown = 'unknown',
+  Timeout = 'timeout',
   UnknownParam = 'unknown-param',
   DisabledProject = 'disabled-project',
   MissingProject = 'missing-project',
   ChannelNotConfigured = 'channel-not-configured',
   KVStoreRevision = 'kvstore-revision',
   KVStoreNotFound = 'kvstore-not-found',
+  JirabotNotEnabled = 'jirabot-not-enabled',
 }
 
 export type UnknownError = {
   type: ErrorType.Unknown
+  originalError: any
+  description: string
+}
+
+export const makeUnknownError = (err: any): Error<UnknownError> =>
+  makeError({
+    type: ErrorType.Unknown,
+    originalError: err,
+    description:
+      err && typeof err.toString === 'function' ? err.toString() : '',
+  })
+
+export type TimeoutError = {
+  type: ErrorType.Timeout
   description: string
 }
 
@@ -57,14 +73,36 @@ export type KVStoreNotFoundError = {
   type: ErrorType.KVStoreNotFound
 }
 
+export type JirabotNotEnabledError = Readonly<{
+  type: ErrorType.JirabotNotEnabled
+  notEnabledType: 'team' | 'channel' | 'user'
+}>
+
+export const JirabotNotEnabledForTeamError: JirabotNotEnabledError = {
+  type: ErrorType.JirabotNotEnabled,
+  notEnabledType: 'team',
+} as const
+
+export const JirabotNotEnabledForChannelError: JirabotNotEnabledError = {
+  type: ErrorType.JirabotNotEnabled,
+  notEnabledType: 'channel',
+} as const
+
+export const JirabotNotEnabledForUserError: JirabotNotEnabledError = {
+  type: ErrorType.JirabotNotEnabled,
+  notEnabledType: 'user',
+} as const
+
 export type Errors =
   | UnknownError
+  | TimeoutError
   | UnknownParamError
   | DisabledProjectError
   | MissingProjectError
   | ChannelNotConfiguredError
   | KVStoreNotFoundError
   | KVStoreRevisionError
+  | JirabotNotEnabledError
 
 export const makeResult = <T>(result: T): Result<T> => ({
   type: ReturnType.Ok,
@@ -118,6 +156,29 @@ export const reportErrorAndReplyChat = (
         body:
           'Jira is not configured for this channel. See `!jira config channel`',
       })
+    case ErrorType.Timeout:
+      return context.bot.chat.send(messageContext.chatChannel, {
+        body: `An operation has timed out: ${error.description}`,
+      })
+    case ErrorType.JirabotNotEnabled:
+      switch (error.notEnabledType) {
+        case 'team':
+          return context.bot.chat.send(messageContext.chatChannel, {
+            body:
+              'This team has not been configured for jirabot. Use `!jirabot config team jiraHost <domain>` to enable jirabot for this team.',
+          })
+        case 'channel':
+          return context.bot.chat.send(messageContext.chatChannel, {
+            body: `This channel has not been configured for Jirabot. In order to use Jirabot, you need to set at least \`enabledProjects\`.`,
+          })
+        case 'user':
+          return context.bot.chat.send(messageContext.chatChannel, {
+            body:
+              'You have not given Jirabot permission to access your Jira account. In order to use Jirabot, connect with `!jira auth`.',
+          })
+        default:
+          let _: never = error.notEnabledType
+      }
 
     case ErrorType.KVStoreRevision:
     case ErrorType.KVStoreNotFound:
