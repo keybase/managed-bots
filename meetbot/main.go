@@ -121,11 +121,8 @@ func mainInner() int {
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
-
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "bot database DSN")
-
 	flag.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
-
 	flag.Parse()
 
 	bs := NewBotServer(opts)

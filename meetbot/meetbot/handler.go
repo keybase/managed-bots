@@ -43,16 +43,16 @@ func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
 	return h
 }
 
-func (h *Handler) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "OK")
-}
-
 func (h *Handler) HTTPListen() error {
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)
 	http.HandleFunc("/meetbot/oauth", h.oauthHandler)
 	http.HandleFunc("/meetbot/image", h.handleImage)
 	return http.ListenAndServe(":8080", nil)
+}
+
+func (h *Handler) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "OK")
 }
 
 func (h *Handler) homeHandler(w http.ResponseWriter, r *http.Request) {
