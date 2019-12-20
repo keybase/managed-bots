@@ -13,14 +13,11 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"github.com/op/go-logging"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
-
-var log = logging.MustGetLogger("meetbot")
 
 type Handler struct {
 	*base.Handler

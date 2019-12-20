@@ -14,13 +14,10 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/meetbot/meetbot"
-	"github.com/op/go-logging"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/calendar/v3"
 )
-
-var log = logging.MustGetLogger("meetbot")
 
 type Options struct {
 	KeybaseLocation string
