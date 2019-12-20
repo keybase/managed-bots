@@ -20,7 +20,6 @@ func NewDB(db *sql.DB) *DB {
 }
 
 func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
-
 	var token oauth2.Token
 	var expiry int64
 	row := d.DB.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
@@ -40,7 +39,8 @@ func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 }
 
 func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
-	_, err := d.DB.Exec(`INSERT INTO oauth
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO oauth
 		(identifier, access_token, token_type, refresh_token, expiry, ctime, mtime)
 		VALUES (?, ?, ?, ?, ?, NOW(), NOW())
 		ON DUPLICATE KEY UPDATE
@@ -49,11 +49,16 @@ func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
 		expiry=VALUES(expiry),
 		mtime=VALUES(mtime)
 	`, identifier, token.AccessToken, token.TokenType, token.RefreshToken, token.Expiry)
+		return err
+	})
 	return err
 }
 
 func (d *DB) DeleteToken(identifier string) error {
-	_, err := d.DB.Exec(`DELETE FROM oauth
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := d.DB.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)
+		return err
+	})
 	return err
 }
