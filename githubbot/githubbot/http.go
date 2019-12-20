@@ -7,9 +7,12 @@ import (
 
 	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/managed-bots/base"
 )
 
 type HTTPSrv struct {
+	*base.DebugOutput
+
 	kbc    *kbchat.API
 	db     *DB
 	secret string
@@ -23,10 +26,6 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
 	}
 }
 
-func (h *HTTPSrv) debug(msg string, args ...interface{}) {
-	fmt.Printf("Handler: "+msg+"\n", args...)
-}
-
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "beep boop! :)")
 }
@@ -34,14 +33,14 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		h.debug("Error reading payload: %s", err)
+		h.Debug("Error reading payload: %s", err)
 		return
 	}
 	defer r.Body.Close()
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.debug("could not parse webhook: =%s\n", err)
+		h.Debug("could not parse webhook: =%s\n", err)
 		return
 	}
 
@@ -54,7 +53,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo)
 		if err != nil {
-			h.debug("error getting default branch: %s", err)
+			h.Debug("error getting default branch: %s", err)
 			return
 		}
 	case *github.PullRequestEvent:
@@ -62,7 +61,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo)
 		if err != nil {
-			h.debug("error getting default branch: %s", err)
+			h.Debug("error getting default branch: %s", err)
 			return
 		}
 	case *github.PushEvent:
@@ -83,7 +82,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		message = formatCheckSuiteMsg(event)
 		repo = event.GetRepo().GetFullName()
 		if err != nil {
-			h.debug("error getting default branch: %s", err)
+			h.Debug("error getting default branch: %s", err)
 			return
 		}
 	}
@@ -91,20 +90,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	if message != "" && repo != "" {
 		signature := r.Header.Get("X-Hub-Signature")
 		if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, h.secret))); err != nil {
-			h.debug("Error validating payload signature: %s", err)
+			h.Debug("Error validating payload signature: %s", err)
 			return
 		}
 
 		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
-			h.debug("Error getting subscriptions for repo: %s", err)
+			h.Debug("Error getting subscriptions for repo: %s", err)
 			return
 		}
 
 		for _, convID := range convs {
 			_, err = h.kbc.SendMessageByConvID(convID, message)
 			if err != nil {
-				h.debug("Error sending message: %s", err)
+				h.Debug("Error sending message: %s", err)
 				return
 			}
 		}
