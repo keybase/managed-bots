@@ -4,24 +4,26 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/keybase/managed-bots/base"
+
 	"golang.org/x/oauth2"
 )
 
-type OAuthDB struct {
-	db *sql.DB
+type DB struct {
+	*base.DB
 }
 
-func NewOAuthDB(db *sql.DB) *OAuthDB {
-	return &OAuthDB{
-		db: db,
+func NewDB(db *sql.DB) *DB {
+	return &DB{
+		DB: base.NewDB(db),
 	}
 }
 
-func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
+func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 
 	var token oauth2.Token
 	var expiry int64
-	row := d.db.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+	row := d.DB.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType,
@@ -37,8 +39,8 @@ func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 	}
 }
 
-func (d *OAuthDB) PutToken(identifier string, token *oauth2.Token) error {
-	_, err := d.db.Exec(`INSERT INTO oauth
+func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
+	_, err := d.DB.Exec(`INSERT INTO oauth
 		(identifier, access_token, token_type, refresh_token, expiry, ctime, mtime)
 		VALUES (?, ?, ?, ?, ?, NOW(), NOW())
 		ON DUPLICATE KEY UPDATE
@@ -50,8 +52,8 @@ func (d *OAuthDB) PutToken(identifier string, token *oauth2.Token) error {
 	return err
 }
 
-func (d *OAuthDB) DeleteToken(identifier string) error {
-	_, err := d.db.Exec(`DELETE FROM oauth
+func (d *DB) DeleteToken(identifier string) error {
+	_, err := d.DB.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)
 	return err
 }

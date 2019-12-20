@@ -6,7 +6,7 @@ import (
 )
 
 type CommandHandler interface {
-	HandleCommand(chat1.MsgSummary)
+	HandleCommand(chat1.MsgSummary) error
 }
 
 type Handler struct {
@@ -37,7 +37,9 @@ func (h *Handler) Listen() error {
 			h.Debug("Listen: Read() error: %s", err)
 			continue
 		}
-		h.HandleCommand(msg.Message)
+		if err := h.HandleCommand(msg.Message); err != nil {
+			h.Debug("unable to HandleCommand: %v", err)
+		}
 	}
 }
 
