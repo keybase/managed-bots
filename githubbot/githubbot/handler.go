@@ -23,13 +23,15 @@ type Handler struct {
 var _ base.CommandHandler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, secret string) *Handler {
-	return &Handler{
+	h := &Handler{
 		kbc:        kbc,
 		db:         db,
 		httpSrv:    httpSrv,
 		httpPrefix: httpPrefix,
 		secret:     secret,
 	}
+	h.Handler = base.NewHandler(kbc, h)
+	return h
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
