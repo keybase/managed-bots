@@ -6,6 +6,12 @@ import (
 	"github.com/keybase/go-codec/codec"
 )
 
+var DefaultBotAdmins = []string{
+	"joshblum",
+	"mikem",
+	"01",
+}
+
 func MsgpackDecode(dst interface{}, src []byte) error {
 	h := codecHandle()
 	return codec.NewDecoderBytes(src, h).Decode(dst)

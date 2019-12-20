@@ -19,6 +19,8 @@ type Handler struct {
 	httpPrefix string
 }
 
+var _ base.CommandHandler = (*Handler)(nil)
+
 func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	h := &Handler{
 		kbc:        kbc,
