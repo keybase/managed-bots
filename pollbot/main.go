@@ -10,6 +10,7 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/pollbot/pollbot"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,18 +29,17 @@ func newOptions() Options {
 }
 
 type BotServer struct {
+	*base.Server
+
 	opts Options
 	kbc  *kbchat.API
 }
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		opts: opts,
+		Server: base.NewServer(opts.Announcement),
+		opts:   opts,
 	}
-}
-
-func (s *BotServer) debug(msg string, args ...interface{}) {
-	fmt.Printf("BotServer: "+msg+"\n", args...)
 }
 
 const backs = "```"
@@ -74,33 +74,6 @@ Start a poll`,
 	}
 }
 
-func (s *BotServer) sendAnnouncement(announcement, running string) (err error) {
-	if s.opts.Announcement == "" {
-		return nil
-	}
-	defer func() {
-		if err == nil {
-			s.debug("announcement success")
-		}
-	}()
-	if _, err := s.kbc.SendMessageByConvID(announcement, running); err != nil {
-		s.debug("failed to announce self as conv ID: %s", err)
-	} else {
-		return nil
-	}
-	if _, err := s.kbc.SendMessageByTlfName(announcement, running); err != nil {
-		s.debug("failed to announce self as user: %s", err)
-	} else {
-		return nil
-	}
-	if _, err := s.kbc.SendMessageByTeamName(announcement, nil, running); err != nil {
-		s.debug("failed to announce self as team: %s", err)
-		return err
-	} else {
-		return nil
-	}
-}
-
 func (s *BotServer) getLoginSecret() (string, error) {
 	if s.opts.LoginSecret != "" {
 		return s.opts.LoginSecret, nil
@@ -109,37 +82,34 @@ func (s *BotServer) getLoginSecret() (string, error) {
 	cmd := exec.Command("keybase", "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	s.debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
 	return out.String(), nil
 }
 
-func (s *BotServer) Start() (err error) {
-	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
-		KeybaseLocation: s.opts.KeybaseLocation,
-		HomeDir:         s.opts.Home,
-	}); err != nil {
+func (s *BotServer) Go() (err error) {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
 		return err
 	}
 	loginSecret, err := s.getLoginSecret()
 	if err != nil {
-		s.debug("failed to get login secret: %s", err)
+		s.Debug("failed to get login secret: %s", err)
 		return
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.debug("failed to connect to MySQL: %s", err)
+		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
 	db := pollbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.debug("advertise error: %s", err)
+		s.Debug("advertise error: %s", err)
 		return err
 	}
-	if err := s.sendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.debug("failed to announce self: %s", err)
+	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
+		s.Debug("failed to announce self: %s", err)
 		return err
 	}
 
@@ -149,7 +119,7 @@ func (s *BotServer) Start() (err error) {
 	eg.Go(handler.Listen)
 	eg.Go(httpSrv.Listen)
 	if err := eg.Wait(); err != nil {
-		s.debug("wait error: %s", err)
+		s.Debug("wait error: %s", err)
 		return err
 	}
 	return nil
@@ -176,8 +146,8 @@ func mainInner() int {
 		return 3
 	}
 	bs := NewBotServer(opts)
-	if err := bs.Start(); err != nil {
-		fmt.Printf("error running chat loop: %s\n", err.Error())
+	if err := bs.Go(); err != nil {
+		fmt.Printf("error running chat loop: %v\n", err)
 	}
 	return 0
 }
