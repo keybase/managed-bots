@@ -236,6 +236,7 @@ export const parseMessage = async (
   kbMessage: ChatTypes.MsgSummary
 ): Promise<Message | undefined> => {
   const messageContext = msgSummaryToMessageContext(kbMessage)
+  logger.debug({msg: 'got message', messageContext})
   if (!shouldProcessMessageContext(context, messageContext)) {
     logger.debug({
       msg: 'ignoring message from',

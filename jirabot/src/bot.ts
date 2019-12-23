@@ -46,7 +46,7 @@ const onMessage = async (
       // not a jirabot message
       return
     }
-    logger.debug({msg: 'got message', messageContext: parsedMessage.context})
+    logger.debug({msg: 'parsed message', messageContext: parsedMessage.context})
     switch (parsedMessage.type) {
       case Message.BotMessageType.Unknown:
         reportError(context, parsedMessage)
