@@ -19,6 +19,8 @@ type Handler struct {
 	httpPrefix string
 }
 
+var _ base.CommandHandler = (*Handler)(nil)
+
 func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	h := &Handler{
 		kbc:        kbc,
@@ -113,10 +115,10 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) {
 	h.ChatEcho(convID, "Success! New URL sent to @%s", msg.Sender.Username)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) {
+func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")
-		return
+		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
@@ -127,6 +129,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) {
 	case strings.HasPrefix(cmd, "!webhook remove"):
 		h.handleRemove(cmd, msg)
 	default:
-		h.Debug("ignoring unknown command")
+		h.Debug("ignoring unknown command: %q", cmd)
 	}
+	return nil
 }

@@ -30,7 +30,7 @@ func NewVote(convID string, msgID chat1.MessageID, choice int) Vote {
 func NewVoteFromEncoded(sdat string) Vote {
 	var ve voteToEncode
 	dat, _ := base.URLEncoder().DecodeString(sdat)
-	base.MsgpackDecode(&ve, dat)
+	_ = base.MsgpackDecode(&ve, dat)
 	return Vote{
 		ConvID: hex.EncodeToString(ve.ConvID),
 		MsgID:  ve.MsgID,

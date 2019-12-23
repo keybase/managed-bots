@@ -141,7 +141,7 @@ func mainInner() int {
 	}
 	bs := NewBotServer(opts)
 	if err := bs.Go(); err != nil {
-		fmt.Printf("error running chat loop: %s\n", err.Error())
+		fmt.Printf("error running chat loop: %s\n", err)
 	}
 	return 0
 }
