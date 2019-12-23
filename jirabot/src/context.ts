@@ -53,6 +53,7 @@ export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
       context.botConfig.keybase.username,
       context.botConfig.keybase.paperkey,
       {
+        autoLogSendOnExit: true,
         verbose: true,
       }
     )
