@@ -29,6 +29,8 @@ type Handler struct {
 	requests map[string]chat1.MsgSummary
 }
 
+var _ base.CommandHandler = (*Handler)(nil)
+
 func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
 	h := &Handler{
 		kbc:      kbc,

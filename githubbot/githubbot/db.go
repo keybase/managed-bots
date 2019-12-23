@@ -2,68 +2,55 @@ package githubbot
 
 import (
 	"database/sql"
+
+	"github.com/keybase/managed-bots/base"
 )
 
 type DB struct {
-	db *sql.DB
+	*base.DB
 }
 
 func NewDB(db *sql.DB) *DB {
 	return &DB{
-		db: db,
+		DB: base.NewDB(db),
 	}
-}
-
-func (d *DB) runTxn(fn func(tx *sql.Tx) error) error {
-	tx, err := d.db.Begin()
-	if err != nil {
-		return err
-	}
-	if err := fn(tx); err != nil {
-		rollbackErr := tx.Rollback()
-		if rollbackErr != nil {
-			return rollbackErr
-		}
-		return err
-	}
-	return tx.Commit()
 }
 
 func (d *DB) CreateSubscription(convID string, repo string, branch string) error {
 	// TODO: ignore dupes with feedback?
-	return d.runTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT IGNORE INTO subscriptions
 			(conv_id, repo, branch)
 			VALUES
 			(?, ?, ?)
-		`, shortConvID(convID), repo, branch)
+		`, base.ShortConvID(convID), repo, branch)
 		return err
 	})
 }
 
 func (d *DB) DeleteSubscription(convID string, repo string, branch string) error {
-	return d.runTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ? AND branch = ?)
-		`, shortConvID(convID), repo, branch)
+		`, base.ShortConvID(convID), repo, branch)
 		return err
 	})
 }
 
 func (d *DB) DeleteSubscriptionsForRepo(convID string, repo string) error {
-	return d.runTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ?)
-		`, shortConvID(convID), repo)
+		`, base.ShortConvID(convID), repo)
 		return err
 	})
 }
 
 func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err error) {
-	rows, err := d.db.Query(`
+	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
 		WHERE (repo = ? AND branch = ?)
@@ -83,12 +70,12 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err e
 }
 
 func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (exists bool, err error) {
-	row := d.db.QueryRow(`
+	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
-	`, shortConvID(convID), repo, branch)
+	`, base.ShortConvID(convID), repo, branch)
 	var rowRes string
 	scanErr := row.Scan(&rowRes)
 	switch scanErr {
@@ -102,11 +89,11 @@ func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (e
 }
 
 func (d *DB) GetSubscriptionForRepoExists(convID string, repo string) (exists bool, err error) {
-	row := d.db.QueryRow(`
+	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, shortConvID(convID), repo)
+	`, base.ShortConvID(convID), repo)
 	var rowRes string
 	err = row.Scan(&rowRes)
 	switch err {

@@ -132,13 +132,6 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 	return res
 }
 
-func shortConvID(convID string) string {
-	if len(convID) <= 20 {
-		return convID
-	}
-	return convID[:20]
-}
-
 func getDefaultBranch(repo string) (branch string, err error) {
 	client := github.NewClient(nil)
 	args := strings.Split(repo, "/")
