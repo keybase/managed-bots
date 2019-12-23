@@ -26,6 +26,7 @@
   },
   "scripts": {
     "build": "webpack --mode=production",
-    "build-dev": "webpack"
+    "build-dev": "webpack",
+    "ci": "yarn tsc && yarn jest"
   }
 }

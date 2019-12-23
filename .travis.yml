@@ -1,11 +1,14 @@
-language: go
-
-env:
-  - GO111MODULE=on
-
-script:
-  - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
-  - golangci-lint run
-
-go:
-  - 1.12.x
+matrix:
+  include:
+    - language: go
+      env:
+        - GO111MODULE=on
+      script:
+        - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.16.0
+        - golangci-lint run
+      go:
+        - 1.12.x
+    - language: node_js
+      node_js: 10
+      script:
+        - cd jirabot && yarn ci
