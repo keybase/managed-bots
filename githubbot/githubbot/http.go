@@ -20,9 +20,10 @@ type HTTPSrv struct {
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
 	return &HTTPSrv{
-		kbc:    kbc,
-		db:     db,
-		secret: secret,
+		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
+		kbc:         kbc,
+		db:          db,
+		secret:      secret,
 	}
 }
 

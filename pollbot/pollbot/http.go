@@ -13,9 +13,11 @@ import (
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/managed-bots/base"
 )
 
 type HTTPSrv struct {
+	*base.DebugOutput
 	kbc *kbchat.API
 	db  *DB
 
@@ -24,51 +26,48 @@ type HTTPSrv struct {
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, tokenSecret string) *HTTPSrv {
 	return &HTTPSrv{
+		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
 		kbc:         kbc,
 		db:          db,
 		tokenSecret: tokenSecret,
 	}
 }
 
-func (h *HTTPSrv) debug(msg string, args ...interface{}) {
-	fmt.Printf("HTTPSrv: "+msg+"\n", args...)
-}
-
 func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
-	w.Write([]byte(htmlLogin))
+	_, _ = w.Write([]byte(htmlLogin))
 }
 
 func (h *HTTPSrv) showSuccess(w http.ResponseWriter) {
-	w.Write([]byte(makeHTMLVoteResult("Vote success!")))
+	_, _ = w.Write([]byte(makeHTMLVoteResult("Vote success!")))
 }
 
 func (h *HTTPSrv) showError(w http.ResponseWriter, msg string) {
-	w.Write([]byte(makeHTMLVoteResult("Something went wrong, vote not recorded.")))
+	_, _ = w.Write([]byte(makeHTMLVoteResult("Something went wrong, vote not recorded.")))
 }
 
 func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bool) {
 	cookie, err := r.Cookie("auth")
 	if err != nil {
-		h.debug("error getting cookie: %s", err)
+		h.Debug("error getting cookie: %s", err)
 		h.showLoginInstructions(w)
 		return "", false
 	}
 	if cookie == nil {
-		h.debug("no cookie")
+		h.Debug("no cookie")
 		h.showLoginInstructions(w)
 		return "", false
 	}
 	auth := cookie.Value
 	toks := strings.Split(auth, ":")
 	if len(toks) != 2 {
-		h.debug("malformed auth cookie")
+		h.Debug("malformed auth cookie")
 		h.showLoginInstructions(w)
 		return "", false
 	}
 	username := toks[0]
 	token := toks[1]
 	if !hmac.Equal([]byte(token), []byte(h.LoginToken(username))) {
-		h.debug("invalid auth cookie")
+		h.Debug("invalid auth cookie")
 		h.showLoginInstructions(w)
 		return "", false
 	}
@@ -83,24 +82,24 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 	vstr := r.URL.Query().Get("")
 	vote := NewVoteFromEncoded(vstr)
 	if err := h.db.CastVote(username, vote); err != nil {
-		h.debug("failed to cast vote: %s", err)
+		h.Debug("failed to cast vote: %s", err)
 		h.showError(w, err.Error())
 		return
 	}
 	resultMsgID, numChoices, err := h.db.GetPollInfo(vote.ConvID, vote.MsgID)
 	if err != nil {
-		h.debug("failed to find poll result msg: %s", err)
+		h.Debug("failed to find poll result msg: %s", err)
 		h.showError(w, err.Error())
 		return
 	}
 	tally, err := h.db.GetTally(vote.ConvID, vote.MsgID)
 	if err != nil {
-		h.debug("failed to get tally: %s", err)
+		h.Debug("failed to get tally: %s", err)
 		h.showError(w, err.Error())
 		return
 	}
 	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, formatTally(tally, numChoices)); err != nil {
-		h.debug("failed to post result: %s", err)
+		h.Debug("failed to post result: %s", err)
 		h.showError(w, err.Error())
 		return
 	}
@@ -120,7 +119,7 @@ func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Value:   fmt.Sprintf("%s:%s", username, token),
 		Expires: time.Now().Add(8760 * time.Hour),
 	})
-	w.Write([]byte(htmlLoginSuccess))
+	_, _ = w.Write([]byte(htmlLoginSuccess))
 }
 
 func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {

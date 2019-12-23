@@ -15,29 +15,17 @@ type TallyResult struct {
 type Tally []TallyResult
 
 type DB struct {
-	db *sql.DB
+	*base.DB
 }
 
 func NewDB(db *sql.DB) *DB {
 	return &DB{
-		db: db,
+		DB: base.NewDB(db),
 	}
-}
-
-func (d *DB) runTxn(fn func(tx *sql.Tx) error) error {
-	tx, err := d.db.Begin()
-	if err != nil {
-		return err
-	}
-	if err := fn(tx); err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
 }
 
 func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
-	return d.runTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO polls
 			(conv_id, msg_id, result_msg_id, choices)
@@ -49,7 +37,7 @@ func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.
 }
 
 func (d *DB) GetPollInfo(convID string, msgID chat1.MessageID) (resultMsgID chat1.MessageID, numChoices int, err error) {
-	row := d.db.QueryRow(`
+	row := d.DB.QueryRow(`
 		SELECT result_msg_id, choices
 		FROM polls
 		WHERE conv_id = ? AND msg_id = ?
@@ -61,7 +49,7 @@ func (d *DB) GetPollInfo(convID string, msgID chat1.MessageID) (resultMsgID chat
 }
 
 func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err error) {
-	rows, err := d.db.Query(`
+	rows, err := d.DB.Query(`
 		SELECT choice, count(*)
 		FROM votes
 		WHERE conv_id = ? AND msg_id = ?
@@ -81,7 +69,7 @@ func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err erro
 }
 
 func (d *DB) CastVote(username string, vote Vote) error {
-	return d.runTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			REPLACE INTO votes
 			(conv_id, msg_id, username, choice)
