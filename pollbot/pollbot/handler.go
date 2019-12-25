@@ -53,7 +53,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	promptMsgID := *sendRes.Result.MessageID
 	var body string
 	for index, option := range options {
-		body += fmt.Sprintf("\n%s  *%s*\n%s\n", numberToEmoji(index+1), option,
+		body += fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
 			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
 	if _, err = h.kbc.SendMessageByConvID(convID, body); err != nil {
@@ -79,7 +79,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	options []string) {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n", numberToEmoji(index+1), option)
+		body += fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option)
 	}
 	body += "Tap a reaction below to register your vote!"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
@@ -93,7 +93,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	}
 	for index := range options {
 		if _, err := h.kbc.ReactByConvID(convID, *sendRes.Result.MessageID,
-			numberToEmoji(index+1)); err != nil {
+			base.NumberToEmoji(index+1)); err != nil {
 			h.ChatDebug(convID, "failed to set reaction option: %s", err)
 		}
 	}

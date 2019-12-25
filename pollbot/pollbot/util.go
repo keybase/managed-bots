@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/keybase/managed-bots/base"
 )
 
 func formatTally(tally Tally, numChoices int) (res string) {
@@ -33,35 +35,8 @@ func formatTally(tally Tally, numChoices int) (res string) {
 		prop := float64(t.votes) / float64(total)
 		num := int(math.Max(10*prop, 1))
 		bar := strings.Repeat("🟢", num)
-		res += fmt.Sprintf("%s %s\n`(%.02f%%, %d vote%s)`\n\n", numberToEmoji(t.choice), bar, prop*100,
+		res += fmt.Sprintf("%s %s\n`(%.02f%%, %d vote%s)`\n\n", base.NumberToEmoji(t.choice), bar, prop*100,
 			t.votes, s)
 	}
 	return res
-}
-
-func numberToEmoji(v int) string {
-	switch v {
-	case 1:
-		return ":one:"
-	case 2:
-		return ":two:"
-	case 3:
-		return ":three:"
-	case 4:
-		return ":four:"
-	case 5:
-		return ":five:"
-	case 6:
-		return ":six:"
-	case 7:
-		return ":seven:"
-	case 8:
-		return ":eight:"
-	case 9:
-		return ":nine:"
-	case 10:
-		return ":ten:"
-	default:
-		return fmt.Sprintf("%d", v)
-	}
 }
