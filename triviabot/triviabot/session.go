@@ -17,8 +17,8 @@ type apiQuestion struct {
 	Category         string
 	Difficulty       string
 	Question         string
-	CorrectAnswer    string
-	IncorrectAnswers []string
+	CorrectAnswer    string   `json:"correct_answer"`
+	IncorrectAnswers []string `json:"incorrect_answers"`
 }
 
 type apiResponse struct {
@@ -60,7 +60,7 @@ Category: %s
 `, q.question, q.difficulty, q.category)
 	var strAnswers []string
 	for index, answer := range q.answers {
-		strAnswers = append(strAnswers, fmt.Sprintf("%s %s", base.NumberToEmoji(index), answer))
+		strAnswers = append(strAnswers, fmt.Sprintf("%s %s", base.NumberToEmoji(index+1), answer))
 	}
 	return res + strings.Join(strAnswers, "\n")
 }
