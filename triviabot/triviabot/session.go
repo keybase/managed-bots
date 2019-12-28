@@ -94,6 +94,7 @@ func newSession(kbc *kbchat.API, convID string) *session {
 		convID:      convID,
 		answerCh:    make(chan answer),
 		kbc:         kbc,
+		current:     -1,
 	}
 }
 
@@ -111,13 +112,15 @@ func (s *session) getQuestions(total int) error {
 	for _, r := range apiResp.Results {
 		q := newQuestion(r)
 		s.Debug("Question: %v correctAnswer: %d", q.answers, q.correctAnswer)
-		s.questions = append(s.questions, newQuestion(r))
+		s.questions = append(s.questions, q)
 	}
 	return nil
 }
 
 func (s *session) askQuestion() {
+	s.current++
 	q := s.questions[s.current]
+	s.Debug("Question: %s Answer: %d", q.question, q.correctAnswer)
 	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
 	if err != nil {
 		s.ChatDebug(s.convID, "failed to ask question: %s", err)
@@ -133,7 +136,6 @@ func (s *session) askQuestion() {
 		}
 	}
 	s.curMsgID = *sendRes.Result.MessageID
-	s.current++
 }
 
 func (s *session) waitForCorrectAnswer() {
@@ -149,11 +151,11 @@ func (s *session) waitForCorrectAnswer() {
 					continue
 				}
 				if answer.selection != s.questions[s.current].correctAnswer {
-					s.ChatEcho(s.convID, "Incorrect answer of %s by %s", base.NumberToEmoji(answer.selection+1),
-						answer.username)
+					s.ChatEcho(s.convID, "Incorrect answer of %s by %s",
+						base.NumberToEmoji(answer.selection+1), answer.username)
 				} else {
-					s.ChatEcho(s.convID, "*Correct answer of %s by %s*", base.NumberToEmoji(answer.selection+1),
-						answer.username)
+					s.ChatEcho(s.convID, "*Correct answer of %s by %s*",
+						base.NumberToEmoji(answer.selection+1), answer.username)
 					close(doneCh)
 					return
 				}
