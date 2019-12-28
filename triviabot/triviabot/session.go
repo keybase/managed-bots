@@ -81,20 +81,24 @@ type session struct {
 	*base.DebugOutput
 
 	kbc       *kbchat.API
+	db        *DB
 	questions []question
 	current   int
 	convID    string
 	curMsgID  chat1.MessageID
 	answerCh  chan answer
+	stopCh    chan struct{}
 }
 
-func newSession(kbc *kbchat.API, convID string) *session {
+func newSession(kbc *kbchat.API, db *DB, convID string) *session {
 	return &session{
 		DebugOutput: base.NewDebugOutput("session", kbc),
+		db:          db,
 		convID:      convID,
 		answerCh:    make(chan answer),
 		kbc:         kbc,
 		current:     -1,
+		stopCh:      make(chan struct{}),
 	}
 }
 
@@ -138,6 +142,23 @@ func (s *session) askQuestion() {
 	s.curMsgID = *sendRes.Result.MessageID
 }
 
+func (s *session) getAnswerPoints(a answer, q question) (isCorrect bool, pointAdjust int) {
+	if a.selection != q.correctAnswer {
+		return false, -5
+	}
+	switch q.difficulty {
+	case "easy":
+		return true, 5
+	case "medium":
+		return true, 10
+	case "hard":
+		return true, 15
+	default:
+		s.Debug("getAnswerPoints: unknown difficulty: %s", q.difficulty)
+		return true, 5
+	}
+}
+
 func (s *session) waitForCorrectAnswer() {
 	timeoutCh := make(chan struct{})
 	doneCh := make(chan struct{})
@@ -150,7 +171,11 @@ func (s *session) waitForCorrectAnswer() {
 						answer.msgID)
 					continue
 				}
-				if answer.selection != s.questions[s.current].correctAnswer {
+				isCorrect, pointAdjust := s.getAnswerPoints(answer, s.questions[s.current])
+				if err := s.db.RecordAnswer(s.convID, answer.username, pointAdjust, isCorrect); err != nil {
+					s.ChatDebugFull(s.convID, "waitForCorrectAnswer: failed to record answer: %s", err)
+				}
+				if !isCorrect {
 					s.ChatEcho(s.convID, "Incorrect answer of %s by %s",
 						base.NumberToEmoji(answer.selection+1), answer.username)
 				} else {
@@ -170,22 +195,35 @@ func (s *session) waitForCorrectAnswer() {
 		close(timeoutCh)
 		return
 	case <-doneCh:
+	case <-s.stopCh:
 	}
 }
 
-func (s *session) start(intotal int) error {
+func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
+	doneCb = make(chan struct{})
 	total := defaultTotal
 	if intotal > 0 {
 		total = intotal
 	}
 	if err := s.getQuestions(total); err != nil {
-		return err
+		close(doneCb)
+		return doneCb, err
 	}
 	go func() {
+		defer close(doneCb)
 		for i := 0; i < len(s.questions); i++ {
+			select {
+			case <-s.stopCh:
+				return
+			default:
+			}
 			s.askQuestion()
 			s.waitForCorrectAnswer()
 		}
 	}()
-	return nil
+	return doneCb, nil
+}
+
+func (s *session) stop() {
+	close(s.stopCh)
 }

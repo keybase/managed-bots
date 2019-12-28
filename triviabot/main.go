@@ -47,6 +47,18 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 			Name:        "trivia start",
 			Description: "Start a new question asking session",
 		},
+		{
+			Name:        "trivia stop",
+			Description: "End the current question asking session",
+		},
+		{
+			Name:        "trivia top",
+			Description: "Show the top users for this conversation",
+		},
+		{
+			Name:        "trivia reset",
+			Description: "Reset the scores leaderboard",
+		},
 	}
 	return kbchat.Advertisement{
 		Alias: "Trivia",
