@@ -14,6 +14,8 @@ import (
 	"github.com/keybase/managed-bots/base"
 )
 
+var eligibleCategories = []int{9, 10, 11, 12, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}
+
 type apiQuestion struct {
 	Category         string
 	Difficulty       string
@@ -102,8 +104,13 @@ func newSession(kbc *kbchat.API, db *DB, convID string) *session {
 	}
 }
 
+func (s *session) getCategory() int {
+	return eligibleCategories[rand.Intn(len(eligibleCategories))]
+}
+
 func (s *session) getQuestions(total int) error {
-	resp, err := http.Get(fmt.Sprintf("https://opentdb.com/api.php?amount=%d", total))
+	resp, err := http.Get(fmt.Sprintf("https://opentdb.com/api.php?amount=%d&category=%d", total,
+		s.getCategory()))
 	if err != nil {
 		return err
 	}
