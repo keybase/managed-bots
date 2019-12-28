@@ -3,6 +3,7 @@ package triviabot
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -12,6 +13,7 @@ import (
 
 type Handler struct {
 	*base.Handler
+	sync.Mutex
 
 	kbc      *kbchat.API
 	db       *DB
@@ -31,6 +33,8 @@ func NewHandler(kbc *kbchat.API, db *DB) *Handler {
 }
 
 func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
+	h.Lock()
+	defer h.Unlock()
 	convID := msg.ConvID
 	session := newSession(h.kbc, h.db, convID)
 	doneCb, err := session.start(0)
@@ -45,6 +49,8 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 }
 
 func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {
+	h.Lock()
+	defer h.Unlock()
 	convID := msg.ConvID
 	session, ok := h.sessions[convID]
 	if !ok {
@@ -82,6 +88,8 @@ func (h *Handler) handleReset(cmd string, msg chat1.MsgSummary) {
 }
 
 func (h *Handler) handleAnswer(convID string, reaction chat1.MessageReaction, sender string) {
+	h.Lock()
+	defer h.Unlock()
 	session, ok := h.sessions[convID]
 	if !ok {
 		h.Debug("handleAnswer: no session for convID: %s", convID)
