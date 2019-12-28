@@ -90,6 +90,7 @@ type session struct {
 	curMsgID  chat1.MessageID
 	answerCh  chan answer
 	stopCh    chan struct{}
+	dupCheck  map[string]bool
 }
 
 func newSession(kbc *kbchat.API, db *DB, convID string) *session {
@@ -101,6 +102,7 @@ func newSession(kbc *kbchat.API, db *DB, convID string) *session {
 		kbc:         kbc,
 		current:     -1,
 		stopCh:      make(chan struct{}),
+		dupCheck:    make(map[string]bool),
 	}
 }
 
@@ -166,6 +168,18 @@ func (s *session) getAnswerPoints(a answer, q question) (isCorrect bool, pointAd
 	}
 }
 
+func (s *session) dupKey(username string) string {
+	return fmt.Sprintf("%s:%d", username, s.curMsgID)
+}
+
+func (s *session) checkDupe(username string) bool {
+	return s.dupCheck[s.dupKey(username)]
+}
+
+func (s *session) regDupe(username string) {
+	s.dupCheck[s.dupKey(username)] = true
+}
+
 func (s *session) waitForCorrectAnswer() {
 	timeoutCh := make(chan struct{})
 	doneCh := make(chan struct{})
@@ -173,6 +187,10 @@ func (s *session) waitForCorrectAnswer() {
 		for {
 			select {
 			case answer := <-s.answerCh:
+				if s.checkDupe(answer.username) {
+					s.Debug("ignoring duplicate answer from: %s", answer.username)
+					continue
+				}
 				if answer.msgID != s.curMsgID {
 					s.Debug("ignoring answer for non-current question: cur: %d ans: %d", s.curMsgID,
 						answer.msgID)
@@ -182,6 +200,7 @@ func (s *session) waitForCorrectAnswer() {
 				if err := s.db.RecordAnswer(s.convID, answer.username, pointAdjust, isCorrect); err != nil {
 					s.ChatDebugFull(s.convID, "waitForCorrectAnswer: failed to record answer: %s", err)
 				}
+				s.regDupe(answer.username)
 				if !isCorrect {
 					s.ChatEcho(s.convID, "Incorrect answer of %s by %s",
 						base.NumberToEmoji(answer.selection+1), answer.username)
