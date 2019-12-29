@@ -261,6 +261,10 @@ func (s *session) waitForCorrectAnswer() {
 	go func() {
 		for {
 			select {
+			case <-s.stopCh:
+				return
+			case <-timeoutCh:
+				return
 			case answer := <-s.answerCh:
 				if s.checkDupe(answer.username) {
 					s.Debug("ignoring duplicate answer from: %s", answer.username)
@@ -286,11 +290,11 @@ func (s *session) waitForCorrectAnswer() {
 				} else {
 					s.ChatEcho(s.convID, "*Correct answer of %s by %s (%d points)*",
 						base.NumberToEmoji(answer.selection+1), answer.username, pointAdjust)
+					s.curQuestion = nil
 					close(doneCh)
 					return
 				}
-			case <-timeoutCh:
-				return
+
 			}
 		}
 	}()

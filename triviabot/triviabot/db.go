@@ -49,7 +49,7 @@ func (d *DB) TopUsers(convID string) (res []topUser, err error) {
 		SELECT username, points, correct, incorrect
 		FROM leaderboard
 		WHERE conv_id = ?
-		ORDER BY points
+		ORDER BY points DESC
 		LIMIT 10
 	`, base.ShortConvID(convID))
 	if err != nil {
