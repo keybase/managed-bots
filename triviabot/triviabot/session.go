@@ -202,17 +202,17 @@ func (s *session) getNextQuestion() error {
 	return nil
 }
 
-func (s *session) askQuestion() {
+func (s *session) askQuestion() error {
 	if s.curQuestion == nil {
 		s.Debug("askQuestion: current question nil, bailing")
-		return
+		return errors.New("no question to ask")
 	}
 	q := *s.curQuestion
 	s.Debug("askQuestion: question: %s answer: %d", q.question, q.correctAnswer+1)
 	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
 	if err != nil {
 		s.ChatDebug(s.convID, "askQuestion: failed to ask question: %s", err)
-		return
+		return err
 	}
 	if sendRes.Result.MessageID == nil {
 		s.ChatDebug(s.convID, "askQuestion: failed to get message ID of question ask")
@@ -224,6 +224,7 @@ func (s *session) askQuestion() {
 		}
 	}
 	s.curMsgID = *sendRes.Result.MessageID
+	return nil
 }
 
 func (s *session) getAnswerPoints(a answer, q question) (isCorrect bool, pointAdjust int) {
@@ -326,7 +327,10 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 				s.ChatDebug(s.convID, "start: failed to get next question: %s", err)
 				continue
 			}
-			s.askQuestion()
+			if err := s.askQuestion(); err != nil {
+				s.ChatDebug(s.convID, "start: failed to ask question: %s", err)
+				continue
+			}
 			s.waitForCorrectAnswer()
 		}
 	}()
