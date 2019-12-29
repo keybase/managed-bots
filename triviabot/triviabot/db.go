@@ -76,3 +76,24 @@ func (d *DB) ResetConv(convID string) error {
 		return nil
 	})
 }
+
+func (d *DB) GetAPIToken(convID string) (res string, err error) {
+	row := d.QueryRow(`
+		SELECT token FROM tokens where conv_id = ?
+	`, base.ShortConvID(convID))
+	if err := row.Scan(&res); err != nil {
+		return "", err
+	}
+	return res, nil
+}
+
+func (d *DB) SetAPIToken(convID string, token string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`
+			REPLACE INTO tokens (conv_id, token) VALUES (?, ?)
+		`, base.ShortConvID(convID), token); err != nil {
+			return err
+		}
+		return nil
+	})
+}

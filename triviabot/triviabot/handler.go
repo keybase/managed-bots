@@ -44,6 +44,7 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 	h.sessions[convID] = session
 	go func() {
 		<-doneCb
+		h.ChatEcho(convID, "Session complete, here are the top players")
 		h.handleTop(convID)
 	}()
 }
@@ -108,14 +109,13 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
-	case strings.HasPrefix(cmd, "!trivia start"):
+	case strings.HasPrefix(cmd, "!trivia begin"):
 		h.handleStart(cmd, msg)
-	case strings.HasPrefix(cmd, "!trivia stop"):
+	case strings.HasPrefix(cmd, "!trivia end"):
 		h.handleStop(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
 		h.handleTop(msg.ConvID)

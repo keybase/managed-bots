@@ -2,6 +2,7 @@ package triviabot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"math/rand"
@@ -25,8 +26,13 @@ type apiQuestion struct {
 }
 
 type apiResponse struct {
-	ReponseCode int
-	Results     []apiQuestion
+	ResponseCode int
+	Results      []apiQuestion
+}
+
+type apiTokenResponse struct {
+	ResponseCode int
+	Token        string
 }
 
 type question struct {
@@ -82,15 +88,14 @@ type answer struct {
 type session struct {
 	*base.DebugOutput
 
-	kbc       *kbchat.API
-	db        *DB
-	questions []question
-	current   int
-	convID    string
-	curMsgID  chat1.MessageID
-	answerCh  chan answer
-	stopCh    chan struct{}
-	dupCheck  map[string]bool
+	kbc         *kbchat.API
+	db          *DB
+	convID      string
+	curQuestion *question
+	curMsgID    chat1.MessageID
+	answerCh    chan answer
+	stopCh      chan struct{}
+	dupCheck    map[string]bool
 }
 
 func newSession(kbc *kbchat.API, db *DB, convID string) *session {
@@ -98,9 +103,8 @@ func newSession(kbc *kbchat.API, db *DB, convID string) *session {
 		DebugOutput: base.NewDebugOutput("session", kbc),
 		db:          db,
 		convID:      convID,
-		answerCh:    make(chan answer),
+		answerCh:    make(chan answer, 10),
 		kbc:         kbc,
-		current:     -1,
 		stopCh:      make(chan struct{}),
 		dupCheck:    make(map[string]bool),
 	}
@@ -110,42 +114,113 @@ func (s *session) getCategory() int {
 	return eligibleCategories[rand.Intn(len(eligibleCategories))]
 }
 
-func (s *session) getQuestions(total int) error {
-	resp, err := http.Get(fmt.Sprintf("https://opentdb.com/api.php?amount=%d&category=%d", total,
-		s.getCategory()))
+func (s *session) getAPIToken() (string, error) {
+	resp, err := http.Get("https://opentdb.com/api_token.php?command=request")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
-	var apiResp apiResponse
+	var apiResp apiTokenResponse
 	decoder := json.NewDecoder(resp.Body)
 	if err := decoder.Decode(&apiResp); err != nil {
+		return "", err
+	}
+	if apiResp.ResponseCode != 0 {
+		return "", fmt.Errorf("error from token API: %d", apiResp.ResponseCode)
+	}
+	return apiResp.Token, nil
+}
+
+var errForceAPI = errors.New("API token fetch requested")
+
+func (s *session) getToken(forceAPI bool) (token string, err error) {
+	if !forceAPI {
+		token, err = s.db.GetAPIToken(s.convID)
+	} else {
+		err = errForceAPI
+	}
+	if err != nil {
+		s.Debug("getToken: failed to get token from DB: %s", err)
+		if token, err = s.getAPIToken(); err != nil {
+			s.ChatDebug(s.convID, "getToken: failed to get token from API: %s", err)
+			return "", err
+		}
+		if err := s.db.SetAPIToken(s.convID, token); err != nil {
+			s.Debug("getToken: failed to set token in DB: %s", err)
+		}
+	} else {
+		s.Debug("getToken: DB hit")
+	}
+	return token, nil
+}
+
+var errTokenExpired = errors.New("token expired")
+
+func (s *session) getNextQuestion() error {
+	token, err := s.getToken(false)
+	if err != nil {
+		s.Debug("getNextQuestion: failed to get token: %s", err)
 		return err
 	}
-	for _, r := range apiResp.Results {
-		q := newQuestion(r)
-		s.Debug("Question: %v correctAnswer: %d", q.answers, q.correctAnswer)
-		s.questions = append(s.questions, q)
+	var apiResp apiResponse
+	getQuestion := func(token string) error {
+		url := fmt.Sprintf("https://opentdb.com/api.php?amount=1&category=%d&token=%s&type=multiple",
+			s.getCategory(), token)
+		s.Debug("getNextQuestion: url: %s", url)
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		decoder := json.NewDecoder(resp.Body)
+		if err := decoder.Decode(&apiResp); err != nil {
+			return err
+		}
+		if apiResp.ResponseCode == 3 {
+			// need new token
+			return errTokenExpired
+		}
+		return nil
+	}
+	if err := getQuestion(token); err != nil {
+		if err == errTokenExpired {
+			s.Debug("getNextQuestion: token expired, trying again")
+			if token, err = s.getToken(true); err != nil {
+				s.Debug("getNextQuestion: failed to get token: %s", err)
+				return err
+			}
+			if err := getQuestion(token); err != nil {
+				s.Debug("getNextQuestion: failed to get next question after token error: %s", err)
+				return err
+			}
+		}
+	}
+	if len(apiResp.Results) > 0 {
+		q := newQuestion(apiResp.Results[0])
+		s.curQuestion = &q
 	}
 	return nil
 }
 
 func (s *session) askQuestion() {
-	s.current++
-	q := s.questions[s.current]
-	s.Debug("Question: %s Answer: %d", q.question, q.correctAnswer)
+	if s.curQuestion == nil {
+		s.Debug("askQuestion: current question nil, bailing")
+		return
+	}
+	q := *s.curQuestion
+	s.Debug("askQuestion: question: %s answer: %d", q.question, q.correctAnswer+1)
 	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
 	if err != nil {
-		s.ChatDebug(s.convID, "failed to ask question: %s", err)
+		s.ChatDebug(s.convID, "askQuestion: failed to ask question: %s", err)
 		return
 	}
 	if sendRes.Result.MessageID == nil {
-		s.ChatDebug(s.convID, "failed to get message ID of question ask")
+		s.ChatDebug(s.convID, "askQuestion: failed to get message ID of question ask")
 	}
 	for index := range q.answers {
 		if _, err := s.kbc.ReactByConvID(s.convID, *sendRes.Result.MessageID,
 			base.NumberToEmoji(index+1)); err != nil {
-			s.ChatDebug(s.convID, "failed to set reaction option: %s", err)
+			s.ChatDebug(s.convID, "askQuestion: failed to set reaction option: %s", err)
 		}
 	}
 	s.curMsgID = *sendRes.Result.MessageID
@@ -196,17 +271,21 @@ func (s *session) waitForCorrectAnswer() {
 						answer.msgID)
 					continue
 				}
-				isCorrect, pointAdjust := s.getAnswerPoints(answer, s.questions[s.current])
+				if s.curQuestion == nil {
+					s.Debug("ignoring answer since curQuestion is nil")
+					continue
+				}
+				isCorrect, pointAdjust := s.getAnswerPoints(answer, *s.curQuestion)
 				if err := s.db.RecordAnswer(s.convID, answer.username, pointAdjust, isCorrect); err != nil {
 					s.ChatDebugFull(s.convID, "waitForCorrectAnswer: failed to record answer: %s", err)
 				}
 				s.regDupe(answer.username)
 				if !isCorrect {
-					s.ChatEcho(s.convID, "Incorrect answer of %s by %s",
-						base.NumberToEmoji(answer.selection+1), answer.username)
+					s.ChatEcho(s.convID, "Incorrect answer of %s by %s (%d points)",
+						base.NumberToEmoji(answer.selection+1), answer.username, pointAdjust)
 				} else {
-					s.ChatEcho(s.convID, "*Correct answer of %s by %s*",
-						base.NumberToEmoji(answer.selection+1), answer.username)
+					s.ChatEcho(s.convID, "*Correct answer of %s by %s (%d points)*",
+						base.NumberToEmoji(answer.selection+1), answer.username, pointAdjust)
 					close(doneCh)
 					return
 				}
@@ -216,7 +295,7 @@ func (s *session) waitForCorrectAnswer() {
 		}
 	}()
 	select {
-	case <-time.After(30 * time.Second):
+	case <-time.After(20 * time.Second):
 		s.ChatEcho(s.convID, "Times up, next question!")
 		close(timeoutCh)
 		return
@@ -231,17 +310,17 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 	if intotal > 0 {
 		total = intotal
 	}
-	if err := s.getQuestions(total); err != nil {
-		close(doneCb)
-		return doneCb, err
-	}
 	go func() {
 		defer close(doneCb)
-		for i := 0; i < len(s.questions); i++ {
+		for i := 0; i < total; i++ {
 			select {
 			case <-s.stopCh:
 				return
 			default:
+			}
+			if err := s.getNextQuestion(); err != nil {
+				s.ChatDebug(s.convID, "start: failed to get next question: %s", err)
+				continue
 			}
 			s.askQuestion()
 			s.waitForCorrectAnswer()

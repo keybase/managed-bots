@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -44,11 +46,11 @@ const backs = "```"
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	cmds := []chat1.UserBotCommandInput{
 		{
-			Name:        "trivia start",
-			Description: "Start a new question asking session",
+			Name:        "trivia begin",
+			Description: "Begin a new question asking session",
 		},
 		{
-			Name:        "trivia stop",
+			Name:        "trivia end",
 			Description: "End the current question asking session",
 		},
 		{
@@ -108,6 +110,7 @@ func main() {
 func mainInner() int {
 	opts := newOptions()
 
+	rand.Seed(time.Now().Unix())
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
