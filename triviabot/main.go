@@ -115,10 +115,10 @@ func mainInner() int {
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
-	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Poll database DSN")
+	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Trivia database DSN")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
-		fmt.Printf("must specify a poll database DSN\n")
+		fmt.Printf("must specify a trivia database DSN\n")
 		return 3
 	}
 	bs := NewBotServer(opts)
