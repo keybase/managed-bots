@@ -104,7 +104,9 @@ func (h *Handler) handleLogSend(msg chat1.MsgSummary) error {
 		h.ChatDebugFull(msg.ConvID, "unable to read ouput: %v", err)
 		return err
 	}
-	h.ChatDebugFull(msg.ConvID, "log send output: ```%v```", string(outputBytes))
+	if len(outputBytes) > 0 {
+		h.ChatDebugFull(msg.ConvID, "log send output: ```%v```", string(outputBytes))
+	}
 	if err := cmd.Wait(); err != nil {
 		h.ChatDebugFull(msg.ConvID, "unable to finish command: %v", err)
 		return err
