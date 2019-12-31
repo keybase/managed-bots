@@ -12,8 +12,8 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
-func makeSecret(repo string, convID string, secret string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+convID+secret)))
+func makeSecret(repo string, shortConvID base.ShortID, secret string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(shortConvID)+secret)))
 }
 
 func refToName(ref string) (branch string) {

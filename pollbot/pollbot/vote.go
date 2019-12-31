@@ -39,7 +39,7 @@ func NewVoteFromEncoded(sdat string) Vote {
 }
 
 func (v Vote) Encode() string {
-	cdat, _ := hex.DecodeString(base.ShortConvID(v.ConvID))
+	cdat, _ := hex.DecodeString(string(base.ShortConvID(v.ConvID)))
 	mdat, _ := base.MsgpackEncode(voteToEncode{
 		ConvID: cdat,
 		MsgID:  v.MsgID,

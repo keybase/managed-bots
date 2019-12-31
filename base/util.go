@@ -7,6 +7,8 @@ import (
 	"github.com/keybase/go-codec/codec"
 )
 
+type ShortID string
+
 var DefaultBotAdmins = []string{
 	"joshblum",
 	"mikem",
@@ -34,11 +36,11 @@ func codecHandle() *codec.MsgpackHandle {
 	return &mh
 }
 
-func ShortConvID(convID string) string {
+func ShortConvID(convID string) ShortID {
 	if len(convID) <= 20 {
-		return convID
+		return ShortID(convID)
 	}
-	return convID[:20]
+	return ShortID(convID[:20])
 }
 
 func URLEncoder() *base64.Encoding {
