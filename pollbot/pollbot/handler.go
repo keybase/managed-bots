@@ -146,7 +146,7 @@ To login your web browser in order to vote in anonymous polls, please follow the
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Find out the answers to the hardest questions. Try `!poll 'Should we move the office to a beach?' Yes No`"
-	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {

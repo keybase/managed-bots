@@ -156,7 +156,7 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
-	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {

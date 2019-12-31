@@ -70,9 +70,6 @@ func (s *BotServer) Go() (err error) {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 
 	// If modifying these scopes, drop the saved tokens in the db
 	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)

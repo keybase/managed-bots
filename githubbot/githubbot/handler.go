@@ -35,7 +35,7 @@ func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, se
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hi! I can notify you whenever something happens on a GitHub repository. To get started, set up a repository by sending `!github subscribe <username/repo>`"
-	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {

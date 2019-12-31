@@ -116,7 +116,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) {
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "I can create generic webhooks into Keybase! Try `!webhook create` to get started."
-	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
