@@ -1,17 +1,18 @@
 package base
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"golang.org/x/sync/errgroup"
 )
 
 type CommandHandler interface {
 	HandleCommand(chat1.MsgSummary) error
+	HandleNewConv(chat1.ConvSummary) error
 }
 
 type Handler struct {
@@ -35,21 +36,29 @@ func (h *Handler) SetBotAdmins(admins []string) {
 	h.botAdmins = admins
 }
 
-func (h *Handler) HandleCommands(msg chat1.MsgSummary) error {
-	return errors.New("Not implemented")
-}
-
 func (h *Handler) BotAdmins() []string {
 	return h.botAdmins
 }
 
 func (h *Handler) Listen() error {
-	sub, err := h.kbc.ListenForNewTextMessages()
+	sub, err := h.kbc.Listen(kbchat.ListenOptions{Convs: true})
 	if err != nil {
 		h.Debug("Listen: failed to listen: %s", err)
 		return err
 	}
-	h.Debug("startup success, listening for messages...")
+	defer sub.Shutdown()
+	h.Debug("startup success, listening for messages and convs...")
+	var eg errgroup.Group
+	eg.Go(func() error { return h.listenForMsgs(sub) })
+	eg.Go(func() error { return h.listenForConvs(sub) })
+	if err := eg.Wait(); err != nil {
+		h.Debug("wait error: %s", err)
+		return err
+	}
+	return nil
+}
+
+func (h *Handler) listenForMsgs(sub kbchat.NewSubscription) error {
 	for {
 		m, err := sub.Read()
 		if err != nil {
@@ -70,6 +79,20 @@ func (h *Handler) Listen() error {
 
 		if err := h.HandleCommand(msg); err != nil {
 			h.Debug("unable to HandleCommand: %v", err)
+		}
+	}
+}
+
+func (h *Handler) listenForConvs(sub kbchat.NewSubscription) error {
+	for {
+		c, err := sub.ReadNewConvs()
+		if err != nil {
+			h.Debug("Listen: ReadNewConvs() error: %s", err)
+			continue
+		}
+
+		if err := h.HandleNewConv(c.Conversation); err != nil {
+			h.Debug("unable to HandleNewConv: %v", err)
 		}
 	}
 }

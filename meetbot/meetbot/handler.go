@@ -155,6 +155,11 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 	return h.config.Client(context.Background(), token), false, nil
 }
 
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
+	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+}
+
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")

@@ -103,6 +103,11 @@ func (h *Handler) handleAnswer(convID string, reaction chat1.MessageReaction, se
 	}
 }
 
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Are you up to the challenge? Try `!triva begin` to find out."
+	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+}
+
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
 		h.handleAnswer(msg.ConvID, *msg.Content.Reaction, msg.Sender.Username)

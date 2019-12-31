@@ -34,6 +34,11 @@ func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, se
 	return h
 }
 
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Hello! To get started you can subscribe to a repository, try `!github subscribe <repo-name>`"
+	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
+}
+
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")

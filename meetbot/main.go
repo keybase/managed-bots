@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -63,16 +62,21 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
-	cmd := exec.Command("keybase", "fs", "read", configPath)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
-	if err := cmd.Run(); err != nil {
+	//	cmd := exec.Command("keybase", "fs", "read", configPath)
+	//	var out bytes.Buffer
+	//	cmd.Stdout = &out
+	//	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
+	//	if err := cmd.Run(); err != nil {
+	//		return err
+	//	}
+	out, err := ioutil.ReadFile(configPath)
+	if err != nil {
 		return err
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
+	//	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
+	config, err := google.ConfigFromJSON(out, calendar.CalendarEventsScope)
 	if err != nil {
 		return fmt.Errorf("Unable to parse client secret file to config: %v", err)
 	}

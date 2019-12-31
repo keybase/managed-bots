@@ -49,7 +49,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 
 	Example:%s
 		!poll "Should we move the office to a beach?" "Yes" "No"
-		!poll  --anonymous "Where should the next meetup be?""Miami" "Las Vegas" "Houston"%s`, backs, backs)
+		!poll  --anonymous "Where should the next meetup be?" "Miami" "Las Vegas" "Houston"%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
