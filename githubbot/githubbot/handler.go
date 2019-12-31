@@ -105,7 +105,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			}
 
 			// setting up phase - send instructions
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], msg.ConvID, h.httpPrefix, h.secret))
 			if err != nil {
 				h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
 				return
