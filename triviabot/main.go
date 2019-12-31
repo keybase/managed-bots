@@ -40,9 +40,6 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
-const back = "`"
-const backs = "```"
-
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	cmds := []chat1.UserBotCommandInput{
 		{
@@ -94,7 +91,7 @@ func (s *BotServer) Go() (err error) {
 
 	handler := triviabot.NewHandler(s.kbc, db)
 	var eg errgroup.Group
-	eg.Go(handler.Listen)
+	eg.Go(func() error { return s.Listen(handler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

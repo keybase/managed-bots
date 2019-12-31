@@ -11,7 +11,7 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
 
 	kbc        *kbchat.API
 	db         *DB
@@ -19,17 +19,16 @@ type Handler struct {
 	httpPrefix string
 }
 
-var _ base.CommandHandler = (*Handler)(nil)
+var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
-	h := &Handler{
-		kbc:        kbc,
-		db:         db,
-		httpSrv:    httpSrv,
-		httpPrefix: httpPrefix,
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		httpSrv:     httpSrv,
+		httpPrefix:  httpPrefix,
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) formURL(id string) string {
@@ -37,7 +36,7 @@ func (h *Handler) formURL(id string) string {
 }
 
 func (h *Handler) checkAdmin(msg chat1.MsgSummary) bool {
-	ok, err := h.IsAdmin(msg)
+	ok, err := base.IsAdmin(h.kbc, msg)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "handleCreate: failed to check admin: %s", err)
 		return false

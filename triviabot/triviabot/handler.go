@@ -12,7 +12,7 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
 	sync.Mutex
 
 	kbc      *kbchat.API
@@ -20,16 +20,15 @@ type Handler struct {
 	sessions map[string]*session
 }
 
-var _ base.CommandHandler = (*Handler)(nil)
+var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, db *DB) *Handler {
-	h := &Handler{
-		kbc:      kbc,
-		db:       db,
-		sessions: make(map[string]*session),
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		sessions:    make(map[string]*session),
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {

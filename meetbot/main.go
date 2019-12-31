@@ -102,7 +102,7 @@ func (s *BotServer) Go() (err error) {
 
 	handler := meetbot.NewHandler(s.kbc, config, db)
 	var eg errgroup.Group
-	eg.Go(handler.Listen)
+	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(handler.HTTPListen)
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)

@@ -10,150 +10,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type CommandHandler interface {
+type Handler interface {
 	HandleCommand(chat1.MsgSummary) error
 	HandleNewConv(chat1.ConvSummary) error
-}
-
-type Handler struct {
-	*DebugOutput
-	CommandHandler
-
-	kbc       *kbchat.API
-	botAdmins []string
-}
-
-func NewHandler(kbc *kbchat.API, cmdHandler CommandHandler) *Handler {
-	return &Handler{
-		DebugOutput:    NewDebugOutput("Handler", kbc),
-		CommandHandler: cmdHandler,
-		kbc:            kbc,
-		botAdmins:      DefaultBotAdmins,
-	}
-}
-
-func (h *Handler) SetBotAdmins(admins []string) {
-	h.botAdmins = admins
-}
-
-func (h *Handler) BotAdmins() []string {
-	return h.botAdmins
-}
-
-func (h *Handler) Listen() error {
-	sub, err := h.kbc.Listen(kbchat.ListenOptions{Convs: true})
-	if err != nil {
-		h.Debug("Listen: failed to listen: %s", err)
-		return err
-	}
-	defer sub.Shutdown()
-	h.Debug("startup success, listening for messages and convs...")
-	var eg errgroup.Group
-	eg.Go(func() error { return h.listenForMsgs(sub) })
-	eg.Go(func() error { return h.listenForConvs(sub) })
-	if err := eg.Wait(); err != nil {
-		h.Debug("wait error: %s", err)
-		return err
-	}
-	return nil
-}
-
-func (h *Handler) listenForMsgs(sub kbchat.NewSubscription) error {
-	for {
-		m, err := sub.Read()
-		if err != nil {
-			h.Debug("Listen: Read() error: %s", err)
-			continue
-		}
-
-		msg := m.Message
-		if msg.Content.Text != nil {
-			cmd := strings.TrimSpace(msg.Content.Text.Body)
-			if strings.HasPrefix(cmd, "!logsend") {
-				if err := h.handleLogSend(msg); err != nil {
-					h.Debug("unable to handleLogSend: %v", err)
-				}
-				continue
-			}
-		}
-
-		if err := h.HandleCommand(msg); err != nil {
-			h.Debug("unable to HandleCommand: %v", err)
-		}
-	}
-}
-
-func (h *Handler) listenForConvs(sub kbchat.NewSubscription) error {
-	for {
-		c, err := sub.ReadNewConvs()
-		if err != nil {
-			h.Debug("Listen: ReadNewConvs() error: %s", err)
-			continue
-		}
-
-		if err := h.HandleNewConv(c.Conversation); err != nil {
-			h.Debug("unable to HandleNewConv: %v", err)
-		}
-	}
-}
-
-func (h *Handler) handleLogSend(msg chat1.MsgSummary) error {
-	allowed := false
-	sender := msg.Sender.Username
-	for _, username := range h.botAdmins {
-		if sender == username {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
-		h.Debug("ignoring log send from @%s, botAdmins: %v", sender, h.botAdmins)
-		return nil
-	}
-	h.ChatEcho(msg.ConvID, "starting a log send...")
-
-	cmd := h.kbc.Command("log", "send", "--no-confirm", "--feedback", fmt.Sprintf("log requested by @%s", sender))
-	output, err := cmd.StdoutPipe()
-	if err != nil {
-		h.ChatDebugFull(msg.ConvID, "unable to get output pipe: %v", err)
-		return err
-	}
-	if err := cmd.Start(); err != nil {
-		h.ChatDebugFull(msg.ConvID, "unable to start command: %v", err)
-		return err
-	}
-	outputBytes, err := ioutil.ReadAll(output)
-	if err != nil {
-		h.ChatDebugFull(msg.ConvID, "unable to read ouput: %v", err)
-		return err
-	}
-	if len(outputBytes) > 0 {
-		h.ChatDebugFull(msg.ConvID, "log send output: ```%v```", string(outputBytes))
-	}
-	if err := cmd.Wait(); err != nil {
-		h.ChatDebugFull(msg.ConvID, "unable to finish command: %v", err)
-		return err
-	}
-	return nil
-}
-
-func (h *Handler) IsAdmin(msg chat1.MsgSummary) (bool, error) {
-	switch msg.Channel.MembersType {
-	case "team": // make sure the member is an admin or owner
-	default: // authorization is per user so let anything through
-		return true, nil
-	}
-	res, err := h.kbc.ListMembersOfTeam(msg.Channel.Name)
-	if err != nil {
-		return false, err
-	}
-	adminLike := append(res.Owners, res.Admins...)
-	for _, member := range adminLike {
-		if member.Username == msg.Sender.Username {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 type Server struct {
@@ -161,12 +20,18 @@ type Server struct {
 
 	announcement string
 	kbc          *kbchat.API
+	botAdmins    []string
 }
 
 func NewServer(announcement string) *Server {
 	return &Server{
 		announcement: announcement,
+		botAdmins:    DefaultBotAdmins,
 	}
+}
+
+func (s *Server) SetBotAdmins(admins []string) {
+	s.botAdmins = admins
 }
 
 func (s *Server) Start(keybaseLoc, home string) (kbc *kbchat.API, err error) {
@@ -205,4 +70,101 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 	} else {
 		return nil
 	}
+}
+
+func (s *Server) Listen(handler Handler) error {
+	sub, err := s.kbc.Listen(kbchat.ListenOptions{Convs: true})
+	if err != nil {
+		s.Debug("Listen: failed to listen: %s", err)
+		return err
+	}
+	defer sub.Shutdown()
+	s.Debug("startup success, listening for messages and convs...")
+	var eg errgroup.Group
+	eg.Go(func() error { return s.listenForMsgs(sub, handler) })
+	eg.Go(func() error { return s.listenForConvs(sub, handler) })
+	if err := eg.Wait(); err != nil {
+		s.Debug("wait error: %s", err)
+		return err
+	}
+	return nil
+}
+
+func (s *Server) listenForMsgs(sub kbchat.NewSubscription, handler Handler) error {
+	for {
+		m, err := sub.Read()
+		if err != nil {
+			s.Debug("Listen: Read() error: %s", err)
+			continue
+		}
+
+		msg := m.Message
+		if msg.Content.Text != nil {
+			cmd := strings.TrimSpace(msg.Content.Text.Body)
+			if strings.HasPrefix(cmd, "!logsend") {
+				if err := s.handleLogSend(msg); err != nil {
+					s.Debug("unable to handleLogSend: %v", err)
+				}
+				continue
+			}
+		}
+
+		if err := handler.HandleCommand(msg); err != nil {
+			s.Debug("unable to HandleCommand: %v", err)
+		}
+	}
+}
+
+func (s *Server) listenForConvs(sub kbchat.NewSubscription, handler Handler) error {
+	for {
+		c, err := sub.ReadNewConvs()
+		if err != nil {
+			s.Debug("Listen: ReadNewConvs() error: %s", err)
+			continue
+		}
+
+		if err := handler.HandleNewConv(c.Conversation); err != nil {
+			s.Debug("unable to HandleNewConv: %v", err)
+		}
+	}
+}
+
+func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
+	allowed := false
+	sender := msg.Sender.Username
+	for _, username := range s.botAdmins {
+		if sender == username {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		s.Debug("ignoring log send from @%s, botAdmins: %v", sender, s.botAdmins)
+		return nil
+	}
+	s.ChatEcho(msg.ConvID, "starting a log send...")
+
+	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback", fmt.Sprintf("log requested by @%s", sender))
+	output, err := cmd.StdoutPipe()
+	if err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to get output pipe: %v", err)
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to start command: %v", err)
+		return err
+	}
+	outputBytes, err := ioutil.ReadAll(output)
+	if err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to read ouput: %v", err)
+		return err
+	}
+	if len(outputBytes) > 0 {
+		s.ChatDebugFull(msg.ConvID, "log send output: ```%v```", string(outputBytes))
+	}
+	if err := cmd.Wait(); err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to finish command: %v", err)
+		return err
+	}
+	return nil
 }

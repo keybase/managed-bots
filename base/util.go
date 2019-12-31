@@ -111,3 +111,22 @@ func HandleNewConv(log *DebugOutput, kbc *kbchat.API, conv chat1.ConvSummary, we
 	_, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg)
 	return err
 }
+
+func IsAdmin(kbc *kbchat.API, msg chat1.MsgSummary) (bool, error) {
+	switch msg.Channel.MembersType {
+	case "team": // make sure the member is an admin or owner
+	default: // authorization is per user so let anything through
+		return true, nil
+	}
+	res, err := kbc.ListMembersOfTeam(msg.Channel.Name)
+	if err != nil {
+		return false, err
+	}
+	adminLike := append(res.Owners, res.Admins...)
+	for _, member := range adminLike {
+		if member.Username == msg.Sender.Username {
+			return true, nil
+		}
+	}
+	return false, nil
+}

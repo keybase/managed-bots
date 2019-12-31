@@ -162,7 +162,7 @@ func (s *BotServer) Go() (err error) {
 	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
 	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)
 	var eg errgroup.Group
-	eg.Go(handler.Listen)
+	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)

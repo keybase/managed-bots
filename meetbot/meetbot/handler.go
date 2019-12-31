@@ -20,7 +20,7 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
 
 	sync.Mutex
 	kbc      *kbchat.API
@@ -29,17 +29,16 @@ type Handler struct {
 	requests map[string]chat1.MsgSummary
 }
 
-var _ base.CommandHandler = (*Handler)(nil)
+var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
-	h := &Handler{
-		kbc:      kbc,
-		db:       db,
-		config:   config,
-		requests: make(map[string]chat1.MsgSummary),
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		config:      config,
+		requests:    make(map[string]chat1.MsgSummary),
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) HTTPListen() error {
@@ -138,7 +137,7 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 	}
 	// We need to request new authorization
 	if token == nil {
-		if isAdmin, err := h.IsAdmin(msg); err != nil || !isAdmin {
+		if isAdmin, err := base.IsAdmin(h.kbc, msg); err != nil || !isAdmin {
 			return nil, isAdmin, err
 		}
 

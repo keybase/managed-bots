@@ -14,22 +14,24 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
+
 	kbc        *kbchat.API
 	db         *DB
 	httpSrv    *HTTPSrv
 	httpPrefix string
 }
 
+var _ base.Handler = (*Handler)(nil)
+
 func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
-	h := &Handler{
-		kbc:        kbc,
-		db:         db,
-		httpSrv:    httpSrv,
-		httpPrefix: httpPrefix,
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		httpSrv:     httpSrv,
+		httpPrefix:  httpPrefix,
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice int) string {

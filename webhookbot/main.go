@@ -111,7 +111,7 @@ func (s *BotServer) Go() (err error) {
 	httpSrv := webhookbot.NewHTTPSrv(s.kbc, db)
 	handler := webhookbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
-	eg.Go(handler.Listen)
+	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
