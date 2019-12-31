@@ -34,7 +34,7 @@ func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, se
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hello! To get started you can subscribe to a repository, try `!github subscribe <repo-name>`"
+	welcomeMsg := "Hi! I can notify you whenever something happens on a GitHub repository. To get started, set up a repository by sending `!github subscribe <username/repo>`"
 	return base.HandleNewConv(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
