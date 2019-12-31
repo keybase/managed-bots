@@ -12,7 +12,7 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
 	sync.Mutex
 
 	kbc      *kbchat.API
@@ -20,16 +20,15 @@ type Handler struct {
 	sessions map[string]*session
 }
 
-var _ base.CommandHandler = (*Handler)(nil)
+var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, db *DB) *Handler {
-	h := &Handler{
-		kbc:      kbc,
-		db:       db,
-		sessions: make(map[string]*session),
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		sessions:    make(map[string]*session),
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
@@ -101,6 +100,11 @@ func (h *Handler) handleAnswer(convID string, reaction chat1.MessageReaction, se
 		msgID:     reaction.MessageID,
 		username:  sender,
 	}
+}
+
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Are you up to the challenge? Try `!triva begin` to find out."
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {

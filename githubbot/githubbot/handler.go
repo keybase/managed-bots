@@ -11,7 +11,7 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
 
 	kbc        *kbchat.API
 	db         *DB
@@ -20,18 +20,22 @@ type Handler struct {
 	secret     string
 }
 
-var _ base.CommandHandler = (*Handler)(nil)
+var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, secret string) *Handler {
-	h := &Handler{
-		kbc:        kbc,
-		db:         db,
-		httpSrv:    httpSrv,
-		httpPrefix: httpPrefix,
-		secret:     secret,
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		httpSrv:     httpSrv,
+		httpPrefix:  httpPrefix,
+		secret:      secret,
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
+}
+
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Hi! I can notify you whenever something happens on a GitHub repository. To get started, set up a repository by sending `!github subscribe <username/repo>`"
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -46,7 +50,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	isAdmin, err := h.IsAdmin(msg)
+	isAdmin, err := base.IsAdmin(h.kbc, msg)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "Error getting admin status: %s", err)
 		return nil

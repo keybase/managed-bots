@@ -49,7 +49,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 
 	Example:%s
 		!poll "Should we move the office to a beach?" "Yes" "No"
-		!poll  --anonymous "Where should the next meetup be?""Miami" "Las Vegas" "Houston"%s`, backs, backs)
+		!poll  --anonymous "Where should the next meetup be?" "Miami" "Las Vegas" "Houston"%s`, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
@@ -116,7 +116,7 @@ func (s *BotServer) Go() (err error) {
 	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, loginSecret)
 	handler := pollbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
-	eg.Go(handler.Listen)
+	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)

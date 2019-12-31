@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/keybase/go-codec/codec"
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 )
 
 type ShortID string
@@ -99,4 +101,32 @@ func EmojiToNumber(s string) int {
 	default:
 		return 0
 	}
+}
+
+func HandleNewTeam(log *DebugOutput, kbc *kbchat.API, conv chat1.ConvSummary, welcomeMsg string) error {
+	if conv.Channel.MembersType == "team" && conv.Channel.TopicName != "general" {
+		log.Debug("HandleNewTeam: skipping conversation %+v", conv)
+		return nil
+	}
+	_, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg)
+	return err
+}
+
+func IsAdmin(kbc *kbchat.API, msg chat1.MsgSummary) (bool, error) {
+	switch msg.Channel.MembersType {
+	case "team": // make sure the member is an admin or owner
+	default: // authorization is per user so let anything through
+		return true, nil
+	}
+	res, err := kbc.ListMembersOfTeam(msg.Channel.Name)
+	if err != nil {
+		return false, err
+	}
+	adminLike := append(res.Owners, res.Admins...)
+	for _, member := range adminLike {
+		if member.Username == msg.Sender.Username {
+			return true, nil
+		}
+	}
+	return false, nil
 }

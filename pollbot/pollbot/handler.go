@@ -14,22 +14,24 @@ import (
 )
 
 type Handler struct {
-	*base.Handler
+	*base.DebugOutput
+
 	kbc        *kbchat.API
 	db         *DB
 	httpSrv    *HTTPSrv
 	httpPrefix string
 }
 
+var _ base.Handler = (*Handler)(nil)
+
 func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
-	h := &Handler{
-		kbc:        kbc,
-		db:         db,
-		httpSrv:    httpSrv,
-		httpPrefix: httpPrefix,
+	return &Handler{
+		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		kbc:         kbc,
+		db:          db,
+		httpSrv:     httpSrv,
+		httpPrefix:  httpPrefix,
 	}
-	h.Handler = base.NewHandler(kbc, h)
-	return h
 }
 
 func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice int) string {
@@ -140,6 +142,11 @@ To login your web browser in order to vote in anonymous polls, please follow the
 		h.Debug("failed to send login attempt: %s", err)
 		return
 	}
+}
+
+func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	welcomeMsg := "Find out the answers to the hardest questions. Try `!poll 'Should we move the office to a beach?' Yes No`"
+	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
