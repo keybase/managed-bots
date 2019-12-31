@@ -38,7 +38,28 @@ export type Context = {
   getJiraFromTeamnameAndUsername: typeof Jira.getJiraFromTeamnameAndUsername
 }
 
-export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
+const logSendAndExit = async (context: Context): Promise<void> => {
+  logger.info({
+    msg: 'calling logSend',
+  })
+  try {
+    await context.bot.logSend()
+    logger.info({
+      msg: 'logSend succeeded',
+    })
+    process.exit(0)
+  } catch (err) {
+    logger.warn({
+      msg: 'logSend failed',
+      err,
+    })
+    process.exit(1)
+  }
+}
+
+export const init = async (
+  botConfig: BotConfig.BotConfig
+): Promise<Context> => {
   var bot = new Bot()
   const context = {
     aliases: new Aliases({}),
@@ -48,17 +69,14 @@ export const init = (botConfig: BotConfig.BotConfig): Promise<Context> => {
     configs: new Configs(bot, botConfig),
     getJiraFromTeamnameAndUsername: Jira.getJiraFromTeamnameAndUsername,
   }
-  return context.bot
-    .init(
-      context.botConfig.keybase.username,
-      context.botConfig.keybase.paperkey,
-      {
-        autoLogSendOnExit: true,
-        verbose: true,
-      }
-    )
-    .then(() => {
-      logger.info('init done')
-      return context
-    })
+  await context.bot.init(
+    context.botConfig.keybase.username,
+    context.botConfig.keybase.paperkey,
+    {
+      verbose: true,
+    }
+  )
+  logger.info('init done')
+  process.on('SIGTERM', () => logSendAndExit(context))
+  return context
 }
