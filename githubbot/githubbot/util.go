@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/keybase/managed-bots/base"
+
 	"github.com/google/go-github/v28/github"
 )
 
-func makeSecret(repo string, secret string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+secret)))
+func makeSecret(repo string, shortConvID base.ShortID, secret string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(shortConvID)+secret)))
 }
 
 func refToName(ref string) (branch string) {
@@ -24,7 +26,7 @@ func refToName(ref string) (branch string) {
 	return branch
 }
 
-func formatSetupInstructions(repo string, httpAddress string, secret string) (res string) {
+func formatSetupInstructions(repo string, convID string, httpAddress string, secret string) (res string) {
 	back := "`"
 	message := fmt.Sprintf(`
 To configure your repository to send notifications, go to https://github.com/%s/settings/hooks and add a new webhook.
@@ -34,7 +36,7 @@ For “Secret”, enter %s%s%s.
 Remember to select “just send me *everything*” if you want notifications for more than commit messages!
 
 Happy coding!`,
-		repo, back, httpAddress, back, back, back, back, makeSecret(repo, secret), back)
+		repo, back, httpAddress, back, back, back, back, makeSecret(repo, base.ShortConvID(convID), secret), back)
 	return message
 }
 

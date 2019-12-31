@@ -16,7 +16,7 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) CreateSubscription(convID string, repo string, branch string) error {
+func (d *DB) CreateSubscription(shortConvID base.ShortID, repo string, branch string) error {
 	// TODO: ignore dupes with feedback?
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
@@ -24,32 +24,32 @@ func (d *DB) CreateSubscription(convID string, repo string, branch string) error
 			(conv_id, repo, branch)
 			VALUES
 			(?, ?, ?)
-		`, base.ShortConvID(convID), repo, branch)
+		`, shortConvID, repo, branch)
 		return err
 	})
 }
 
-func (d *DB) DeleteSubscription(convID string, repo string, branch string) error {
+func (d *DB) DeleteSubscription(shortConvID base.ShortID, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ? AND branch = ?)
-		`, base.ShortConvID(convID), repo, branch)
+		`, shortConvID, repo, branch)
 		return err
 	})
 }
 
-func (d *DB) DeleteSubscriptionsForRepo(convID string, repo string) error {
+func (d *DB) DeleteSubscriptionsForRepo(shortConvID base.ShortID, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ?)
-		`, base.ShortConvID(convID), repo)
+		`, shortConvID, repo)
 		return err
 	})
 }
 
-func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err error) {
+func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
@@ -64,18 +64,18 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []string, err e
 		if err := rows.Scan(&convID); err != nil {
 			return res, err
 		}
-		res = append(res, convID)
+		res = append(res, base.ShortID(convID))
 	}
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (exists bool, err error) {
+func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
-	`, base.ShortConvID(convID), repo, branch)
+	`, shortConvID, repo, branch)
 	var rowRes string
 	scanErr := row.Scan(&rowRes)
 	switch scanErr {
@@ -88,12 +88,12 @@ func (d *DB) GetSubscriptionExists(convID string, repo string, branch string) (e
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(convID string, repo string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, base.ShortConvID(convID), repo)
+	`, shortConvID, repo)
 	var rowRes string
 	err = row.Scan(&rowRes)
 	switch err {

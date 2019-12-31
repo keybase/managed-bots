@@ -18,7 +18,7 @@ func NewDB(db *sql.DB) *DB {
 }
 
 func (d *DB) makeID(name, convID string) string {
-	cdat, _ := hex.DecodeString(base.ShortConvID(convID))
+	cdat, _ := hex.DecodeString(string(base.ShortConvID(convID)))
 	return base.URLEncoder().EncodeToString(append(cdat, []byte(name)...))
 }
 

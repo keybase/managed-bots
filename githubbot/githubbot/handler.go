@@ -91,21 +91,21 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		h.ChatDebug(msg.ConvID, "error getting default branch: %s", err)
 		return
 	}
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, args[0])
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(base.ShortConvID(msg.ConvID), args[0])
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error checking subscription: %s", err)
 		return
 	}
 	if create {
 		if !alreadyExists {
-			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch)
+			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch)
 			if err != nil {
 				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error creating subscription: %s", err))
 				return
 			}
 
 			// setting up phase - send instructions
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], msg.ConvID, h.httpPrefix, h.secret))
 			if err != nil {
 				h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
 				return
@@ -123,7 +123,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		}
 	} else {
 		if alreadyExists {
-			err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, args[0])
+			err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
 			if err != nil {
 				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
 				return
@@ -160,7 +160,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		h.ChatDebug(convID, "error getting default branch: %s", err)
 		return
 	}
-	if exists, err := h.db.GetSubscriptionExists(convID, args[0], defaultBranch); !exists {
+	if exists, err := h.db.GetSubscriptionExists(base.ShortConvID(convID), args[0], defaultBranch); !exists {
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
 			return
@@ -173,14 +173,14 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		return
 	}
 	if create {
-		err = h.db.CreateSubscription(convID, args[0], args[1])
+		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1])
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
 		}
 		message = "Now watching for commits on %s/%s."
 	} else {
-		err = h.db.DeleteSubscription(convID, args[0], args[1])
+		err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
 			return
