@@ -98,12 +98,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, base.ShortConvID(convID), h.secret))); err != nil {
+			if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, convID, h.secret))); err != nil {
 				// if there's an error validating the signature for a conversation, don't send the message to that convo
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
-			_, err = h.kbc.SendMessageByConvID(convID, message)
+			_, err = h.kbc.SendMessageByConvID(string(convID), message)
 			if err != nil {
 				h.Debug("Error sending message: %s", err)
 				return
