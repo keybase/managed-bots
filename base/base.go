@@ -26,7 +26,6 @@ type Server struct {
 	shutdownCh   chan struct{}
 	announcement string
 	kbc          *kbchat.API
-	poller       *ELBDrainPoller
 	botAdmins    []string
 }
 
@@ -45,30 +44,19 @@ func (s *Server) Shutdown() {
 		close(s.shutdownCh)
 		s.shutdownCh = nil
 		s.kbc.Shutdown()
-		if s.poller != nil {
-			s.poller.Stop()
-			s.poller = nil
-		}
 	}
 }
 
-func (s *Server) WaitForDrain(shutdowner Shutdowner) error {
-	// TODO make envvar
-	s.poller = NewELBDrainPoller(s.DebugOutput, "us-east-1", "elb-managed-bots")
-	if err := s.poller.WaitForDrain(); err != nil {
-		return err
-	}
-	s.Shutdown()
-	return shutdowner.Shutdown()
-}
-
-func (s *Server) HandleSignals(shutdowner Shutdowner) (err error) {
+func (s *Server) HandleSignals(log *DebugOutput, f func() error) (err error) {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, os.Signal(syscall.SIGTERM))
 	sig := <-signalCh
-	s.Debug("Received %q, shutting down", sig)
+	log.Debug("Received %q, shutting down", sig)
 	s.Shutdown()
-	return shutdowner.Shutdown()
+	if f != nil {
+		return f()
+	}
+	return nil
 }
 
 func (s *Server) SetBotAdmins(admins []string) {
