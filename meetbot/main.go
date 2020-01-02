@@ -80,6 +80,7 @@ func (s *BotServer) Go() (err error) {
 	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
 		return err
 	}
+	defer s.Shutdown()
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
@@ -100,7 +101,8 @@ func (s *BotServer) Go() (err error) {
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(handler.HTTPListen)
-	eg.Go(func() error { return s.HandleSignals(s.DebugOutput, handler.Shutdown) })
+	eg.Go(func() error { return s.HandleSignals(handler) })
+	eg.Go(func() error { return s.WaitForDrain(handler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
