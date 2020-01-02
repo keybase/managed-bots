@@ -11,7 +11,7 @@ import (
 )
 
 type HTTPSrv struct {
-	*base.DebugOutput
+	*base.HTTPSrv
 
 	kbc    *kbchat.API
 	db     *DB
@@ -19,12 +19,15 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
-	return &HTTPSrv{
-		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
-		kbc:         kbc,
-		db:          db,
-		secret:      secret,
+	h := &HTTPSrv{
+		kbc:    kbc,
+		db:     db,
+		secret: secret,
 	}
+	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	http.HandleFunc("/githubbot", h.handleHealthCheck)
+	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
+	return h
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -110,10 +113,4 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-}
-
-func (h *HTTPSrv) Listen() error {
-	http.HandleFunc("/githubbot", h.handleHealthCheck)
-	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
-	return http.ListenAndServe(":8080", nil)
 }

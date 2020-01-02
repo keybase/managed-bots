@@ -19,6 +19,10 @@ type Handler interface {
 	HandleNewConv(chat1.ConvSummary) error
 }
 
+type Shutdowner interface {
+	Shutdown() error
+}
+
 type Server struct {
 	*DebugOutput
 	sync.Mutex
@@ -37,24 +41,31 @@ func NewServer(announcement string) *Server {
 	}
 }
 
-func (s *Server) Shutdown() {
+func (s *Server) Shutdown() error {
 	s.Lock()
 	defer s.Unlock()
 	if s.shutdownCh != nil {
 		close(s.shutdownCh)
 		s.shutdownCh = nil
-		s.kbc.Shutdown()
+		if err := s.kbc.Shutdown(); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (s *Server) HandleSignals(log *DebugOutput, f func() error) (err error) {
+func (s *Server) HandleSignals(shutdowner Shutdowner) (err error) {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, os.Signal(syscall.SIGTERM))
 	sig := <-signalCh
-	log.Debug("Received %q, shutting down", sig)
-	s.Shutdown()
-	if f != nil {
-		return f()
+	s.Debug("Received %q, shutting down", sig)
+	if err := s.Shutdown(); err != nil {
+		s.Debug("Unable to shutdown server: %v", err)
+	}
+	if shutdowner != nil {
+		if err := shutdowner.Shutdown(); err != nil {
+			s.Debug("Unable to shutdown shutdowner: %v", err)
+		}
 	}
 	return nil
 }

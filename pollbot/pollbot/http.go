@@ -17,7 +17,8 @@ import (
 )
 
 type HTTPSrv struct {
-	*base.DebugOutput
+	*base.HTTPSrv
+
 	kbc *kbchat.API
 	db  *DB
 
@@ -25,12 +26,17 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, tokenSecret string) *HTTPSrv {
-	return &HTTPSrv{
-		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
+	h := &HTTPSrv{
 		kbc:         kbc,
 		db:          db,
 		tokenSecret: tokenSecret,
 	}
+	http.HandleFunc("/pollbot", h.handleHealthCheck)
+	http.HandleFunc("/pollbot/vote", h.handleVote)
+	http.HandleFunc("/pollbot/login", h.handleLogin)
+	http.HandleFunc("/pollbot/image", h.handleImage)
+	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	return h
 }
 
 func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
@@ -137,14 +143,6 @@ func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
-
-func (h *HTTPSrv) Listen() error {
-	http.HandleFunc("/pollbot", h.handleHealthCheck)
-	http.HandleFunc("/pollbot/vote", h.handleVote)
-	http.HandleFunc("/pollbot/login", h.handleLogin)
-	http.HandleFunc("/pollbot/image", h.handleImage)
-	return http.ListenAndServe(":8080", nil)
-}
 
 func (h *HTTPSrv) LoginToken(username string) string {
 	return hex.EncodeToString(hmac.New(sha256.New, []byte(h.tokenSecret)).Sum([]byte(username)))
