@@ -26,7 +26,7 @@ type apiQuestion struct {
 }
 
 type apiResponse struct {
-	ResponseCode int
+	ResponseCode int `json:"response_code"`
 	Results      []apiQuestion
 }
 
