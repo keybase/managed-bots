@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/keybase/managed-bots/base"
+	"golang.org/x/oauth2"
 )
 
 type DB struct {
@@ -16,15 +17,17 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) CreateSubscription(shortConvID base.ShortID, repo string, branch string) error {
+// webhook subscription methods
+
+func (d *DB) CreateSubscription(shortConvID base.ShortID, repo string, branch string, hookID int64) error {
 	// TODO: ignore dupes with feedback?
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT IGNORE INTO subscriptions
-			(conv_id, repo, branch)
+			(conv_id, repo, branch, hook_id)
 			VALUES
-			(?, ?, ?)
-		`, shortConvID, repo, branch)
+			(?, ?, ?, ?)
+		`, shortConvID, repo, branch, hookID)
 		return err
 	})
 }
@@ -69,39 +72,78 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID,
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, err error) {
+func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, hookID *int64, err error) {
 	row := d.DB.QueryRow(`
-	SELECT 1
+	SELECT hook_id
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
 	`, shortConvID, repo, branch)
-	var rowRes string
-	scanErr := row.Scan(&rowRes)
+	scanErr := row.Scan(hookID)
 	switch scanErr {
 	case sql.ErrNoRows:
-		return false, nil
+		return false, nil, nil
 	case nil:
-		return true, nil
+		return true, hookID, nil
 	default:
-		return false, scanErr
+		return false, nil, scanErr
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, hookID *int64, err error) {
 	row := d.DB.QueryRow(`
-	SELECT 1
+	SELECT hook_id
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
 	`, shortConvID, repo)
-	var rowRes string
-	err = row.Scan(&rowRes)
+	err = row.Scan(hookID)
 	switch err {
 	case sql.ErrNoRows:
-		return false, nil
+		return false, nil, nil
 	case nil:
-		return true, nil
+		return true, hookID, nil
 	default:
-		return false, err
+		return false, nil, err
 	}
+}
+
+// OAuth2 token methods
+
+func (d *DB) GetToken(identifier base.ShortID) (*oauth2.Token, error) {
+	var token oauth2.Token
+	row := d.DB.QueryRow(`SELECT access_token, token_type
+		FROM oauth
+		WHERE identifier = ?`, identifier)
+	err := row.Scan(&token.AccessToken, &token.TokenType)
+	switch err {
+	case nil:
+		return &token, nil
+	case sql.ErrNoRows:
+		return nil, nil
+	default:
+		return nil, err
+	}
+}
+
+func (d *DB) PutToken(identifier base.ShortID, token *oauth2.Token) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO oauth
+		(identifier, access_token, token_type, ctime, mtime)
+		VALUES (?, ?, ?, NOW(), NOW())
+		ON DUPLICATE KEY UPDATE
+		access_token=VALUES(access_token),
+		mtime=VALUES(mtime)
+	`, identifier, token.AccessToken, token.TokenType)
+		return err
+	})
+	return err
+}
+
+func (d *DB) DeleteToken(identifier base.ShortID) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := d.DB.Exec(`DELETE FROM oauth
+	WHERE identifier = ?`, identifier)
+		return err
+	})
+	return err
 }

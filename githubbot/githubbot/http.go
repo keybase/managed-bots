@@ -1,28 +1,38 @@
 package githubbot
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 
 	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+	"golang.org/x/oauth2"
 )
 
 type HTTPSrv struct {
 	*base.HTTPSrv
 
-	kbc    *kbchat.API
-	db     *DB
-	secret string
+	sync.Mutex
+	kbc      *kbchat.API
+	db       *DB
+	requests map[string]chat1.MsgSummary
+	config   *oauth2.Config
+	secret   string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
-	h := &HTTPSrv{
-		kbc:    kbc,
-		db:     db,
-		secret: secret,
+func NewHTTPSrv(kbc *kbchat.API, db *DB, requests map[string]chat1.MsgSummary, config *oauth2.Config, secret string) *HTTPSrv {
+	return &HTTPSrv{
+		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
+		kbc:         kbc,
+		db:          db,
+		requests:    requests,
+		config:      config,
+		secret:      secret,
 	}
 	h.HTTPSrv = base.NewHTTPSrv(kbc)
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
@@ -55,7 +65,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *github.IssuesEvent:
 		message = formatIssueMsg(event)
 		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo)
+		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return
@@ -63,7 +73,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *github.PullRequestEvent:
 		message = formatPRMsg(event)
 		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo)
+		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return
@@ -81,7 +91,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckSuite().GetHeadBranch()
 		} else {
-			branch, err = getDefaultBranch(repo)
+			branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		}
 		message = formatCheckSuiteMsg(event)
 		repo = event.GetRepo().GetFullName()
@@ -113,4 +123,59 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
+	var err error
+	defer func() {
+		if err != nil {
+			h.Debug("oauthHandler: %v", err)
+			if _, err := w.Write(asHTML("error", "Unable to complete request, please try again!")); err != nil {
+				h.Debug("oauthHandler: unable to write: %v", err)
+			}
+		}
+	}()
+
+	if r.URL == nil {
+		err = fmt.Errorf("r.URL == nil")
+		return
+	}
+
+	query := r.URL.Query()
+	state := query.Get("state")
+
+	h.Lock()
+	originatingMsg, ok := h.requests[state]
+	delete(h.requests, state)
+	h.Unlock()
+	if !ok {
+		err = fmt.Errorf("state %q not found %v", state, h.requests)
+		return
+	}
+
+	code := query.Get("code")
+	token, err := h.config.Exchange(context.TODO(), code)
+	if err != nil {
+		return
+	}
+
+	if err = h.db.PutToken(base.ShortConvID(originatingMsg.ConvID), token); err != nil {
+		return
+	}
+
+	// TODO: what to do here?
+	// if err = h.meetHandler(originatingMsg); err != nil {
+	// 	return
+	// }
+
+	if _, err := w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app.")); err != nil {
+		h.Debug("oauthHandler: unable to write: %v", err)
+	}
+}
+
+func (h *HTTPSrv) Listen() error {
+	http.HandleFunc("/githubbot", h.handleHealthCheck)
+	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
+	http.HandleFunc("/githubbot/oauth", h.handleOauth)
+	return http.ListenAndServe(":8080", nil)
 }

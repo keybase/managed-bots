@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strings"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 
 	"github.com/google/go-github/v28/github"
@@ -14,6 +16,11 @@ import (
 
 func makeSecret(repo string, shortConvID base.ShortID, secret string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(shortConvID)+secret)))
+}
+
+func identifierFromMsg(msg chat1.MsgSummary) base.ShortID {
+	// use convid for identifier (you'll need an auth token per convo - y/n?)
+	return base.ShortConvID(msg.ConvID)
 }
 
 func refToName(ref string) (branch string) {
@@ -134,11 +141,14 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 	return res
 }
 
-func getDefaultBranch(repo string) (branch string, err error) {
-	client := github.NewClient(nil)
+func getDefaultBranch(repo string, client *github.Client) (branch string, err error) {
 	args := strings.Split(repo, "/")
 	if len(args) != 2 {
 		return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
+	}
+
+	if client == nil {
+		return "", fmt.Errorf("getDefaultBranch: CLIENT IS NIL")
 	}
 
 	repoObject, res, err := client.Repositories.Get(context.TODO(), args[0], args[1])
@@ -150,4 +160,61 @@ func getDefaultBranch(repo string) (branch string, err error) {
 	}
 
 	return repoObject.GetDefaultBranch(), nil
+}
+
+func asHTML(title, msg string) []byte {
+	return []byte(`
+<html>
+<head>
+<style>
+body {
+	background-color: white;
+	display: flex;
+	min-height: 98vh;
+	flex-direction: column;
+}
+.content{
+	flex: 1;
+}
+.msg {
+	text-align: center;
+	color: rgb(80,160,247);
+	margin-top: 15vh;
+}
+a {
+	color: rgb(80,160,247);
+}
+.logo {
+	width: 80px;
+	padding: 5px;
+}
+</style>
+<title> githubbot | ` + title + `</title>
+</head>
+<body>
+  <main class="content">
+	  <a href="https://keybase.io"><img class="logo" src="/githubbot/image?=logo"></a>
+	  <div>
+		<h1 class="msg">` + msg + `</h1>
+	  </div>
+  </main>
+  <footer>
+		<a href="https://keybase.io/docs/privacypolicy">Privacy Policy</a>
+  </footer>
+</body>
+</html>
+`)
+}
+
+func randomID(n int) string {
+	letter := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return string(b)
+}
+
+func makeRequestID() string {
+	return randomID(10)
 }

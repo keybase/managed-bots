@@ -9,20 +9,25 @@ import (
 	"os/exec"
 
 	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/githubbot/githubbot"
+	"golang.org/x/oauth2"
+	oauth2github "golang.org/x/oauth2/github"
 	"golang.org/x/sync/errgroup"
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	HTTPPrefix      string
-	DSN             string
-	Secret          string
+	KeybaseLocation   string
+	Home              string
+	Announcement      string
+	HTTPPrefix        string
+	DSN               string
+	Secret            string
+	OAuthClientID     string
+	OAuthClientSecret string
 }
 
 func newOptions() Options {
@@ -32,8 +37,9 @@ func newOptions() Options {
 type BotServer struct {
 	*base.Server
 
-	opts Options
-	kbc  *kbchat.API
+	oauth *oauth2.Config
+	opts  Options
+	kbc   *kbchat.API
 }
 
 func NewBotServer(opts Options) *BotServer {
@@ -159,8 +165,19 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)
+	// If changing scopes, wipe tokens from DB
+	config := &oauth2.Config{
+		ClientID:     s.opts.OAuthClientID,
+		ClientSecret: s.opts.OAuthClientSecret,
+		Scopes:       []string{"admin:repo_hook"},
+		Endpoint:     oauth2github.Endpoint,
+		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
+	}
+
+	requests := make(map[string]chat1.MsgSummary)
+
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, requests, config, secret)
+	handler := githubbot.NewHandler(s.kbc, db, httpSrv, requests, config, s.opts.HTTPPrefix, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -187,6 +204,8 @@ func mainInner() int {
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	flag.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
+	flag.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")
