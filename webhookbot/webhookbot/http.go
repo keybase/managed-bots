@@ -10,18 +10,23 @@ import (
 )
 
 type HTTPSrv struct {
-	*base.DebugOutput
+	*base.HTTPSrv
 
 	kbc *kbchat.API
 	db  *DB
 }
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB) *HTTPSrv {
-	return &HTTPSrv{
-		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
-		kbc:         kbc,
-		db:          db,
+	h := &HTTPSrv{
+		kbc: kbc,
+		db:  db,
 	}
+	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	rtr := mux.NewRouter()
+	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
+	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)
+	http.Handle("/", rtr)
+	return h
 }
 
 type msgPayload struct {
@@ -61,11 +66,3 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
-
-func (h *HTTPSrv) Listen() error {
-	rtr := mux.NewRouter()
-	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
-	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)
-	http.Handle("/", rtr)
-	return http.ListenAndServe(":8080", nil)
-}

@@ -27,6 +27,7 @@ type Handler struct {
 	config   *oauth2.Config
 	db       *DB
 	requests map[string]chat1.MsgSummary
+	srv      *http.Server
 }
 
 var _ base.Handler = (*Handler)(nil)
@@ -38,7 +39,12 @@ func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
 		db:          db,
 		config:      config,
 		requests:    make(map[string]chat1.MsgSummary),
+		srv:         &http.Server{Addr: ":8080"},
 	}
+}
+
+func (h *Handler) Shutdown() error {
+	return h.srv.Shutdown(context.Background())
 }
 
 func (h *Handler) HTTPListen() error {
@@ -46,7 +52,9 @@ func (h *Handler) HTTPListen() error {
 	http.HandleFunc("/meetbot/home", h.homeHandler)
 	http.HandleFunc("/meetbot/oauth", h.oauthHandler)
 	http.HandleFunc("/meetbot/image", h.handleImage)
-	return http.ListenAndServe(":8080", nil)
+	err := h.srv.ListenAndServe()
+	h.Debug("HTTPListen: exiting")
+	return err
 }
 
 func (h *Handler) healthCheckHandler(w http.ResponseWriter, r *http.Request) {

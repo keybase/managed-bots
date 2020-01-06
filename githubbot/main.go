@@ -164,6 +164,7 @@ func (s *BotServer) Go() (err error) {
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
+	eg.Go(func() error { return s.HandleSignals(httpSrv) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

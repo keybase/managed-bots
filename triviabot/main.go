@@ -92,6 +92,7 @@ func (s *BotServer) Go() (err error) {
 	handler := triviabot.NewHandler(s.kbc, db)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
+	eg.Go(func() error { return s.HandleSignals(nil) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
