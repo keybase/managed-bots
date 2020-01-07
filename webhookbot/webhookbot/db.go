@@ -1,6 +1,8 @@
 package webhookbot
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 
@@ -17,14 +19,27 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) makeID(name, convID string) string {
-	cdat, _ := hex.DecodeString(string(base.ShortConvID(convID)))
-	return base.URLEncoder().EncodeToString(append(cdat, []byte(name)...))
+func (d *DB) makeID(name, convID string) (string, error) {
+	secret, err := base.RandBytes(16)
+	if err != nil {
+		return "", err
+	}
+	cdat, err := hex.DecodeString(convID)
+	if err != nil {
+		return "", err
+	}
+	h := hmac.New(sha256.New, secret)
+	h.Write(cdat)
+	h.Write([]byte(name))
+	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
 func (d *DB) Create(name, convID string) (string, error) {
-	id := d.makeID(name, convID)
-	err := d.RunTxn(func(tx *sql.Tx) error {
+	id, err := d.makeID(name, convID)
+	if err != nil {
+		return "", err
+	}
+	err = d.RunTxn(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`
 			INSERT INTO hooks
 			(id, name, conv_id)
@@ -74,11 +89,10 @@ func (d *DB) List(convID string) (res []webhook, err error) {
 }
 
 func (d *DB) Remove(name, convID string) error {
-	id := d.makeID(name, convID)
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			DELETE FROM hooks WHERE id = ?
-		`, id)
+			DELETE FROM hooks WHERE conv_id = ? AND name = ?
+		`, convID, name)
 		return err
 	})
 }
