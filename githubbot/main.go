@@ -37,9 +37,8 @@ func newOptions() Options {
 type BotServer struct {
 	*base.Server
 
-	oauth *oauth2.Config
-	opts  Options
-	kbc   *kbchat.API
+	opts Options
+	kbc  *kbchat.API
 }
 
 func NewBotServer(opts Options) *BotServer {

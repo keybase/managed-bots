@@ -107,11 +107,6 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 
 	var message string
-	if err != nil {
-		h.ChatDebug(msg.ConvID, "err: %s", err)
-		return
-	}
-	h.Debug(args[0])
 	defaultBranch, err := getDefaultBranch(args[0], client)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error getting default branch: %s", err)
@@ -141,12 +136,16 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 			if err != nil {
 				if res.StatusCode != http.StatusNotFound {
-					h.ChatDebug(msg.ConvID, fmt.Sprintf("error: %s, res status code: %d", err, res.StatusCode))
+					h.ChatDebug(msg.ConvID, fmt.Sprintf("error: %s", err))
 					return
 				}
 				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
 			} else {
 				err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, hook.GetID())
+				if err != nil {
+					h.ChatDebug(msg.ConvID, fmt.Sprintf("error creating subscription: %s", err))
+					return
+				}
 				message = "Okay, you'll receive updates for %s here."
 			}
 		} else {
