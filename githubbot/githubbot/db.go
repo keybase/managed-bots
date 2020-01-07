@@ -72,39 +72,55 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID,
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, hookID *int64, err error) {
+func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
-	SELECT hook_id
+	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
 	`, shortConvID, repo, branch)
-	scanErr := row.Scan(hookID)
+	var rowRes string
+	scanErr := row.Scan(&rowRes)
 	switch scanErr {
 	case sql.ErrNoRows:
-		return false, nil, nil
+		return false, nil
 	case nil:
-		return true, hookID, nil
+		return true, nil
 	default:
-		return false, nil, scanErr
+		return false, scanErr
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, hookID *int64, err error) {
+func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, err error) {
+	row := d.DB.QueryRow(`
+	SELECT 1
+	FROM subscriptions
+	WHERE (conv_id = ? AND repo = ?)
+	`, shortConvID, repo)
+	var rowRes string
+	err = row.Scan(&rowRes)
+	switch err {
+	case sql.ErrNoRows:
+		return false, nil
+	case nil:
+		return true, nil
+	default:
+		return false, err
+	}
+}
+
+func (d *DB) GetHookIDForRepo(shortConvID base.ShortID, repo string) (hookID int64, err error) {
 	row := d.DB.QueryRow(`
 	SELECT hook_id
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
 	`, shortConvID, repo)
-	err = row.Scan(hookID)
-	switch err {
-	case sql.ErrNoRows:
-		return false, nil, nil
-	case nil:
-		return true, hookID, nil
-	default:
-		return false, nil, err
+	err = row.Scan(&hookID)
+	if err != nil {
+		return -1, err
 	}
+
+	return hookID, nil
 }
 
 // OAuth2 token methods

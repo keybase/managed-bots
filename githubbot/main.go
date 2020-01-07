@@ -176,8 +176,8 @@ func (s *BotServer) Go() (err error) {
 
 	requests := make(map[string]chat1.MsgSummary)
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, requests, config, secret)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, requests, config, s.opts.HTTPPrefix, secret)
+	handler := githubbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

@@ -20,16 +20,18 @@ type HTTPSrv struct {
 	sync.Mutex
 	kbc      *kbchat.API
 	db       *DB
+	handler  *Handler
 	requests map[string]chat1.MsgSummary
 	config   *oauth2.Config
 	secret   string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, requests map[string]chat1.MsgSummary, config *oauth2.Config, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests map[string]chat1.MsgSummary, config *oauth2.Config, secret string) *HTTPSrv {
 	return &HTTPSrv{
 		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
 		kbc:         kbc,
 		db:          db,
+		handler:     handler,
 		requests:    requests,
 		config:      config,
 		secret:      secret,
@@ -63,7 +65,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		message = formatIssueMsg(event)
+		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
+		if err != nil {
+			h.Debug("error getting keybase user: %s", err)
+			return
+		}
+		message = formatIssueMsg(event, author)
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
@@ -71,8 +78,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case *github.PullRequestEvent:
-		message = formatPRMsg(event)
+		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
+		if err != nil {
+			h.Debug("error getting keybase user: %s", err)
+			return
+		}
+		message = formatPRMsg(event, author)
 		repo = event.GetRepo().GetFullName()
+
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
@@ -82,19 +95,28 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-
-		message = formatPushMsg(event)
+		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
+		if err != nil {
+			h.Debug("error getting keybase user: %s", err)
+			return
+		}
+		message = formatPushMsg(event, author)
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
+		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
+		if err != nil {
+			h.Debug("error getting keybase user: %s", err)
+			return
+		}
+		repo = event.GetRepo().GetFullName()
 		if len(event.GetCheckSuite().PullRequests) == 0 {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckSuite().GetHeadBranch()
 		} else {
 			branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		}
-		message = formatCheckSuiteMsg(event)
-		repo = event.GetRepo().GetFullName()
+		message = formatCheckSuiteMsg(event, author)
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return
@@ -163,10 +185,9 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: what to do here?
-	// if err = h.meetHandler(originatingMsg); err != nil {
-	// 	return
-	// }
+	if err = h.handler.HandleCommand(originatingMsg); err != nil {
+		return
+	}
 
 	if _, err := w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app.")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)

@@ -21,7 +21,6 @@ type Handler struct {
 	sync.Mutex
 	kbc        *kbchat.API
 	db         *DB
-	httpSrv    *HTTPSrv
 	requests   map[string]chat1.MsgSummary
 	config     *oauth2.Config
 	httpPrefix string
@@ -30,12 +29,11 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, requests map[string]chat1.MsgSummary, config *oauth2.Config, httpPrefix string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests map[string]chat1.MsgSummary, config *oauth2.Config, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
-		httpSrv:     httpSrv,
 		requests:    requests,
 		config:      config,
 		httpPrefix:  httpPrefix,
@@ -119,7 +117,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		h.ChatDebug(msg.ConvID, "error getting default branch: %s", err)
 		return
 	}
-	alreadyExists, hookID, err := h.db.GetSubscriptionForRepoExists(base.ShortConvID(msg.ConvID), args[0])
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(base.ShortConvID(msg.ConvID), args[0])
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error checking subscription: %s", err)
 		return
@@ -156,7 +154,18 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		}
 	} else {
 		if alreadyExists {
-			client.Repositories.DeleteHook(context.TODO(), parsedRepo[0], parsedRepo[1], *hookID)
+			hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(msg.ConvID), args[0])
+			if err != nil {
+				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
+				return
+			}
+
+			_, err = client.Repositories.DeleteHook(context.TODO(), parsedRepo[0], parsedRepo[1], hookID)
+			if err != nil {
+				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting webhook: %s", err))
+				return
+			}
+
 			err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
 			if err != nil {
 				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
@@ -194,8 +203,8 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 		h.ChatDebug(convID, "error getting default branch: %s", err)
 		return
 	}
-	exists, hookID, err := h.db.GetSubscriptionExists(base.ShortConvID(convID), args[0], defaultBranch)
-	if !exists {
+
+	if exists, err := h.db.GetSubscriptionExists(base.ShortConvID(convID), args[0], defaultBranch); !exists {
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
 			return
@@ -208,7 +217,13 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 		return
 	}
 	if create {
-		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1], *hookID)
+		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(convID), args[0])
+		if err != nil {
+			h.ChatDebug(convID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
+			return
+		}
+
+		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1], hookID)
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
