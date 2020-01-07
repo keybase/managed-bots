@@ -65,9 +65,8 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
 		if err != nil {
 			h.Debug("error getting keybase user: %s", err)
-			return
 		}
-		message = formatIssueMsg(event, author)
+		message = formatIssueMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
@@ -78,9 +77,8 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
 		if err != nil {
 			h.Debug("error getting keybase user: %s", err)
-			return
 		}
-		message = formatPRMsg(event, author)
+		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
@@ -95,16 +93,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
 		if err != nil {
 			h.Debug("error getting keybase user: %s", err)
-			return
 		}
-		message = formatPushMsg(event, author)
+		message = formatPushMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
 		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
 		if err != nil {
 			h.Debug("error getting keybase user: %s", err)
-			return
 		}
 		repo = event.GetRepo().GetFullName()
 		if len(event.GetCheckSuite().PullRequests) == 0 {
@@ -113,7 +109,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		} else {
 			branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		}
-		message = formatCheckSuiteMsg(event, author)
+		message = formatCheckSuiteMsg(event, author.String())
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return

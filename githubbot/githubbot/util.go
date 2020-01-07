@@ -148,23 +148,38 @@ func getDefaultBranch(repo string, client *github.Client) (branch string, err er
 
 // keybase IDing
 
+type username struct {
+	githubUsername  string
+	keybaseUsername *string
+}
+
+func (u username) String() string {
+	if u.keybaseUsername != nil {
+		return "@" + *u.keybaseUsername
+	}
+
+	return u.githubUsername
+}
+
 type keybaseID struct {
 	Username string `json:"username"`
 }
 
-func getPossibleKBUser(kbc *kbchat.API, githubLogin string) (username string, err error) {
-	id := kbc.Command("id", "-j", fmt.Sprintf("%s@github", githubLogin))
+func getPossibleKBUser(kbc *kbchat.API, githubUsername string) (u username, err error) {
+	u = username{githubUsername: githubUsername}
+	id := kbc.Command("id", "-j", fmt.Sprintf("%s@github", githubUsername))
 	output, err := id.Output()
 	if err != nil {
 		// fall back to github username if `keybase id` errors
-		return githubLogin, nil
+		return u, nil
 	}
 
 	var i keybaseID
 	err = json.Unmarshal(output, &i)
+	u.keybaseUsername = &i.Username
 	if err != nil {
-		return "", err
+		return u, err
 	}
 
-	return fmt.Sprintf("@%s", i.Username), nil
+	return u, nil
 }

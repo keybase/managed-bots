@@ -232,7 +232,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 			h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
 			return
 		}
-		message = "Okay, you wont receive notifications for commits in %s/%s."
+		message = "Okay, you won't receive notifications for commits in %s/%s."
 	}
 	_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
 	if err != nil {
