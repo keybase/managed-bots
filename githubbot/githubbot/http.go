@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 
 	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
 )
@@ -17,19 +15,19 @@ import (
 type HTTPSrv struct {
 	*base.HTTPSrv
 
-	sync.Mutex
 	kbc      *kbchat.API
 	db       *DB
 	handler  *Handler
-	requests map[string]chat1.MsgSummary
+	requests *base.OAuthRequests
 	config   *oauth2.Config
 	secret   string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:      kbc,
 		db:       db,
+		handler:  handler,
 		requests: requests,
 		config:   config,
 		secret:   secret,
@@ -165,10 +163,10 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 
-	h.Lock()
-	originatingMsg, ok := h.requests[state]
-	delete(h.requests, state)
-	h.Unlock()
+	h.requests.Lock()
+	originatingMsg, ok := h.requests.Requests[state]
+	delete(h.requests.Requests, state)
+	h.requests.Unlock()
 	if !ok {
 		err = fmt.Errorf("state %q not found %v", state, h.requests)
 		return
@@ -191,11 +189,4 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(base.AsHTML("githubbot", "success", "Success! You can now close this page and return to the Keybase app.", "")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)
 	}
-}
-
-func (h *HTTPSrv) Listen() error {
-	http.HandleFunc("/githubbot", h.handleHealthCheck)
-	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
-	http.HandleFunc("/githubbot/oauth", h.handleOauth)
-	return http.ListenAndServe(":8080", nil)
 }

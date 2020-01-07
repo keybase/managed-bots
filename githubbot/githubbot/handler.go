@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/google/go-github/v28/github"
 	"github.com/kballard/go-shellquote"
@@ -18,10 +17,9 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	sync.Mutex
 	kbc        *kbchat.API
 	db         *DB
-	requests   map[string]chat1.MsgSummary
+	requests   *base.OAuthRequests
 	config     *oauth2.Config
 	httpPrefix string
 	secret     string
@@ -29,7 +27,7 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests map[string]chat1.MsgSummary, config *oauth2.Config, httpPrefix string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
@@ -254,10 +252,10 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 			return nil, isAdmin, err
 		}
 
-		state := makeRequestID()
-		h.Lock()
-		h.requests[state] = msg
-		h.Unlock()
+		state := base.MakeRequestID()
+		h.requests.Lock()
+		h.requests.Requests[state] = msg
+		h.requests.Unlock()
 		authURL := h.config.AuthCodeURL(string(state), oauth2.ApprovalForce)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")

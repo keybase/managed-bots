@@ -173,7 +173,7 @@ func (s *BotServer) Go() (err error) {
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
 	}
 
-	requests := make(map[string]chat1.MsgSummary)
+	requests := base.NewOAuthRequests()
 
 	handler := githubbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
 	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
