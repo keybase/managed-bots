@@ -132,6 +132,50 @@ func IsAdmin(kbc *kbchat.API, msg chat1.MsgSummary) (bool, error) {
 	return false, nil
 }
 
+func AsHTML(botName string, title, msg string, logoUrl string) []byte {
+	return []byte(`
+<html>
+<head>
+<style>
+body {
+	background-color: white;
+	display: flex;
+	min-height: 98vh;
+	flex-direction: column;
+}
+.content{
+	flex: 1;
+}
+.msg {
+	text-align: center;
+	color: rgb(80,160,247);
+	margin-top: 15vh;
+}
+a {
+	color: rgb(80,160,247);
+}
+.logo {
+	width: 80px;
+	padding: 5px;
+}
+</style>
+<title>` + botName + ` | ` + title + `</title>
+</head>
+<body>
+  <main class="content">
+	  <a href="https://keybase.io"><img class="logo" src="` + logoUrl + `"></a>
+	  <div>
+		<h1 class="msg">` + msg + `</h1>
+	  </div>
+  </main>
+  <footer>
+		<a href="https://keybase.io/docs/privacypolicy">Privacy Policy</a>
+  </footer>
+</body>
+</html>
+`)
+}
+
 func RandBytes(length int) ([]byte, error) {
 	var n int
 	var err error
@@ -144,4 +188,25 @@ func RandBytes(length int) ([]byte, error) {
 		return nil, fmt.Errorf("RandBytes got too few bytes, %d < %d", n, length)
 	}
 	return buf, nil
+}
+
+func MakeRequestID() (string, error) {
+	bytes, err := RandBytes(16)
+	if err != nil {
+		return "", err
+	}
+	return URLEncoder().EncodeToString(bytes), nil
+}
+
+// identifierFromMsg returns either the team's name or sender's username, which
+// is used to identify the oauth token. This is so we can have a separate oauth
+// token per team (perhaps with a workplace account) and use a personal account
+// for other events.
+func IdentifierFromMsg(msg chat1.MsgSummary) string {
+	switch msg.Channel.MembersType {
+	case "team":
+		return msg.Channel.Name
+	default:
+		return msg.Sender.Username
+	}
 }

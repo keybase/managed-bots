@@ -125,7 +125,7 @@ func (d *DB) GetHookIDForRepo(shortConvID base.ShortID, repo string) (hookID int
 
 // OAuth2 token methods
 
-func (d *DB) GetToken(identifier base.ShortID) (*oauth2.Token, error) {
+func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
 	row := d.DB.QueryRow(`SELECT access_token, token_type
 		FROM oauth
@@ -141,7 +141,7 @@ func (d *DB) GetToken(identifier base.ShortID) (*oauth2.Token, error) {
 	}
 }
 
-func (d *DB) PutToken(identifier base.ShortID, token *oauth2.Token) error {
+func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`INSERT INTO oauth
 		(identifier, access_token, token_type, ctime, mtime)
@@ -155,7 +155,7 @@ func (d *DB) PutToken(identifier base.ShortID, token *oauth2.Token) error {
 	return err
 }
 
-func (d *DB) DeleteToken(identifier base.ShortID) error {
+func (d *DB) DeleteToken(identifier string) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := d.DB.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)

@@ -26,19 +26,18 @@ type HTTPSrv struct {
 	secret   string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests map[string]chat1.MsgSummary, config *oauth2.Config, secret string) *HTTPSrv {
-	return &HTTPSrv{
-		DebugOutput: base.NewDebugOutput("HTTPSrv", kbc),
-		kbc:         kbc,
-		db:          db,
-		handler:     handler,
-		requests:    requests,
-		config:      config,
-		secret:      secret,
+func NewHTTPSrv(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
+	h := &HTTPSrv{
+		kbc:      kbc,
+		db:       db,
+		requests: requests,
+		config:   config,
+		secret:   secret,
 	}
 	h.HTTPSrv = base.NewHTTPSrv(kbc)
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
+	http.HandleFunc("/githubbot/oauth", h.handleOauth)
 	return h
 }
 
@@ -152,7 +151,7 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(asHTML("error", "Unable to complete request, please try again!")); err != nil {
+			if _, err := w.Write(base.AsHTML("githubbot", "error", "Unable to complete request, please try again!", "")); err != nil {
 				h.Debug("oauthHandler: unable to write: %v", err)
 			}
 		}
@@ -181,7 +180,7 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.db.PutToken(base.ShortConvID(originatingMsg.ConvID), token); err != nil {
+	if err = h.db.PutToken(base.IdentifierFromMsg(originatingMsg), token); err != nil {
 		return
 	}
 
@@ -189,7 +188,7 @@ func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app.")); err != nil {
+	if _, err := w.Write(base.AsHTML("githubbot", "success", "Success! You can now close this page and return to the Keybase app.", "")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }

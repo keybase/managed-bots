@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
 
@@ -145,63 +144,6 @@ func getDefaultBranch(repo string, client *github.Client) (branch string, err er
 	}
 
 	return repoObject.GetDefaultBranch(), nil
-}
-
-func asHTML(title, msg string) []byte {
-	return []byte(`
-<html>
-<head>
-<style>
-body {
-	background-color: white;
-	display: flex;
-	min-height: 98vh;
-	flex-direction: column;
-}
-.content{
-	flex: 1;
-}
-.msg {
-	text-align: center;
-	color: rgb(80,160,247);
-	margin-top: 15vh;
-}
-a {
-	color: rgb(80,160,247);
-}
-.logo {
-	width: 80px;
-	padding: 5px;
-}
-</style>
-<title> githubbot | ` + title + `</title>
-</head>
-<body>
-  <main class="content">
-	  <a href="https://keybase.io"><img class="logo" src="/githubbot/image?=logo"></a>
-	  <div>
-		<h1 class="msg">` + msg + `</h1>
-	  </div>
-  </main>
-  <footer>
-		<a href="https://keybase.io/docs/privacypolicy">Privacy Policy</a>
-  </footer>
-</body>
-</html>
-`)
-}
-
-func randomID(n int) string {
-	letter := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letter[rand.Intn(len(letter))]
-	}
-	return string(b)
-}
-
-func makeRequestID() string {
-	return randomID(10)
 }
 
 // keybase IDing

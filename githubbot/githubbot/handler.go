@@ -244,7 +244,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 }
 
 func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
-	token, err := h.db.GetToken(base.ShortConvID(msg.ConvID))
+	token, err := h.db.GetToken(base.IdentifierFromMsg(msg))
 	if err != nil {
 		return nil, false, err
 	}
