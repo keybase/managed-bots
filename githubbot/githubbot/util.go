@@ -206,7 +206,7 @@ func makeRequestID() string {
 
 // keybase IDing
 
-type KeybaseID struct {
+type keybaseID struct {
 	Username string `json:"username"`
 }
 
@@ -218,7 +218,7 @@ func getPossibleKBUser(kbc *kbchat.API, githubLogin string) (username string, er
 		return githubLogin, nil
 	}
 
-	var i KeybaseID
+	var i keybaseID
 	err = json.Unmarshal(output, &i)
 	if err != nil {
 		return "", err
