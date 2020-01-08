@@ -2,7 +2,6 @@ package meetbot
 
 import (
 	"context"
-	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -33,32 +32,6 @@ func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *o
 		requests:    requests,
 		config:      config,
 	}
-}
-
-func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
-	identifier := base.IdentifierFromMsg(msg)
-	token, err := h.db.GetToken(identifier)
-	if err != nil {
-		return nil, false, err
-	}
-	// We need to request new authorization
-	if token == nil {
-		if isAdmin, err := base.IsAdmin(h.kbc, msg); err != nil || !isAdmin {
-			return nil, isAdmin, err
-		}
-
-		state, err := base.MakeRequestID()
-		if err != nil {
-			return nil, false, err
-		}
-		h.requests.Set(state, msg)
-		authURL := h.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
-		// strip protocol to skip unfurl prompt
-		authURL = strings.TrimPrefix(authURL, "https://")
-		_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "Visit %s\n to authorize me to create events.", authURL)
-		return nil, true, err
-	}
-	return h.config.Client(context.Background(), token), false, nil
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
@@ -98,17 +71,21 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
-	client, isAdmin, err := h.getOAuthClient(msg)
+	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
+		return err
+	}
+	client, err := base.GetOAuthClient(msg, h.kbc, h.requests, h.config, h.db.GetToken,
+		"Visit %s\n to authorize me to create events.")
 	if err != nil {
 		return err
 	}
 	if client == nil {
-		if !isAdmin {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
-			return err
-		}
-		// If we are in a 1-1 conv directly or as a bot user with the sender,
-		// skip this message.
+		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
 		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
 			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)

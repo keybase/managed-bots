@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -132,4 +133,35 @@ func (r *OAuthRequests) Delete(state string) {
 	r.Lock()
 	delete(r.requests, state)
 	r.Unlock()
+}
+
+func GetOAuthClient(
+	msg chat1.MsgSummary,
+	kbc *kbchat.API,
+	requests *OAuthRequests,
+	config *oauth2.Config,
+	getToken func(identifier string) (*oauth2.Token, error),
+	authMessageTemplate string,
+) (*http.Client, error) {
+	identifier := IdentifierFromMsg(msg)
+	token, err := getToken(identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to request new authorization
+	if token == nil {
+		state, err := MakeRequestID()
+		if err != nil {
+			return nil, err
+		}
+		requests.Set(state, msg)
+		authURL := config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+		// strip protocol to skip unfurl prompt
+		authURL = strings.TrimPrefix(authURL, "https://")
+		_, err = kbc.SendMessageByTlfName(msg.Sender.Username, authMessageTemplate, authURL)
+		return nil, err
+	}
+
+	return config.Client(context.Background(), token), nil
 }
