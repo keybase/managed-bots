@@ -1,14 +1,9 @@
 package meetbot
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -22,118 +17,21 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	sync.Mutex
 	kbc      *kbchat.API
-	config   *oauth2.Config
 	db       *DB
-	requests map[string]chat1.MsgSummary
-	srv      *http.Server
+	requests *base.OAuthRequests
+	config   *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
+		requests:    requests,
 		config:      config,
-		requests:    make(map[string]chat1.MsgSummary),
-		srv:         &http.Server{Addr: ":8080"},
-	}
-}
-
-func (h *Handler) Shutdown() error {
-	return h.srv.Shutdown(context.Background())
-}
-
-func (h *Handler) HTTPListen() error {
-	http.HandleFunc("/meetbot", h.healthCheckHandler)
-	http.HandleFunc("/meetbot/home", h.homeHandler)
-	http.HandleFunc("/meetbot/oauth", h.oauthHandler)
-	http.HandleFunc("/meetbot/image", h.handleImage)
-	err := h.srv.ListenAndServe()
-	h.Debug("HTTPListen: exiting")
-	return err
-}
-
-func (h *Handler) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "OK")
-}
-
-func (h *Handler) homeHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("homeHandler")
-	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
-	which creates links to Google Meet meetings for you.
-	<div style="padding-top:10px;">
-		<img style="width:300px;" src="/meetbot/image?=mobile">
-	</div>
-	`
-	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
-		h.Debug("homeHandler: unable to write: %v", err)
-	}
-}
-
-func (h *Handler) handleImage(w http.ResponseWriter, r *http.Request) {
-	image := r.URL.Query().Get("")
-	b64dat, ok := images[image]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	dat, _ := base64.StdEncoding.DecodeString(b64dat)
-	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("oauthHandler")
-
-	var err error
-	defer func() {
-		if err != nil {
-			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(base.MakeOAuthHTML("meetbot", "error", "Unable to complete request, please try again!", "/meetbot/image?=mobile")); err != nil {
-				h.Debug("oauthHandler: unable to write: %v", err)
-			}
-		}
-	}()
-
-	if r.URL == nil {
-		err = fmt.Errorf("r.URL == nil")
-		return
-	}
-
-	query := r.URL.Query()
-	state := query.Get("state")
-
-	h.Lock()
-	originatingMsg, ok := h.requests[state]
-	delete(h.requests, state)
-	h.Unlock()
-	if !ok {
-		err = fmt.Errorf("state %q not found %v", state, h.requests)
-		return
-	}
-
-	code := query.Get("code")
-	token, err := h.config.Exchange(context.TODO(), code)
-	if err != nil {
-		return
-	}
-
-	if err = h.db.PutToken(base.IdentifierFromMsg(originatingMsg), token); err != nil {
-		return
-	}
-
-	if err = h.meetHandler(originatingMsg); err != nil {
-		return
-	}
-
-	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=logo")); err != nil {
-		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }
 
@@ -153,9 +51,7 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 		if err != nil {
 			return nil, false, err
 		}
-		h.Lock()
-		h.requests[state] = msg
-		h.Unlock()
+		h.requests.Set(state, msg)
 		authURL := h.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
