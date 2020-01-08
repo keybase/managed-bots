@@ -265,7 +265,10 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 			return nil, isAdmin, err
 		}
 
-		state := base.MakeRequestID()
+		state, err := base.MakeRequestID()
+		if err != nil {
+			return nil, false, err
+		}
 		h.requests.Lock()
 		h.requests.Map[state] = msg
 		h.requests.Unlock()

@@ -149,7 +149,10 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 			return nil, isAdmin, err
 		}
 
-		state := base.MakeRequestID()
+		state, err := base.MakeRequestID()
+		if err != nil {
+			return nil, false, err
+		}
 		h.Lock()
 		h.requests[state] = msg
 		h.Unlock()
@@ -225,6 +228,10 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 
 	// Create a bogus event on the primary calendar to host the meeting, it is
 	// instantly deleted once the meeting is created.
+	requestID, err := base.MakeRequestID()
+	if err != nil {
+		return err
+	}
 	event := &calendar.Event{
 		Start: &calendar.EventDateTime{
 			DateTime: "2015-01-01T00:00:00-00:00",
@@ -234,7 +241,7 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 		},
 		ConferenceData: &calendar.ConferenceData{
 			CreateRequest: &calendar.CreateConferenceRequest{
-				RequestId: base.MakeRequestID(),
+				RequestId: requestID,
 			},
 		},
 	}
