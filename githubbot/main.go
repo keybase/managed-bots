@@ -3,26 +3,32 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 
 	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/githubbot/githubbot"
+	"golang.org/x/oauth2"
+	oauth2github "golang.org/x/oauth2/github"
 	"golang.org/x/sync/errgroup"
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	HTTPPrefix      string
-	DSN             string
-	Secret          string
+	KeybaseLocation   string
+	Home              string
+	Announcement      string
+	HTTPPrefix        string
+	DSN               string
+	Secret            string
+	OAuthClientID     string
+	OAuthClientSecret string
 }
 
 func newOptions() Options {
@@ -124,7 +130,7 @@ func (s *BotServer) getSecret() (string, error) {
 		return s.opts.Secret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
-	cmd := exec.Command("keybase", "fs", "read", path)
+	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
@@ -132,6 +138,31 @@ func (s *BotServer) getSecret() (string, error) {
 		return "", err
 	}
 	return out.String(), nil
+}
+
+func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err error) {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
+		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+	}
+	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
+	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
+	if err := cmd.Run(); err != nil {
+		return "", "", err
+	}
+
+	var j struct {
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	}
+
+	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
+		return "", "", err
+	}
+
+	return j.ClientID, j.ClientSecret, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -142,6 +173,12 @@ func (s *BotServer) Go() (err error) {
 	secret, err := s.getSecret()
 	if err != nil {
 		s.Debug("failed to get secret: %s", err)
+		return
+	}
+
+	clientID, clientSecret, err := s.getOAuthConfig()
+	if err != nil {
+		s.Debug("failed to get oauth credentials: %s", err)
 		return
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -159,8 +196,19 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, secret)
-	handler := githubbot.NewHandler(s.kbc, db, httpSrv, s.opts.HTTPPrefix, secret)
+	// If changing scopes, wipe tokens from DB
+	config := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Scopes:       []string{"admin:repo_hook"},
+		Endpoint:     oauth2github.Endpoint,
+		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
+	}
+
+	requests := base.NewOAuthRequests()
+
+	handler := githubbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -187,6 +235,8 @@ func mainInner() int {
 	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	flag.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
+	flag.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")

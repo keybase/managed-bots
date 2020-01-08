@@ -8,23 +8,26 @@ import (
 	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
+	"golang.org/x/oauth2"
 )
 
 type HTTPSrv struct {
-	*base.HTTPSrv
+	*base.OAuthHTTPSrv
 
-	kbc    *kbchat.API
-	db     *DB
-	secret string
+	kbc     *kbchat.API
+	db      *DB
+	handler *Handler
+	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc:    kbc,
-		db:     db,
-		secret: secret,
+		kbc:     kbc,
+		db:      db,
+		handler: handler,
+		secret:  secret,
 	}
-	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", "", "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
 	return h
@@ -53,17 +56,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		message = formatIssueMsg(event)
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		message = formatIssueMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo)
+		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return
 		}
 	case *github.PullRequestEvent:
-		message = formatPRMsg(event)
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo)
+
+		branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return
@@ -72,19 +78,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-
-		message = formatPushMsg(event)
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		message = formatPushMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		repo = event.GetRepo().GetFullName()
 		if len(event.GetCheckSuite().PullRequests) == 0 {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckSuite().GetHeadBranch()
 		} else {
-			branch, err = getDefaultBranch(repo)
+			branch, err = getDefaultBranch(repo, github.NewClient(nil))
 		}
-		message = formatCheckSuiteMsg(event)
-		repo = event.GetRepo().GetFullName()
+		message = formatCheckSuiteMsg(event, author.String())
 		if err != nil {
 			h.Debug("error getting default branch: %s", err)
 			return

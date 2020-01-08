@@ -3,10 +3,12 @@ package githubbot
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 
 	"github.com/google/go-github/v28/github"
@@ -26,24 +28,12 @@ func refToName(ref string) (branch string) {
 	return branch
 }
 
-func formatSetupInstructions(repo string, convID string, httpAddress string, secret string) (res string) {
-	back := "`"
-	message := fmt.Sprintf(`
-To configure your repository to send notifications, go to https://github.com/%s/settings/hooks and add a new webhook.
-For “Payload URL”, enter %s%s/githubbot/webhook%s.
-Set “Content Type” to %sapplication/json%s.
-For “Secret”, enter %s%s%s.
-Remember to select “just send me *everything*” if you want notifications for more than commit messages!
+// formatters
 
-Happy coding!`,
-		repo, back, httpAddress, back, back, back, back, makeSecret(repo, base.ShortConvID(convID), secret), back)
-	return message
-}
-
-func formatPushMsg(evt *github.PushEvent) (res string) {
+func formatPushMsg(evt *github.PushEvent, username string) (res string) {
 	branch := refToName(evt.GetRef())
 
-	res = fmt.Sprintf("%s pushed %d commit", evt.GetPusher().GetName(), len(evt.Commits))
+	res = fmt.Sprintf("%s pushed %d commit", username, len(evt.Commits))
 	if len(evt.Commits) != 1 {
 		res += "s"
 	}
@@ -69,27 +59,27 @@ func formatCommitString(commit string, maxLen int) string {
 	return firstLine
 }
 
-func formatIssueMsg(evt *github.IssuesEvent) (res string) {
+func formatIssueMsg(evt *github.IssuesEvent, username string) (res string) {
 	action := evt.Action
 	if action != nil {
 		switch *action {
 		case "opened":
-			res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
+			res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", username, evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
 			res += evt.GetIssue().GetHTMLURL()
 		case "closed":
-			res = fmt.Sprintf("%s closed issue #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
+			res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
 			res += evt.GetIssue().GetHTMLURL()
 		}
 	}
 	return res
 }
 
-func formatPRMsg(evt *github.PullRequestEvent) (res string) {
+func formatPRMsg(evt *github.PullRequestEvent, username string) (res string) {
 	action := evt.Action
 	if action != nil {
 		switch *action {
 		case "opened":
-			res = fmt.Sprintf("%s opened pull request #%d on %s: “%s”\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetTitle())
+			res = fmt.Sprintf("%s opened pull request #%d on %s: “%s”\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetTitle())
 			res += evt.GetPullRequest().GetHTMLURL()
 		case "closed":
 			if evt.GetPullRequest().GetMerged() {
@@ -98,7 +88,7 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 				res += evt.GetPullRequest().GetHTMLURL()
 			} else {
 				// PR was closed without merging
-				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", evt.GetSender().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName())
+				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", username, evt.GetNumber(), evt.GetRepo().GetName())
 				res += evt.GetPullRequest().GetHTMLURL()
 			}
 		}
@@ -106,7 +96,7 @@ func formatPRMsg(evt *github.PullRequestEvent) (res string) {
 	return res
 }
 
-func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
+func formatCheckSuiteMsg(evt *github.CheckSuiteEvent, username string) (res string) {
 	action := evt.Action
 	if *action == "completed" {
 		suite := evt.GetCheckSuite()
@@ -115,30 +105,34 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent) (res string) {
 		switch suite.GetConclusion() {
 		case "success":
 			if !isPullRequest {
-				res = fmt.Sprintf("Tests passed for %s/%s.", repo, suite.GetHeadBranch())
+				res = fmt.Sprintf(":white_check_mark: Tests passed for %s/%s.", repo, suite.GetHeadBranch())
 				break
 			}
-			// TODO: mention PR author when tests pass?
 			pr := suite.PullRequests[0]
-			res = fmt.Sprintf("All tests passed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
+			res = fmt.Sprintf(":white_check_mark: All tests passed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
 		case "failure", "timed_out":
 			if !isPullRequest {
-				res = fmt.Sprintf("Tests failed for %s/%s.", repo, suite.GetHeadBranch())
+				res = fmt.Sprintf(":x: Tests failed for %s/%s.", repo, suite.GetHeadBranch())
 				break
 			}
-			// TODO: mention PR author when tests fail?
 			pr := suite.PullRequests[0]
-			res = fmt.Sprintf("Tests failed for pull request #%d on %s.\n%s", pr.GetNumber(), repo, pr.GetHTMLURL())
+			res = fmt.Sprintf(":x: Tests failed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
+		}
+		if strings.HasPrefix(username, "@") && isPullRequest {
+			res = res + "\n" + username
 		}
 	}
 	return res
 }
 
-func getDefaultBranch(repo string) (branch string, err error) {
-	client := github.NewClient(nil)
+func getDefaultBranch(repo string, client *github.Client) (branch string, err error) {
 	args := strings.Split(repo, "/")
 	if len(args) != 2 {
 		return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
+	}
+
+	if client == nil {
+		return "", fmt.Errorf("getDefaultBranch: client is nil")
 	}
 
 	repoObject, res, err := client.Repositories.Get(context.TODO(), args[0], args[1])
@@ -150,4 +144,44 @@ func getDefaultBranch(repo string) (branch string, err error) {
 	}
 
 	return repoObject.GetDefaultBranch(), nil
+}
+
+// keybase IDing
+
+type username struct {
+	githubUsername  string
+	keybaseUsername *string
+}
+
+func (u username) String() string {
+	if u.keybaseUsername != nil {
+		return "@" + *u.keybaseUsername
+	}
+
+	return u.githubUsername
+}
+
+type keybaseID struct {
+	Username string `json:"username"`
+}
+
+func getPossibleKBUser(kbc *kbchat.API, debug *base.DebugOutput, githubUsername string) (u username) {
+	u = username{githubUsername: githubUsername}
+	id := kbc.Command("id", "-j", fmt.Sprintf("%s@github", githubUsername))
+	output, err := id.Output()
+	if err != nil {
+		// fall back to github username if `keybase id` errors
+		return u
+	}
+
+	var i keybaseID
+	err = json.Unmarshal(output, &i)
+
+	if err != nil {
+		debug.Debug("getPossibleKBUser: couldn't parse keybase id: %s", err)
+		return u
+	}
+	u.keybaseUsername = &i.Username
+
+	return u
 }

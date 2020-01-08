@@ -69,7 +69,7 @@ func (h *Handler) homeHandler(w http.ResponseWriter, r *http.Request) {
 		<img style="width:300px;" src="/meetbot/image?=mobile">
 	</div>
 	`
-	if _, err := w.Write(asHTML("home", homePage)); err != nil {
+	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
 		h.Debug("homeHandler: unable to write: %v", err)
 	}
 }
@@ -95,7 +95,7 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(asHTML("error", "Unable to complete request, please try again!")); err != nil {
+			if _, err := w.Write(base.MakeOAuthHTML("meetbot", "error", "Unable to complete request, please try again!", "/meetbot/image?=mobile")); err != nil {
 				h.Debug("oauthHandler: unable to write: %v", err)
 			}
 		}
@@ -124,7 +124,7 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.db.PutToken(identifierFromMsg(originatingMsg), token); err != nil {
+	if err = h.db.PutToken(base.IdentifierFromMsg(originatingMsg), token); err != nil {
 		return
 	}
 
@@ -132,13 +132,13 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write(asHTML("success", "Success! You can now close this page and return to the Keybase app.")); err != nil {
+	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=mobile")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }
 
 func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
-	identifier := identifierFromMsg(msg)
+	identifier := base.IdentifierFromMsg(msg)
 	token, err := h.db.GetToken(identifier)
 	if err != nil {
 		return nil, false, err
@@ -149,7 +149,10 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 			return nil, isAdmin, err
 		}
 
-		state := requestID()
+		state, err := base.MakeRequestID()
+		if err != nil {
+			return nil, false, err
+		}
 		h.Lock()
 		h.requests[state] = msg
 		h.Unlock()
@@ -189,7 +192,7 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 	case *googleapi.Error:
 		h.Debug("unable to get service %v, deleting credentials and retrying", err)
 		// retry auth after nuking stored credentials
-		if err := h.db.DeleteToken(identifierFromMsg(msg)); err != nil {
+		if err := h.db.DeleteToken(base.IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
 		return h.meetHandlerInner(msg)
@@ -225,6 +228,10 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 
 	// Create a bogus event on the primary calendar to host the meeting, it is
 	// instantly deleted once the meeting is created.
+	requestID, err := base.MakeRequestID()
+	if err != nil {
+		return err
+	}
 	event := &calendar.Event{
 		Start: &calendar.EventDateTime{
 			DateTime: "2015-01-01T00:00:00-00:00",
@@ -234,7 +241,7 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 		},
 		ConferenceData: &calendar.ConferenceData{
 			CreateRequest: &calendar.CreateConferenceRequest{
-				RequestId: requestID(),
+				RequestId: requestID,
 			},
 		},
 	}

@@ -1,13 +1,17 @@
 package githubbot
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"github.com/google/go-github/v28/github"
 	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+	"golang.org/x/oauth2"
 )
 
 type Handler struct {
@@ -15,19 +19,21 @@ type Handler struct {
 
 	kbc        *kbchat.API
 	db         *DB
-	httpSrv    *HTTPSrv
+	requests   *base.OAuthRequests
+	config     *oauth2.Config
 	httpPrefix string
 	secret     string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, httpSrv *HTTPSrv, httpPrefix string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
-		httpSrv:     httpSrv,
+		requests:    requests,
+		config:      config,
 		httpPrefix:  httpPrefix,
 		secret:      secret,
 	}
@@ -50,37 +56,46 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	tc, isAdmin, err := h.getOAuthClient(msg)
 	if err != nil {
-		h.ChatDebug(msg.ConvID, "Error getting admin status: %s", err)
-		return nil
-	} else if !isAdmin {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You must be an admin to configure me for a team!")
-		if err != nil {
+		return err
+	}
+	if tc == nil {
+		if !isAdmin {
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
+			return err
+		}
+		// If we are in a 1-1 conv directly or as a bot user with the sender,
+		// skip this message.
+		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 			return err
 		}
 		return nil
 	}
 
+	client := github.NewClient(tc)
+
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
-		h.handleSubscribe(cmd, msg, true)
+		h.handleSubscribe(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
-		h.handleSubscribe(cmd, msg, false)
+		h.handleSubscribe(cmd, msg, false, client)
 	case strings.HasPrefix(cmd, "!github watch"):
-		h.handleWatch(cmd, msg.ConvID, true)
+		h.handleWatch(cmd, msg.ConvID, true, client)
 	case strings.HasPrefix(cmd, "!github unwatch"):
-		h.handleWatch(cmd, msg.ConvID, false)
+		h.handleWatch(cmd, msg.ConvID, false, client)
 	default:
 		h.Debug("ignoring unknown command")
 	}
 	return nil
 }
 
-func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) {
+func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
-		h.Debug("error splitting command: %s", err)
+		h.ChatDebug(msg.ConvID, "error splitting command: %s", err)
 		return
 	}
 	args := toks[2:]
@@ -90,7 +105,17 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	}
 
 	var message string
-	defaultBranch, err := getDefaultBranch(args[0])
+	defer func() {
+		if message != "" {
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
+			if err != nil {
+				h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
+				return
+			}
+		}
+	}()
+
+	defaultBranch, err := getDefaultBranch(args[0], client)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error getting default branch: %s", err)
 		return
@@ -100,53 +125,70 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		h.ChatDebug(msg.ConvID, "error checking subscription: %s", err)
 		return
 	}
+
+	parsedRepo := strings.Split(args[0], "/")
+	if len(parsedRepo) != 2 {
+		h.ChatDebug(msg.ConvID, fmt.Sprintf("invalid repo: %s", args[0]))
+		return
+	}
 	if create {
 		if !alreadyExists {
-			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch)
+			hook, res, err := client.Repositories.CreateHook(context.TODO(), parsedRepo[0], parsedRepo[1], &github.Hook{
+				Config: map[string]interface{}{
+					"url":          h.httpPrefix + "/githubbot/webhook",
+					"content_type": "json",
+					"secret":       makeSecret(args[0], base.ShortConvID(msg.ConvID), h.secret),
+				},
+				Events: []string{"*"},
+			})
+
 			if err != nil {
-				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error creating subscription: %s", err))
+				if res.StatusCode != http.StatusNotFound {
+					h.ChatDebug(msg.ConvID, fmt.Sprintf("error: %s", err))
+					return
+				}
+				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
 				return
 			}
-
-			// setting up phase - send instructions
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], msg.ConvID, h.httpPrefix, h.secret))
+			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, hook.GetID())
 			if err != nil {
-				h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
+				h.ChatDebug(msg.ConvID, fmt.Sprintf("error creating subscription: %s", err))
 				return
 			}
-
-			if msg.Channel.MembersType != "team" && (msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-				// don't send add'l message if in a 1:1 convo with sender
-				return
-			}
-
-			message = fmt.Sprintf("Okay! I've sent instructions to @%s to set up notifications on", msg.Sender.Username) + " %s."
-
-		} else {
-			message = "You're already receiving notifications for %s here!"
+			message = "Okay, you'll receive updates for %s here."
+			return
 		}
-	} else {
-		if alreadyExists {
-			err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
-			if err != nil {
-				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
-				return
-			}
-			message = "Okay, you won't receive updates for %s here."
-		} else {
-			message = "You aren't subscribed to updates for %s!"
-		}
-	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
-	if err != nil {
-		h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
+		message = "You're already receiving notifications for %s here!"
 		return
 	}
 
+	if alreadyExists {
+		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(msg.ConvID), args[0])
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
+			return
+		}
+
+		_, err = client.Repositories.DeleteHook(context.TODO(), parsedRepo[0], parsedRepo[1], hookID)
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting webhook: %s", err))
+			return
+		}
+
+		err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
+			return
+		}
+		message = "Okay, you won't receive updates for %s here."
+		return
+	}
+
+	message = "You aren't subscribed to updates for %s!"
 }
 
-func (h *Handler) handleWatch(cmd string, convID string, create bool) {
+func (h *Handler) handleWatch(cmd string, convID string, create bool, client *github.Client) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		h.Debug("error splitting command: %s", err)
@@ -154,16 +196,26 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 	}
 	args := toks[2:]
 	var message string
+	defer func() {
+		if message != "" {
+			_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
+			if err != nil {
+				h.ChatDebug(convID, "Error sending message: %s", err)
+				return
+			}
+		}
+	}()
 
 	if len(args) < 2 {
 		h.ChatDebug(convID, "bad args for watch: %s", args)
 		return
 	}
-	defaultBranch, err := getDefaultBranch(args[0])
+	defaultBranch, err := getDefaultBranch(args[0], client)
 	if err != nil {
 		h.ChatDebug(convID, "error getting default branch: %s", err)
 		return
 	}
+
 	if exists, err := h.db.GetSubscriptionExists(base.ShortConvID(convID), args[0], defaultBranch); !exists {
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error getting subscription: %s", err))
@@ -176,24 +228,53 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool) {
 		}
 		return
 	}
+
 	if create {
-		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1])
+		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(convID), args[0])
+		if err != nil {
+			h.ChatDebug(convID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
+			return
+		}
+
+		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1], hookID)
 		if err != nil {
 			h.ChatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
 		}
+
 		message = "Now watching for commits on %s/%s."
-	} else {
-		err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
-		if err != nil {
-			h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
-			return
-		}
-		message = "Okay, you wont receive notifications for commits in %s/%s."
-	}
-	_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
-	if err != nil {
-		h.ChatDebug(convID, "Error sending message: %s", err)
 		return
 	}
+	err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
+	if err != nil {
+		h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
+		return
+	}
+
+	message = "Okay, you won't receive notifications for commits in %s/%s."
+}
+
+func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
+	token, err := h.db.GetToken(base.IdentifierFromMsg(msg))
+	if err != nil {
+		return nil, false, err
+	}
+	// We need to request new authorization
+	if token == nil {
+		if isAdmin, err := base.IsAdmin(h.kbc, msg); err != nil || !isAdmin {
+			return nil, isAdmin, err
+		}
+
+		state, err := base.MakeRequestID()
+		if err != nil {
+			return nil, false, err
+		}
+		h.requests.Set(state, msg)
+		authURL := h.config.AuthCodeURL(string(state), oauth2.ApprovalForce)
+		// strip protocol to skip unfurl prompt
+		authURL = strings.TrimPrefix(authURL, "https://")
+		_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "Visit %s\n to authorize me to set up GitHub notifications.", authURL)
+		return nil, true, err
+	}
+	return h.config.Client(context.Background(), token), false, nil
 }
