@@ -29,8 +29,8 @@ func (d *DB) makeID(name, convID string) (string, error) {
 		return "", err
 	}
 	h := hmac.New(sha256.New, secret)
-	h.Write(cdat)
-	h.Write([]byte(name))
+	_, _ = h.Write(cdat)
+	_, _ = h.Write([]byte(name))
 	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
