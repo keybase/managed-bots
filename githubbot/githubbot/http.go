@@ -1,7 +1,6 @@
 package githubbot
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,29 +12,24 @@ import (
 )
 
 type HTTPSrv struct {
-	*base.HTTPSrv
+	*base.OAuthHTTPSrv
 
-	kbc      *kbchat.API
-	db       *DB
-	handler  *Handler
-	requests *base.OAuthRequests
-	config   *oauth2.Config
-	secret   string
+	kbc     *kbchat.API
+	db      *DB
+	handler *Handler
+	secret  string
 }
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc:      kbc,
-		db:       db,
-		handler:  handler,
-		requests: requests,
-		config:   config,
-		secret:   secret,
+		kbc:     kbc,
+		db:      db,
+		handler: handler,
+		secret:  secret,
 	}
-	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", "", "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
-	http.HandleFunc("/githubbot/oauth", h.handleOauth)
 	return h
 }
 
@@ -137,52 +131,5 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	}
-}
-
-func (h *HTTPSrv) handleOauth(w http.ResponseWriter, r *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(base.AsHTML("githubbot", "error", "Unable to complete request, please try again!", "")); err != nil {
-				h.Debug("oauthHandler: unable to write: %v", err)
-			}
-		}
-	}()
-
-	if r.URL == nil {
-		err = fmt.Errorf("r.URL == nil")
-		return
-	}
-
-	query := r.URL.Query()
-	state := query.Get("state")
-
-	h.requests.Lock()
-	originatingMsg, ok := h.requests.Requests[state]
-	delete(h.requests.Requests, state)
-	h.requests.Unlock()
-	if !ok {
-		err = fmt.Errorf("state %q not found %v", state, h.requests)
-		return
-	}
-
-	code := query.Get("code")
-	token, err := h.config.Exchange(context.TODO(), code)
-	if err != nil {
-		return
-	}
-
-	if err = h.db.PutToken(base.IdentifierFromMsg(originatingMsg), token); err != nil {
-		return
-	}
-
-	if err = h.handler.HandleCommand(originatingMsg); err != nil {
-		return
-	}
-
-	if _, err := w.Write(base.AsHTML("githubbot", "success", "Success! You can now close this page and return to the Keybase app.", "")); err != nil {
-		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }

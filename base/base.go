@@ -41,18 +41,6 @@ func NewServer(announcement string) *Server {
 	}
 }
 
-type OAuthRequests struct {
-	sync.Mutex
-
-	Requests map[string]chat1.MsgSummary
-}
-
-func NewOAuthRequests() *OAuthRequests {
-	return &OAuthRequests{
-		Requests: make(map[string]chat1.MsgSummary),
-	}
-}
-
 func (s *Server) Shutdown() error {
 	s.Lock()
 	defer s.Unlock()

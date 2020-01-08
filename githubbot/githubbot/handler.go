@@ -254,7 +254,7 @@ func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, erro
 
 		state := base.MakeRequestID()
 		h.requests.Lock()
-		h.requests.Requests[state] = msg
+		h.requests.Map[state] = msg
 		h.requests.Unlock()
 		authURL := h.config.AuthCodeURL(string(state), oauth2.ApprovalForce)
 		// strip protocol to skip unfurl prompt
