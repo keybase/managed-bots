@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -139,6 +140,31 @@ func (s *BotServer) getSecret() (string, error) {
 	return out.String(), nil
 }
 
+func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err error) {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
+		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+	}
+	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
+	cmd := exec.Command("keybase", "fs", "read", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
+	if err := cmd.Run(); err != nil {
+		return "", "", err
+	}
+
+	var j struct {
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+	}
+
+	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
+		return "", "", err
+	}
+
+	return j.ClientID, j.ClientSecret, nil
+}
+
 func (s *BotServer) Go() (err error) {
 	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
 		return err
@@ -147,6 +173,12 @@ func (s *BotServer) Go() (err error) {
 	secret, err := s.getSecret()
 	if err != nil {
 		s.Debug("failed to get secret: %s", err)
+		return
+	}
+
+	clientID, clientSecret, err := s.getOAuthConfig()
+	if err != nil {
+		s.Debug("failed to get oauth credentials: %s", err)
 		return
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -166,8 +198,8 @@ func (s *BotServer) Go() (err error) {
 
 	// If changing scopes, wipe tokens from DB
 	config := &oauth2.Config{
-		ClientID:     s.opts.OAuthClientID,
-		ClientSecret: s.opts.OAuthClientSecret,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 		Scopes:       []string{"admin:repo_hook"},
 		Endpoint:     oauth2github.Endpoint,
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
