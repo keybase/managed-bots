@@ -130,7 +130,7 @@ func (s *BotServer) getSecret() (string, error) {
 		return s.opts.Secret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
-	cmd := exec.Command("keybase", "fs", "read", path)
+	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
@@ -145,7 +145,7 @@ func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err 
 		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
-	cmd := exec.Command("keybase", "fs", "read", path)
+	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)

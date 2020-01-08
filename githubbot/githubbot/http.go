@@ -56,10 +56,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
-		if err != nil {
-			h.Debug("error getting keybase user: %s", err)
-		}
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
 		message = formatIssueMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
@@ -68,10 +65,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case *github.PullRequestEvent:
-		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
-		if err != nil {
-			h.Debug("error getting keybase user: %s", err)
-		}
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
 		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 
@@ -84,18 +78,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
-		if err != nil {
-			h.Debug("error getting keybase user: %s", err)
-		}
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
 		message = formatPushMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
-		author, err := getPossibleKBUser(h.kbc, event.GetSender().GetLogin())
-		if err != nil {
-			h.Debug("error getting keybase user: %s", err)
-		}
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
 		repo = event.GetRepo().GetFullName()
 		if len(event.GetCheckSuite().PullRequests) == 0 {
 			// this is a branch test, not associated with a PR
