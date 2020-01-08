@@ -8,7 +8,9 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
+	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"golang.org/x/sync/errgroup"
@@ -148,9 +150,15 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 		msg := m.Message
 		if msg.Content.Text != nil {
 			cmd := strings.TrimSpace(msg.Content.Text.Body)
-			if strings.HasPrefix(cmd, "!logsend") {
+			switch {
+			case strings.HasPrefix(cmd, "!logsend"):
 				if err := s.handleLogSend(msg); err != nil {
 					s.Debug("listenForMsgs: unable to handleLogSend: %v", err)
+				}
+				continue
+			case strings.HasPrefix(cmd, "!pprof"):
+				if err := s.handlePProf(msg); err != nil {
+					s.Debug("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
 			}
@@ -183,22 +191,24 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscri
 	}
 }
 
-func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
-	allowed := false
-	sender := msg.Sender.Username
+func (s *Server) allowHiddenCommand(msg chat1.MsgSummary) bool {
 	for _, username := range s.botAdmins {
-		if sender == username {
-			allowed = true
-			break
+		if username == msg.Sender.Username {
+			return true
 		}
 	}
-	if !allowed {
+	return false
+}
+
+func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
+	sender := msg.Sender.Username
+	if !s.allowHiddenCommand(msg) {
 		s.Debug("ignoring log send from @%s, botAdmins: %v", sender, s.botAdmins)
 		return nil
 	}
-	s.ChatEcho(msg.ConvID, "starting a log send...")
 
-	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback", fmt.Sprintf("log requested by @%s", sender))
+	s.ChatEcho(msg.ConvID, "starting a log send...")
+	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback", fmt.Sprintf("managed-bot log requested by @%s", sender))
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		s.ChatDebugFull(msg.ConvID, "unable to get output pipe: %v", err)
@@ -220,5 +230,53 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 		s.ChatDebugFull(msg.ConvID, "unable to finish command: %v", err)
 		return err
 	}
+	return nil
+}
+
+func (s *Server) handlePProf(msg chat1.MsgSummary) error {
+	if !s.allowHiddenCommand(msg) {
+		s.Debug("ignoring pprof from @%s, botAdmins: %v", msg.Sender.Username, s.botAdmins)
+		return nil
+	}
+
+	toks, err := shellquote.Split(msg.Content.Text.Body)
+	if err != nil {
+		return err
+	}
+	if len(toks) <= 1 {
+		s.ChatDebugFull(msg.ConvID, "must specify 'trace', 'cpu' or 'heap'. Try `!pprof cpu -d 5m`")
+		return nil
+	}
+	// drop `!` from `!pprof`
+	toks[0] = strings.TrimPrefix(toks[0], "!")
+	dur, err := time.ParseDuration(toks[len(toks)-1])
+	if err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to parse duration using default of 5m: %v", err)
+		dur = time.Minute * 5
+		toks[len(toks)-1] = dur.String()
+	}
+	outfile := fmt.Sprintf("/tmp/%s-%d.out", toks[1], time.Now().Unix())
+	toks = append(toks, outfile)
+
+	s.ChatEcho(msg.ConvID, "starting pprof... %s", toks)
+	cmd := s.kbc.Command(toks...)
+	if err := cmd.Run(); err != nil {
+		s.ChatDebugFull(msg.ConvID, "unable to get run command: %v", err)
+		return err
+	}
+	go func() {
+		time.Sleep(dur + time.Second)
+		defer func() {
+			// Cleanup after the file is sent.
+			time.Sleep(time.Minute)
+			s.Debug(msg.ConvID, "cleaning up %s", outfile)
+			if err = os.Remove(outfile); err != nil {
+				s.Debug(msg.ConvID, "unable to clean up %s: %v", outfile, err)
+			}
+		}()
+		if _, err := s.kbc.SendAttachmentByConvID(msg.ConvID, outfile, ""); err != nil {
+			s.ChatDebugFull(msg.ConvID, "unable to send attachment profile: %v", err)
+		}
+	}()
 	return nil
 }
