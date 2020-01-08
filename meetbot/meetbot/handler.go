@@ -69,7 +69,7 @@ func (h *Handler) homeHandler(w http.ResponseWriter, r *http.Request) {
 		<img style="width:300px;" src="/meetbot/image?=mobile">
 	</div>
 	`
-	if _, err := w.Write(base.AsHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
+	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
 		h.Debug("homeHandler: unable to write: %v", err)
 	}
 }
@@ -95,7 +95,7 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(base.AsHTML("meetbot", "error", "Unable to complete request, please try again!", "/meetbot/image?=mobile")); err != nil {
+			if _, err := w.Write(base.MakeOAuthHTML("meetbot", "error", "Unable to complete request, please try again!", "/meetbot/image?=mobile")); err != nil {
 				h.Debug("oauthHandler: unable to write: %v", err)
 			}
 		}
@@ -132,7 +132,7 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write(base.AsHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=mobile")); err != nil {
+	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=mobile")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }

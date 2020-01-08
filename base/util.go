@@ -132,7 +132,7 @@ func IsAdmin(kbc *kbchat.API, msg chat1.MsgSummary) (bool, error) {
 	return false, nil
 }
 
-func AsHTML(botName string, title, msg string, logoUrl string) []byte {
+func MakeOAuthHTML(botName string, title, msg string, logoUrl string) []byte {
 	return []byte(`
 <html>
 <head>
