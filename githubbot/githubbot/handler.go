@@ -105,6 +105,16 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 
 	var message string
+	defer func() {
+		if message != "" {
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
+			if err != nil {
+				h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
+				return
+			}
+		}
+	}()
+
 	defaultBranch, err := getDefaultBranch(args[0], client)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error getting default branch: %s", err)
@@ -138,48 +148,44 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 					return
 				}
 				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
-			} else {
-				err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, hook.GetID())
-				if err != nil {
-					h.ChatDebug(msg.ConvID, fmt.Sprintf("error creating subscription: %s", err))
-					return
-				}
-				message = "Okay, you'll receive updates for %s here."
+				return
 			}
-		} else {
-			message = "You're already receiving notifications for %s here!"
+			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, hook.GetID())
+			if err != nil {
+				h.ChatDebug(msg.ConvID, fmt.Sprintf("error creating subscription: %s", err))
+				return
+			}
+			message = "Okay, you'll receive updates for %s here."
+			return
 		}
-	} else {
-		if alreadyExists {
-			hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(msg.ConvID), args[0])
-			if err != nil {
-				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
-				return
-			}
 
-			_, err = client.Repositories.DeleteHook(context.TODO(), parsedRepo[0], parsedRepo[1], hookID)
-			if err != nil {
-				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting webhook: %s", err))
-				return
-			}
-
-			err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
-			if err != nil {
-				h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
-				return
-			}
-			message = "Okay, you won't receive updates for %s here."
-		} else {
-			message = "You aren't subscribed to updates for %s!"
-		}
-	}
-
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
-	if err != nil {
-		h.ChatDebug(msg.ConvID, "Error sending message: %s", err)
+		message = "You're already receiving notifications for %s here!"
 		return
 	}
 
+	if alreadyExists {
+		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(msg.ConvID), args[0])
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error getting hook ID for subscription: %s", err))
+			return
+		}
+
+		_, err = client.Repositories.DeleteHook(context.TODO(), parsedRepo[0], parsedRepo[1], hookID)
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting webhook: %s", err))
+			return
+		}
+
+		err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
+		if err != nil {
+			h.ChatDebug(msg.ConvID, fmt.Sprintf("Error deleting subscriptions: %s", err))
+			return
+		}
+		message = "Okay, you won't receive updates for %s here."
+		return
+	}
+
+	message = "You aren't subscribed to updates for %s!"
 }
 
 func (h *Handler) handleWatch(cmd string, convID string, create bool, client *github.Client) {
@@ -190,6 +196,15 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 	}
 	args := toks[2:]
 	var message string
+	defer func() {
+		if message != "" {
+			_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
+			if err != nil {
+				h.ChatDebug(convID, "Error sending message: %s", err)
+				return
+			}
+		}
+	}()
 
 	if len(args) < 2 {
 		h.ChatDebug(convID, "bad args for watch: %s", args)
@@ -213,6 +228,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 		}
 		return
 	}
+
 	if create {
 		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(convID), args[0])
 		if err != nil {
@@ -225,20 +241,17 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 			h.ChatDebug(convID, fmt.Sprintf("Error creating subscription: %s", err))
 			return
 		}
+
 		message = "Now watching for commits on %s/%s."
-	} else {
-		err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
-		if err != nil {
-			h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
-			return
-		}
-		message = "Okay, you won't receive notifications for commits in %s/%s."
-	}
-	_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
-	if err != nil {
-		h.ChatDebug(convID, "Error sending message: %s", err)
 		return
 	}
+	err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
+	if err != nil {
+		h.ChatDebug(convID, fmt.Sprintf("Error deleting subscription: %s", err))
+		return
+	}
+
+	message = "Okay, you won't receive notifications for commits in %s/%s."
 }
 
 func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
