@@ -1,14 +1,8 @@
 package meetbot
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -22,147 +16,22 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	sync.Mutex
 	kbc      *kbchat.API
-	config   *oauth2.Config
 	db       *DB
-	requests map[string]chat1.MsgSummary
-	srv      *http.Server
+	requests *base.OAuthRequests
+	config   *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, config *oauth2.Config, db *DB) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
+		requests:    requests,
 		config:      config,
-		requests:    make(map[string]chat1.MsgSummary),
-		srv:         &http.Server{Addr: ":8080"},
 	}
-}
-
-func (h *Handler) Shutdown() error {
-	return h.srv.Shutdown(context.Background())
-}
-
-func (h *Handler) HTTPListen() error {
-	http.HandleFunc("/meetbot", h.healthCheckHandler)
-	http.HandleFunc("/meetbot/home", h.homeHandler)
-	http.HandleFunc("/meetbot/oauth", h.oauthHandler)
-	http.HandleFunc("/meetbot/image", h.handleImage)
-	err := h.srv.ListenAndServe()
-	h.Debug("HTTPListen: exiting")
-	return err
-}
-
-func (h *Handler) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "OK")
-}
-
-func (h *Handler) homeHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("homeHandler")
-	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
-	which creates links to Google Meet meetings for you.
-	<div style="padding-top:10px;">
-		<img style="width:300px;" src="/meetbot/image?=mobile">
-	</div>
-	`
-	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
-		h.Debug("homeHandler: unable to write: %v", err)
-	}
-}
-
-func (h *Handler) handleImage(w http.ResponseWriter, r *http.Request) {
-	image := r.URL.Query().Get("")
-	b64dat, ok := images[image]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	dat, _ := base64.StdEncoding.DecodeString(b64dat)
-	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-}
-
-func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("oauthHandler")
-
-	var err error
-	defer func() {
-		if err != nil {
-			h.Debug("oauthHandler: %v", err)
-			if _, err := w.Write(base.MakeOAuthHTML("meetbot", "error", "Unable to complete request, please try again!", "/meetbot/image?=mobile")); err != nil {
-				h.Debug("oauthHandler: unable to write: %v", err)
-			}
-		}
-	}()
-
-	if r.URL == nil {
-		err = fmt.Errorf("r.URL == nil")
-		return
-	}
-
-	query := r.URL.Query()
-	state := query.Get("state")
-
-	h.Lock()
-	originatingMsg, ok := h.requests[state]
-	delete(h.requests, state)
-	h.Unlock()
-	if !ok {
-		err = fmt.Errorf("state %q not found %v", state, h.requests)
-		return
-	}
-
-	code := query.Get("code")
-	token, err := h.config.Exchange(context.TODO(), code)
-	if err != nil {
-		return
-	}
-
-	if err = h.db.PutToken(base.IdentifierFromMsg(originatingMsg), token); err != nil {
-		return
-	}
-
-	if err = h.meetHandler(originatingMsg); err != nil {
-		return
-	}
-
-	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=logo")); err != nil {
-		h.Debug("oauthHandler: unable to write: %v", err)
-	}
-}
-
-func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
-	identifier := base.IdentifierFromMsg(msg)
-	token, err := h.db.GetToken(identifier)
-	if err != nil {
-		return nil, false, err
-	}
-	// We need to request new authorization
-	if token == nil {
-		if isAdmin, err := base.IsAdmin(h.kbc, msg); err != nil || !isAdmin {
-			return nil, isAdmin, err
-		}
-
-		state, err := base.MakeRequestID()
-		if err != nil {
-			return nil, false, err
-		}
-		h.Lock()
-		h.requests[state] = msg
-		h.Unlock()
-		authURL := h.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
-		// strip protocol to skip unfurl prompt
-		authURL = strings.TrimPrefix(authURL, "https://")
-		_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "Visit %s\n to authorize me to create events.", authURL)
-		return nil, true, err
-	}
-	return h.config.Client(context.Background(), token), false, nil
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
@@ -202,23 +71,12 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
-	client, isAdmin, err := h.getOAuthClient(msg)
-	if err != nil {
+	identifier := base.IdentifierFromMsg(msg)
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+		"Visit %s\n to authorize me to create events.",
+		base.GetOAuthOpts{OAuthOfflineAccessType: true})
+	if err != nil || client == nil {
 		return err
-	}
-	if client == nil {
-		if !isAdmin {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
-			return err
-		}
-		// If we are in a 1-1 conv directly or as a bot user with the sender,
-		// skip this message.
-		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
-			return err
-		}
-		return nil
 	}
 
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))

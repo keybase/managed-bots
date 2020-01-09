@@ -96,11 +96,13 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	handler := meetbot.NewHandler(s.kbc, config, db)
+	requests := &base.OAuthRequests{}
+	handler := meetbot.NewHandler(s.kbc, db, requests, config)
+	httpSrv := meetbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
-	eg.Go(handler.HTTPListen)
-	eg.Go(func() error { return s.HandleSignals(handler) })
+	eg.Go(httpSrv.Listen)
+	eg.Go(func() error { return s.HandleSignals(httpSrv) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

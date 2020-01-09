@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -14,11 +15,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type OAuthStorage interface {
+	GetToken(identifier string) (*oauth2.Token, error)
+	PutToken(identifier string, token *oauth2.Token) error
+	DeleteToken(identifier string) error
+}
+
 type OAuthHTTPSrv struct {
 	*HTTPSrv
 	oauth       *oauth2.Config
 	requests    *OAuthRequests
-	putToken    func(string, *oauth2.Token) error
+	storage     OAuthStorage
 	callback    func(chat1.MsgSummary) error
 	htmlTitle   string
 	htmlLogoB64 string
@@ -29,7 +36,7 @@ func NewOAuthHTTPSrv(
 	kbc *kbchat.API,
 	oauth *oauth2.Config,
 	requests *OAuthRequests,
-	putToken func(string, *oauth2.Token) error,
+	storage OAuthStorage,
 	callback func(chat1.MsgSummary) error,
 	htmlTitle string,
 	htmlLogoB64 string,
@@ -38,7 +45,7 @@ func NewOAuthHTTPSrv(
 	o := &OAuthHTTPSrv{
 		oauth:       oauth,
 		requests:    requests,
-		putToken:    putToken,
+		storage:     storage,
 		callback:    callback,
 		htmlTitle:   htmlTitle,
 		htmlLogoB64: htmlLogoB64,
@@ -69,7 +76,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 
-	originatingMsg, ok := o.requests.Get(state)
+	req, ok := o.requests.Get(state)
 	o.requests.Delete(state)
 	if !ok {
 		err = fmt.Errorf("state %q not found %v", state, o.requests)
@@ -82,11 +89,11 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.putToken(IdentifierFromMsg(originatingMsg), token); err != nil {
+	if err = o.storage.PutToken(req.tokenIdentifier, token); err != nil {
 		return
 	}
 
-	if err = o.callback(originatingMsg); err != nil {
+	if err = o.callback(req.callbackMsg); err != nil {
 		return
 	}
 
@@ -103,33 +110,92 @@ func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type OAuthRequests struct {
-	sync.Mutex
-
-	requests map[string]chat1.MsgSummary
+type OAuthRequest struct {
+	tokenIdentifier string
+	callbackMsg     chat1.MsgSummary
 }
 
-func NewOAuthRequests() *OAuthRequests {
-	return &OAuthRequests{
-		requests: make(map[string]chat1.MsgSummary),
+type OAuthRequests struct {
+	sync.Map
+}
+
+func (r *OAuthRequests) Get(state string) (req *OAuthRequest, ok bool) {
+	val, ok := r.Map.Load(state)
+	if ok {
+		return val.(*OAuthRequest), ok
+	} else {
+		return nil, ok
 	}
 }
 
-func (r *OAuthRequests) Get(state string) (msg chat1.MsgSummary, ok bool) {
-	defer r.Unlock()
-	r.Lock()
-	msg, ok = r.requests[state]
-	return msg, ok
-}
-
-func (r *OAuthRequests) Set(state string, msg chat1.MsgSummary) {
-	r.Lock()
-	r.requests[state] = msg
-	r.Unlock()
+func (r *OAuthRequests) Set(state string, req *OAuthRequest) {
+	r.Map.Store(state, req)
 }
 
 func (r *OAuthRequests) Delete(state string) {
-	r.Lock()
-	delete(r.requests, state)
-	r.Unlock()
+	r.Map.Delete(state)
+}
+
+type GetOAuthOpts struct {
+	// all non-admin users can also authenticate (default: false)
+	AllowNonAdminForTeamAuth bool
+	// set the OAuth2 OfflineAccessType (default: false)
+	OAuthOfflineAccessType bool
+}
+
+func GetOAuthClient(
+	tokenIdentifier string,
+	callbackMsg chat1.MsgSummary,
+	kbc *kbchat.API,
+	requests *OAuthRequests,
+	config *oauth2.Config,
+	storage OAuthStorage,
+	authMessageTemplate string,
+	opts GetOAuthOpts,
+) (*http.Client, error) {
+	token, err := storage.GetToken(tokenIdentifier)
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to request new authorization
+	if token == nil {
+		// if required, check if the user is an admin before executing auth
+		if !opts.AllowNonAdminForTeamAuth {
+			isAdmin, err := IsAdmin(kbc, callbackMsg)
+			if err != nil {
+				return nil, err
+			}
+			if !isAdmin {
+				_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You have must be an admin to authorize me for a team!")
+				return nil, err
+			}
+		}
+
+		state, err := MakeRequestID()
+		if err != nil {
+			return nil, err
+		}
+		requests.Set(state, &OAuthRequest{tokenIdentifier, callbackMsg})
+
+		oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
+		if opts.OAuthOfflineAccessType {
+			oauthOpts = append(oauthOpts, oauth2.AccessTypeOffline)
+		}
+		authURL := config.AuthCodeURL(state, oauthOpts...)
+		// strip protocol to skip unfurl prompt
+		authURL = strings.TrimPrefix(authURL, "https://")
+		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
+
+		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
+		if callbackMsg.Channel.MembersType == "team" || !(callbackMsg.Sender.Username == callbackMsg.Channel.Name ||
+			len(strings.Split(callbackMsg.Channel.Name, ",")) == 2) {
+			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID,
+				"OK! I've sent a message to @%s to authorize me.", callbackMsg.Sender.Username)
+		}
+
+		return nil, err
+	}
+
+	return config.Client(context.Background(), token), nil
 }

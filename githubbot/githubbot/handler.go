@@ -56,23 +56,11 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	tc, isAdmin, err := h.getOAuthClient(msg)
-	if err != nil {
+	identifier := base.IdentifierFromMsg(msg)
+	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+		"Visit %s\n to authorize me to set up GitHub notifications.", base.GetOAuthOpts{})
+	if err != nil || tc == nil {
 		return err
-	}
-	if tc == nil {
-		if !isAdmin {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
-			return err
-		}
-		// If we are in a 1-1 conv directly or as a bot user with the sender,
-		// skip this message.
-		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
-			return err
-		}
-		return nil
 	}
 
 	client := github.NewClient(tc)
@@ -252,29 +240,4 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 	}
 
 	message = "Okay, you won't receive notifications for commits in %s/%s."
-}
-
-func (h *Handler) getOAuthClient(msg chat1.MsgSummary) (*http.Client, bool, error) {
-	token, err := h.db.GetToken(base.IdentifierFromMsg(msg))
-	if err != nil {
-		return nil, false, err
-	}
-	// We need to request new authorization
-	if token == nil {
-		if isAdmin, err := base.IsAdmin(h.kbc, msg); err != nil || !isAdmin {
-			return nil, isAdmin, err
-		}
-
-		state, err := base.MakeRequestID()
-		if err != nil {
-			return nil, false, err
-		}
-		h.requests.Set(state, msg)
-		authURL := h.config.AuthCodeURL(string(state), oauth2.ApprovalForce)
-		// strip protocol to skip unfurl prompt
-		authURL = strings.TrimPrefix(authURL, "https://")
-		_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "Visit %s\n to authorize me to set up GitHub notifications.", authURL)
-		return nil, true, err
-	}
-	return h.config.Client(context.Background(), token), false, nil
 }

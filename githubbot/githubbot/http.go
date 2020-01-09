@@ -27,7 +27,8 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthR
 		handler: handler,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", base.Images["logo"], "/githubbot")
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleCommand,
+		"githubbot", base.Images["logo"], "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
 	return h
