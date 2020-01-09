@@ -96,7 +96,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	requests := base.NewOAuthRequests()
+	requests := &base.OAuthRequests{}
 	handler := meetbot.NewHandler(s.kbc, db, requests, config)
 	httpSrv := meetbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group

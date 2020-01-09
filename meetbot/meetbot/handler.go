@@ -79,7 +79,8 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
 		return err
 	}
-	client, err := base.GetOAuthClient(msg, h.kbc, h.requests, h.config, h.db,
+	identifier := base.IdentifierFromMsg(msg)
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
 		"Visit %s\n to authorize me to create events.")
 	if err != nil {
 		return err

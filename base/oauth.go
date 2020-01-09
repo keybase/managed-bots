@@ -76,7 +76,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 
-	originatingMsg, ok := o.requests.Get(state)
+	req, ok := o.requests.Get(state)
 	o.requests.Delete(state)
 	if !ok {
 		err = fmt.Errorf("state %q not found %v", state, o.requests)
@@ -89,11 +89,11 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.storage.PutToken(IdentifierFromMsg(originatingMsg), token); err != nil {
+	if err = o.storage.PutToken(req.tokenIdentifier, token); err != nil {
 		return
 	}
 
-	if err = o.callback(originatingMsg); err != nil {
+	if err = o.callback(req.callbackMsg); err != nil {
 		return
 	}
 
@@ -110,47 +110,42 @@ func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type OAuthRequests struct {
-	sync.Mutex
-
-	requests map[string]chat1.MsgSummary
+type OAuthRequest struct {
+	tokenIdentifier string
+	callbackMsg     chat1.MsgSummary
 }
 
-func NewOAuthRequests() *OAuthRequests {
-	return &OAuthRequests{
-		requests: make(map[string]chat1.MsgSummary),
+type OAuthRequests struct {
+	sync.Map
+}
+
+func (r *OAuthRequests) Get(state string) (req *OAuthRequest, ok bool) {
+	val, ok := r.Map.Load(state)
+	if ok {
+		return val.(*OAuthRequest), ok
+	} else {
+		return nil, ok
 	}
 }
 
-func (r *OAuthRequests) Get(state string) (msg chat1.MsgSummary, ok bool) {
-	defer r.Unlock()
-	r.Lock()
-	msg, ok = r.requests[state]
-	return msg, ok
-}
-
-func (r *OAuthRequests) Set(state string, msg chat1.MsgSummary) {
-	r.Lock()
-	r.requests[state] = msg
-	r.Unlock()
+func (r *OAuthRequests) Set(state string, req *OAuthRequest) {
+	r.Map.Store(state, req)
 }
 
 func (r *OAuthRequests) Delete(state string) {
-	r.Lock()
-	delete(r.requests, state)
-	r.Unlock()
+	r.Map.Delete(state)
 }
 
 func GetOAuthClient(
-	msg chat1.MsgSummary,
+	tokenIdentifier string,
+	callbackMsg chat1.MsgSummary,
 	kbc *kbchat.API,
 	requests *OAuthRequests,
 	config *oauth2.Config,
 	storage OAuthStorage,
 	authMessageTemplate string,
 ) (*http.Client, error) {
-	identifier := IdentifierFromMsg(msg)
-	token, err := storage.GetToken(identifier)
+	token, err := storage.GetToken(tokenIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +156,11 @@ func GetOAuthClient(
 		if err != nil {
 			return nil, err
 		}
-		requests.Set(state, msg)
+		requests.Set(state, &OAuthRequest{tokenIdentifier, callbackMsg})
 		authURL := config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
-		_, err = kbc.SendMessageByTlfName(msg.Sender.Username, authMessageTemplate, authURL)
+		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
 		return nil, err
 	}
 
