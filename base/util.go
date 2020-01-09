@@ -105,7 +105,7 @@ func EmojiToNumber(s string) int {
 }
 
 func HandleNewTeam(log *DebugOutput, kbc *kbchat.API, conv chat1.ConvSummary, welcomeMsg string) error {
-	if conv.Channel.MembersType == "team" && conv.Channel.TopicName != "general" {
+	if conv.Channel.MembersType == "team" && !conv.IsDefaultConv {
 		log.Debug("HandleNewTeam: skipping conversation %+v", conv)
 		return nil
 	}
