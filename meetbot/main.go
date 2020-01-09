@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"golang.org/x/oauth2"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,9 +59,9 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	}
 }
 
-func (s *BotServer) Go() (err error) {
+func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	if len(s.opts.KBFSRoot) == 0 {
-		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
 	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", configPath)
@@ -68,13 +69,22 @@ func (s *BotServer) Go() (err error) {
 	cmd.Stdout = &out
 	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not read credentials.json: %v", err)
+		return nil, fmt.Errorf("could not read credentials.json: %v", err)
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
 	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
 	if err != nil {
-		return fmt.Errorf("unable to parse client secret file to config: %v", err)
+		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
+	}
+
+	return config, nil
+}
+
+func (s *BotServer) Go() (err error) {
+	config, err := s.getOAuthConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get config %v", err)
 	}
 
 	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
