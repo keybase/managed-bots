@@ -141,6 +141,8 @@ type GetOAuthOpts struct {
 	AllowNonAdminForTeamAuth bool
 	// set the OAuth2 OfflineAccessType (default: false)
 	OAuthOfflineAccessType bool
+	// if the token is not found, don't request new authorization (default: false)
+	SkipAuthentication bool
 }
 
 func GetOAuthClient(
@@ -160,6 +162,11 @@ func GetOAuthClient(
 
 	// we need to request new authorization
 	if token == nil {
+		// skip authentication if specified
+		if opts.SkipAuthentication {
+			return nil, nil
+		}
+
 		// if required, check if the user is an admin before executing auth
 		if !opts.AllowNonAdminForTeamAuth {
 			isAdmin, err := IsAdmin(kbc, callbackMsg)
