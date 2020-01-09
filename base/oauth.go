@@ -144,6 +144,7 @@ func GetOAuthClient(
 	config *oauth2.Config,
 	storage OAuthStorage,
 	authMessageTemplate string,
+	mustBeAdminForAuth bool,
 ) (*http.Client, error) {
 	token, err := storage.GetToken(tokenIdentifier)
 	if err != nil {
@@ -152,6 +153,18 @@ func GetOAuthClient(
 
 	// we need to request new authorization
 	if token == nil {
+		// if required, check if the user is an admin before executing auth
+		if mustBeAdminForAuth {
+			isAdmin, err := IsAdmin(kbc, callbackMsg)
+			if err != nil {
+				return nil, err
+			}
+			if !isAdmin {
+				_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You have must be an admin to authorize me for a team!")
+				return nil, err
+			}
+		}
+
 		state, err := MakeRequestID()
 		if err != nil {
 			return nil, err
@@ -161,6 +174,14 @@ func GetOAuthClient(
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
 		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
+
+		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
+		if callbackMsg.Channel.MembersType == "team" || !(callbackMsg.Sender.Username == callbackMsg.Channel.Name ||
+			len(strings.Split(callbackMsg.Channel.Name, ",")) == 2) {
+			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID,
+				"OK! I've sent a message to @%s to authorize me.", callbackMsg.Sender.Username)
+		}
+
 		return nil, err
 	}
 

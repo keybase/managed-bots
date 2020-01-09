@@ -71,28 +71,11 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
-	if err != nil {
-		return err
-	}
-	if !isAdmin {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
-		return err
-	}
 	identifier := base.IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to create events.")
-	if err != nil {
+		"Visit %s\n to authorize me to create events.", true)
+	if err != nil || client == nil {
 		return err
-	}
-	if client == nil {
-		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
-			return err
-		}
-		return nil
 	}
 
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))

@@ -56,30 +56,11 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
-	if err != nil {
-		return err
-	}
-	if !isAdmin {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have must be an admin to authorize me for a team!")
-		return err
-	}
 	identifier := base.IdentifierFromMsg(msg)
 	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to create events.")
-	if err != nil {
+		"Visit %s\n to authorize me to set up GitHub notifications.", true)
+	if err != nil || tc == nil {
 		return err
-	}
-
-	if tc == nil {
-		// If we are in a 1-1 conv directly or as a bot user with the sender,
-		// skip this message.
-		if msg.Channel.MembersType == "team" || !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-				"OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
-			return err
-		}
-		return nil
 	}
 
 	client := github.NewClient(tc)
