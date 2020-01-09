@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -20,11 +19,8 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	DSN             string
-	KBFSRoot        string
+	base.Options
+	KBFSRoot string
 }
 
 type BotServer struct {
@@ -63,7 +59,7 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
-	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", configPath)
+	cmd := s.opts.Command("fs", "read", configPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)

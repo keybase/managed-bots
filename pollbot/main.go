@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -16,16 +15,9 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	HTTPPrefix      string
-	DSN             string
-	LoginSecret     string
-}
-
-func newOptions() Options {
-	return Options{}
+	base.Options
+	HTTPPrefix  string
+	LoginSecret string
 }
 
 type BotServer struct {
@@ -79,7 +71,7 @@ func (s *BotServer) getLoginSecret() (string, error) {
 		return s.opts.LoginSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/login.secret", s.kbc.GetUsername())
-	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
+	cmd := s.opts.Command("fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
@@ -132,8 +124,7 @@ func main() {
 }
 
 func mainInner() int {
-	opts := newOptions()
-
+	var opts Options
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),

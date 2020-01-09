@@ -14,15 +14,8 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	HTTPPrefix      string
-	DSN             string
-}
-
-func newOptions() Options {
-	return Options{}
+	base.Options
+	HTTPPrefix string
 }
 
 type BotServer struct {
@@ -127,8 +120,7 @@ func main() {
 }
 
 func mainInner() int {
-	opts := newOptions()
-
+	var opts Options
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
