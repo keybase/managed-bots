@@ -21,6 +21,7 @@ type OAuthHTTPSrv struct {
 	putToken    func(string, *oauth2.Token) error
 	callback    func(chat1.MsgSummary) error
 	htmlTitle   string
+	htmlLogoB64 string
 	htmlLogoSrc string
 }
 
@@ -31,6 +32,7 @@ func NewOAuthHTTPSrv(
 	putToken func(string, *oauth2.Token) error,
 	callback func(chat1.MsgSummary) error,
 	htmlTitle string,
+	htmlLogoB64 string,
 	urlPrefix string,
 ) *OAuthHTTPSrv {
 	o := &OAuthHTTPSrv{
@@ -39,6 +41,7 @@ func NewOAuthHTTPSrv(
 		putToken:    putToken,
 		callback:    callback,
 		htmlTitle:   htmlTitle,
+		htmlLogoB64: htmlLogoB64,
 		htmlLogoSrc: urlPrefix + "/image/logo",
 	}
 	o.HTTPSrv = NewHTTPSrv(kbc)
@@ -93,12 +96,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
-	b64dat, ok := Images["logo"]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	dat, _ := base64.StdEncoding.DecodeString(b64dat)
+	dat, _ := base64.StdEncoding.DecodeString(o.htmlLogoB64)
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
