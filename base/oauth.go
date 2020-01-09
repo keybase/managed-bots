@@ -15,11 +15,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type OAuthStorage interface {
+	GetToken(identifier string) (*oauth2.Token, error)
+	PutToken(identifier string, token *oauth2.Token) error
+	DeleteToken(identifier string) error
+}
+
 type OAuthHTTPSrv struct {
 	*HTTPSrv
 	oauth       *oauth2.Config
 	requests    *OAuthRequests
-	putToken    func(string, *oauth2.Token) error
+	storage     OAuthStorage
 	callback    func(chat1.MsgSummary) error
 	htmlTitle   string
 	htmlLogoB64 string
@@ -30,7 +36,7 @@ func NewOAuthHTTPSrv(
 	kbc *kbchat.API,
 	oauth *oauth2.Config,
 	requests *OAuthRequests,
-	putToken func(string, *oauth2.Token) error,
+	storage OAuthStorage,
 	callback func(chat1.MsgSummary) error,
 	htmlTitle string,
 	htmlLogoB64 string,
@@ -39,7 +45,7 @@ func NewOAuthHTTPSrv(
 	o := &OAuthHTTPSrv{
 		oauth:       oauth,
 		requests:    requests,
-		putToken:    putToken,
+		storage:     storage,
 		callback:    callback,
 		htmlTitle:   htmlTitle,
 		htmlLogoB64: htmlLogoB64,
@@ -83,7 +89,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.putToken(IdentifierFromMsg(originatingMsg), token); err != nil {
+	if err = o.storage.PutToken(IdentifierFromMsg(originatingMsg), token); err != nil {
 		return
 	}
 
@@ -140,11 +146,11 @@ func GetOAuthClient(
 	kbc *kbchat.API,
 	requests *OAuthRequests,
 	config *oauth2.Config,
-	getToken func(identifier string) (*oauth2.Token, error),
+	storage OAuthStorage,
 	authMessageTemplate string,
 ) (*http.Client, error) {
 	identifier := IdentifierFromMsg(msg)
-	token, err := getToken(identifier)
+	token, err := storage.GetToken(identifier)
 	if err != nil {
 		return nil, err
 	}

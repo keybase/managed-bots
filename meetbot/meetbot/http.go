@@ -27,7 +27,7 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthR
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleCommand,
 		"meetbot", "/meetbot/image?=logo", "/meetbot")
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)
