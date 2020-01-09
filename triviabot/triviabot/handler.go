@@ -103,7 +103,7 @@ func (h *Handler) handleAnswer(convID string, reaction chat1.MessageReaction, se
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Are you up to the challenge? Try `!triva begin` to find out."
+	welcomeMsg := "Are you up to the challenge? Try `!trivia begin` to find out."
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
