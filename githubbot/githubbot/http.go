@@ -27,31 +27,14 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthR
 		handler: handler,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", "/githubbot/logo.png", "/githubbot")
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
-	http.HandleFunc("/githubbot/logo.png", h.handleLogo)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
 	return h
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "beep boop! :)")
-}
-
-func (h *HTTPSrv) handleLogo(w http.ResponseWriter, r *http.Request) {
-	path := fmt.Sprintf("/keybase/private/%s/static/logo.png", h.kbc.GetUsername())
-	id := h.kbc.Command("fs", "read", path)
-	logo, err := id.Output()
-	if err != nil {
-		h.Debug("Error reading logo: %s", err)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-	if _, err := w.Write(logo); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	return
 }
 
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
