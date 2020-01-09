@@ -154,7 +154,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		h.Debug("skipping non-text message")
 		return nil
 	}
-	cmd := strings.TrimSpace(msg.Content.Text.Body)
+	cmd := strings.ToLower(strings.TrimSpace(msg.Content.Text.Body))
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
 		h.handlePoll(cmd, msg.ConvID, msg.Id)
