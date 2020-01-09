@@ -29,7 +29,7 @@ func formatTally(tally Tally, numChoices int) (res string) {
 			t.votes = 0
 		}
 		s := ""
-		if t.votes > 1 {
+		if t.votes != 1 {
 			s = "s"
 		}
 		prop := float64(t.votes) / float64(total)
