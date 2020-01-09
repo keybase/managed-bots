@@ -145,6 +145,7 @@ func GetOAuthClient(
 	storage OAuthStorage,
 	authMessageTemplate string,
 	mustBeAdminForAuth bool,
+	oauthOfflineAccessType bool,
 ) (*http.Client, error) {
 	token, err := storage.GetToken(tokenIdentifier)
 	if err != nil {
@@ -170,7 +171,12 @@ func GetOAuthClient(
 			return nil, err
 		}
 		requests.Set(state, &OAuthRequest{tokenIdentifier, callbackMsg})
-		authURL := config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+
+		opts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
+		if oauthOfflineAccessType {
+			opts = append(opts, oauth2.AccessTypeOffline)
+		}
+		authURL := config.AuthCodeURL(state, opts...)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
 		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)

@@ -73,7 +73,7 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 	identifier := base.IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to create events.", true)
+		"Visit %s\n to authorize me to create events.", true, true)
 	if err != nil || client == nil {
 		return err
 	}
