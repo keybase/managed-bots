@@ -1,8 +1,11 @@
 package base
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 
@@ -18,6 +21,7 @@ type OAuthHTTPSrv struct {
 	putToken    func(string, *oauth2.Token) error
 	callback    func(chat1.MsgSummary) error
 	htmlTitle   string
+	htmlLogoB64 string
 	htmlLogoSrc string
 }
 
@@ -28,7 +32,7 @@ func NewOAuthHTTPSrv(
 	putToken func(string, *oauth2.Token) error,
 	callback func(chat1.MsgSummary) error,
 	htmlTitle string,
-	htmlLogoSrc string,
+	htmlLogoB64 string,
 	urlPrefix string,
 ) *OAuthHTTPSrv {
 	o := &OAuthHTTPSrv{
@@ -37,10 +41,12 @@ func NewOAuthHTTPSrv(
 		putToken:    putToken,
 		callback:    callback,
 		htmlTitle:   htmlTitle,
-		htmlLogoSrc: htmlLogoSrc,
+		htmlLogoB64: htmlLogoB64,
+		htmlLogoSrc: urlPrefix + "/image/logo",
 	}
 	o.HTTPSrv = NewHTTPSrv(kbc)
 	http.HandleFunc(urlPrefix+"/oauth", o.oauthHandler)
+	http.HandleFunc(o.htmlLogoSrc, o.logoHandler)
 	return o
 }
 
@@ -86,6 +92,14 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "success", "Success! You can now close this page and return to the Keybase app.", o.htmlLogoSrc)); err != nil {
 		o.Debug("oauthHandler: unable to write: %v", err)
+	}
+}
+
+func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+	dat, _ := base64.StdEncoding.DecodeString(o.htmlLogoB64)
+	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 

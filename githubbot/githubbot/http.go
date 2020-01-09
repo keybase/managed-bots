@@ -27,7 +27,7 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthR
 		handler: handler,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", "", "/githubbot")
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db.PutToken, h.handler.HandleCommand, "githubbot", base.Images["logo"], "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
 	return h
@@ -65,7 +65,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case *github.PullRequestEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		var author username
+		if event.GetPullRequest().GetMerged() {
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
+		} else {
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		}
 		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 

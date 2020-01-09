@@ -132,7 +132,7 @@ func (h *Handler) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=mobile")); err != nil {
+	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "success", "Success! You can now close this page and return to the Keybase app.", "/meetbot/image?=logo")); err != nil {
 		h.Debug("oauthHandler: unable to write: %v", err)
 	}
 }
