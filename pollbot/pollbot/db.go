@@ -24,7 +24,7 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
+func (d *DB) CreatePoll(convID chat1.APIConvID, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO polls
@@ -36,7 +36,7 @@ func (d *DB) CreatePoll(convID string, msgID chat1.MessageID, resultMsgID chat1.
 	})
 }
 
-func (d *DB) GetPollInfo(convID string, msgID chat1.MessageID) (resultMsgID chat1.MessageID, numChoices int, err error) {
+func (d *DB) GetPollInfo(convID chat1.APIConvID, msgID chat1.MessageID) (resultMsgID chat1.MessageID, numChoices int, err error) {
 	row := d.DB.QueryRow(`
 		SELECT result_msg_id, choices
 		FROM polls
@@ -48,7 +48,7 @@ func (d *DB) GetPollInfo(convID string, msgID chat1.MessageID) (resultMsgID chat
 	return resultMsgID, numChoices, nil
 }
 
-func (d *DB) GetTally(convID string, msgID chat1.MessageID) (res Tally, err error) {
+func (d *DB) GetTally(convID chat1.APIConvID, msgID chat1.MessageID) (res Tally, err error) {
 	rows, err := d.DB.Query(`
 		SELECT choice, count(*)
 		FROM votes

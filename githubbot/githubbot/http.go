@@ -118,7 +118,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
-			_, err = h.kbc.SendMessageByConvID(string(convID), message)
+			_, err = h.kbc.SendMessageByConvID(convID, message)
 			if err != nil {
 				h.Debug("Error sending message: %s", err)
 				return

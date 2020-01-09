@@ -96,7 +96,7 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 			s.Debug("announcement success")
 		}
 	}()
-	if _, err := s.kbc.SendMessageByConvID(announcement, running); err != nil {
+	if _, err := s.kbc.SendMessageByConvID(chat1.APIConvID(announcement), running); err != nil {
 		s.Debug("failed to announce self as conv ID: %s", err)
 	} else {
 		return nil
@@ -269,9 +269,9 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 		defer func() {
 			// Cleanup after the file is sent.
 			time.Sleep(time.Minute)
-			s.Debug(msg.ConvID, "cleaning up %s", outfile)
+			s.Debug("cleaning up %s", outfile)
 			if err = os.Remove(outfile); err != nil {
-				s.Debug(msg.ConvID, "unable to clean up %s: %v", outfile, err)
+				s.Debug("unable to clean up %s: %v", outfile, err)
 			}
 		}()
 		if _, err := s.kbc.SendAttachmentByConvID(msg.ConvID, outfile, ""); err != nil {

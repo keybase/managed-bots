@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 )
 
@@ -19,12 +20,12 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) makeID(name, convID string) (string, error) {
+func (d *DB) makeID(name string, convID chat1.APIConvID) (string, error) {
 	secret, err := base.RandBytes(16)
 	if err != nil {
 		return "", err
 	}
-	cdat, err := hex.DecodeString(convID)
+	cdat, err := hex.DecodeString(string(convID))
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +35,7 @@ func (d *DB) makeID(name, convID string) (string, error) {
 	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
-func (d *DB) Create(name, convID string) (string, error) {
+func (d *DB) Create(name string, convID chat1.APIConvID) (string, error) {
 	id, err := d.makeID(name, convID)
 	if err != nil {
 		return "", err
@@ -65,11 +66,11 @@ func (d *DB) GetHook(id string) (res webhook, err error) {
 
 type webhook struct {
 	id     string
-	convID string
+	convID chat1.APIConvID
 	name   string
 }
 
-func (d *DB) List(convID string) (res []webhook, err error) {
+func (d *DB) List(convID chat1.APIConvID) (res []webhook, err error) {
 	rows, err := d.DB.Query(`
 		SELECT id, name FROM hooks WHERE conv_id = ?
 	`, convID)
@@ -88,7 +89,7 @@ func (d *DB) List(convID string) (res []webhook, err error) {
 	return res, nil
 }
 
-func (d *DB) Remove(name, convID string) error {
+func (d *DB) Remove(name string, convID chat1.APIConvID) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM hooks WHERE conv_id = ? AND name = ?

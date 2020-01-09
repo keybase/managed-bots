@@ -115,7 +115,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if err != nil {
 		return fmt.Errorf("error getting default branch: %s", err)
 	}
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(base.ShortConvID(msg.ConvID), args[0])
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, args[0])
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
@@ -142,7 +142,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
 				return nil
 			}
-			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, hook.GetID())
+			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, hook.GetID())
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
@@ -155,7 +155,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 
 	if alreadyExists {
-		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(msg.ConvID), args[0])
+		hookID, err := h.db.GetHookIDForRepo(msg.ConvID, args[0])
 		if err != nil {
 			return fmt.Errorf("error getting hook ID for subscription: %s", err)
 		}
@@ -165,7 +165,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			return fmt.Errorf("error deleting webhook: %s", err)
 		}
 
-		err = h.db.DeleteSubscriptionsForRepo(base.ShortConvID(msg.ConvID), args[0])
+		err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, args[0])
 		if err != nil {
 			return fmt.Errorf("error deleting subscriptions: %s", err)
 		}
@@ -177,7 +177,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID string, create bool, client *github.Client) (err error) {
+func (h *Handler) handleWatch(cmd string, convID chat1.APIConvID, create bool, client *github.Client) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -201,7 +201,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 		return fmt.Errorf("error getting default branch: %s", err)
 	}
 
-	if exists, err := h.db.GetSubscriptionExists(base.ShortConvID(convID), args[0], defaultBranch); !exists {
+	if exists, err := h.db.GetSubscriptionExists(convID, args[0], defaultBranch); !exists {
 		if err != nil {
 			return fmt.Errorf("error getting subscription: %s", err)
 		}
@@ -213,12 +213,12 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 	}
 
 	if create {
-		hookID, err := h.db.GetHookIDForRepo(base.ShortConvID(convID), args[0])
+		hookID, err := h.db.GetHookIDForRepo(convID, args[0])
 		if err != nil {
 			return fmt.Errorf("error getting hook ID for subscription: %s", err)
 		}
 
-		err = h.db.CreateSubscription(base.ShortConvID(convID), args[0], args[1], hookID)
+		err = h.db.CreateSubscription(convID, args[0], args[1], hookID)
 		if err != nil {
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
@@ -226,7 +226,7 @@ func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gi
 		message = "Now watching for commits on %s/%s."
 		return nil
 	}
-	err = h.db.DeleteSubscription(base.ShortConvID(convID), args[0], args[1])
+	err = h.db.DeleteSubscription(convID, args[0], args[1])
 	if err != nil {
 		return fmt.Errorf("error deleting subscription: %s", err)
 	}
