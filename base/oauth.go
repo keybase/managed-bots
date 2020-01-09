@@ -136,6 +136,13 @@ func (r *OAuthRequests) Delete(state string) {
 	r.Map.Delete(state)
 }
 
+type GetOAuthOpts struct {
+	// all non-admin users can also authenticate (default: false)
+	AllowNonAdminForTeamAuth bool
+	// set the OAuth2 OfflineAccessType (default: false)
+	OAuthOfflineAccessType bool
+}
+
 func GetOAuthClient(
 	tokenIdentifier string,
 	callbackMsg chat1.MsgSummary,
@@ -144,8 +151,7 @@ func GetOAuthClient(
 	config *oauth2.Config,
 	storage OAuthStorage,
 	authMessageTemplate string,
-	mustBeAdminForAuth bool,
-	oauthOfflineAccessType bool,
+	opts GetOAuthOpts,
 ) (*http.Client, error) {
 	token, err := storage.GetToken(tokenIdentifier)
 	if err != nil {
@@ -155,7 +161,7 @@ func GetOAuthClient(
 	// we need to request new authorization
 	if token == nil {
 		// if required, check if the user is an admin before executing auth
-		if mustBeAdminForAuth {
+		if !opts.AllowNonAdminForTeamAuth {
 			isAdmin, err := IsAdmin(kbc, callbackMsg)
 			if err != nil {
 				return nil, err
@@ -172,11 +178,11 @@ func GetOAuthClient(
 		}
 		requests.Set(state, &OAuthRequest{tokenIdentifier, callbackMsg})
 
-		opts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
-		if oauthOfflineAccessType {
-			opts = append(opts, oauth2.AccessTypeOffline)
+		oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
+		if opts.OAuthOfflineAccessType {
+			oauthOpts = append(oauthOpts, oauth2.AccessTypeOffline)
 		}
-		authURL := config.AuthCodeURL(state, opts...)
+		authURL := config.AuthCodeURL(state, oauthOpts...)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
 		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
