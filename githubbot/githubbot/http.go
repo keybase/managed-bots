@@ -82,7 +82,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case *github.PullRequestEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		var author username
+		if event.GetPullRequest().GetMerged() {
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
+		} else {
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin())
+		}
 		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 

@@ -84,7 +84,7 @@ func formatPRMsg(evt *github.PullRequestEvent, username string) (res string) {
 		case "closed":
 			if evt.GetPullRequest().GetMerged() {
 				// PR was merged
-				res = fmt.Sprintf("%s merged pull request #%d into %s/%s.\n", evt.GetPullRequest().GetMergedBy().GetLogin(), evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetBase().GetRef())
+				res = fmt.Sprintf("%s merged pull request #%d into %s/%s.\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetBase().GetRef())
 				res += evt.GetPullRequest().GetHTMLURL()
 			} else {
 				// PR was closed without merging
