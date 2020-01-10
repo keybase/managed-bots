@@ -80,7 +80,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) error {
+func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) (err error) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -91,14 +91,13 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 
 	var message string
-	defer func() error {
+	defer func() {
 		if message != "" {
 			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
 			if err != nil {
-				return fmt.Errorf("error sending message: %s", err)
+				err = fmt.Errorf("error sending message: %s", err)
 			}
 		}
-		return nil
 	}()
 
 	defaultBranch, err := getDefaultBranch(args[0], client)
@@ -167,21 +166,20 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID string, create bool, client *github.Client) error {
+func (h *Handler) handleWatch(cmd string, convID string, create bool, client *github.Client) (err error) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
 	}
 	args := toks[2:]
 	var message string
-	defer func() error {
+	defer func() {
 		if message != "" {
 			_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
 			if err != nil {
-				return fmt.Errorf("error sending message: %s", err)
+				err = fmt.Errorf("error sending message: %s", err)
 			}
 		}
-		return nil
 	}()
 
 	if len(args) < 2 {
