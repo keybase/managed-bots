@@ -63,7 +63,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	identifier := base.IdentifierFromMsg(msg)
 	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to set up GitHub notifications.", base.GetOAuthOpts{})
+		base.GetOAuthOpts{
+			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub notifications.",
+		})
 	if err != nil || tc == nil {
 		return err
 	}

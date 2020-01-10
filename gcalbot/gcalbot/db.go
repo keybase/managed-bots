@@ -63,7 +63,7 @@ func (d *DB) DeleteToken(identifier string) error {
 	return err
 }
 
-func (d *DB) GetAccountsForUser(username string) (accounts []string, err error) {
+func (d *DB) GetAccountsForUser(username string) (accounts []interface{}, err error) {
 	rows, err := d.DB.Query(`SELECT nickname
 		FROM accounts
 		WHERE username = ?
