@@ -14,11 +14,10 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	kbc           *kbchat.API
-	db            *DB
-	handler       *Handler
-	secret        string
-	shouldMention bool
+	kbc     *kbchat.API
+	db      *DB
+	handler *Handler
+	secret  string
 }
 
 func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {

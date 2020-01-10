@@ -234,9 +234,9 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	var message string
 	defer func() {
 		if message != "" {
-			_, err := h.kbc.SendMessageByConvID(msg.ConvID, message)
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, message)
 			if err != nil {
-				err = fmt.Errorf("Error sending message: %s", err)
+				err = fmt.Errorf("error sending message: %s", err)
 			}
 		}
 	}()
@@ -252,12 +252,18 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	}
 
 	if args[0] == "enable" {
-		h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: true})
+		err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: true})
+		if err != nil {
+			return fmt.Errorf("error setting user preference: %s", err)
+		}
 		message = "Okay, you'll be mentioned in GitHub events involving your linked GitHub account."
 		return nil
 	}
 
-	h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: false})
+	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: false})
+	if err != nil {
+		return fmt.Errorf("error setting user preference: %s", err)
+	}
 	message = "Okay, you won't be mentioned in future GitHub events."
 	return
 
