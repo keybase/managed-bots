@@ -18,11 +18,11 @@ import (
 type BotServer struct {
 	*base.Server
 
-	opts Options
+	opts base.Options
 	kbc  *kbchat.API
 }
 
-func NewBotServer(opts Options) *BotServer {
+func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
 		Server: base.NewServer(opts.Announcement),
 		opts:   opts,
