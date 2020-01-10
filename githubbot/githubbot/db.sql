@@ -16,4 +16,12 @@ CREATE TABLE `oauth` (
   `access_token` varchar(256) NOT NULL,
   `token_type` varchar(64) NOT NULL,
   PRIMARY KEY (`identifier`)
+) 
+
+DROP TABLE IF EXISTS `user_prefs`;
+
+CREATE TABLE `user_prefs` (
+  `username` varchar(128) NOT NULL,
+  `mention` boolean NOT NULL,
+  PRIMARY KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

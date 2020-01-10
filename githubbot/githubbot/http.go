@@ -21,13 +21,12 @@ type HTTPSrv struct {
 	shouldMention bool
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string, shouldMention bool) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc:           kbc,
-		db:            db,
-		handler:       handler,
-		secret:        secret,
-		shouldMention: shouldMention,
+		kbc:     kbc,
+		db:      db,
+		handler: handler,
+		secret:  secret,
 	}
 	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleCommand,
 		"githubbot", base.Images["logo"], "/githubbot")
@@ -59,7 +58,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin(), h.shouldMention)
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		message = formatIssueMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch, err = getDefaultBranch(repo, github.NewClient(nil))
@@ -70,9 +69,9 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
-			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin(), h.shouldMention)
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
 		} else {
-			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin(), h.shouldMention)
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		}
 		message = formatPRMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
@@ -86,12 +85,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin(), h.shouldMention)
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		message = formatPushMsg(event, author.String())
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.GetSender().GetLogin(), h.shouldMention)
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		repo = event.GetRepo().GetFullName()
 		if len(event.GetCheckSuite().PullRequests) == 0 {
 			// this is a branch test, not associated with a PR
