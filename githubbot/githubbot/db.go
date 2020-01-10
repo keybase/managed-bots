@@ -28,7 +28,7 @@ func (d *DB) CreateSubscription(convID chat1.APIConvID, repo string, branch stri
 			(conv_id, repo, branch, hook_id)
 			VALUES
 			(?, ?, ?, ?)
-		`, base.ShortID(convID), repo, branch, hookID)
+		`, convID, repo, branch, hookID)
 		return err
 	})
 }
@@ -38,7 +38,7 @@ func (d *DB) DeleteSubscription(convID chat1.APIConvID, repo string, branch stri
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ? AND branch = ?)
-		`, base.ShortID(convID), repo, branch)
+		`, convID, repo, branch)
 		return err
 	})
 }
@@ -48,12 +48,12 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.APIConvID, repo string) err
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ?)
-		`, base.ShortID(convID), repo)
+		`, convID, repo)
 		return err
 	})
 }
 
-func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID, err error) {
+func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.APIConvID, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
@@ -64,7 +64,7 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID,
 		return res, err
 	}
 	for rows.Next() {
-		var convID base.ShortID
+		var convID chat1.APIConvID
 		if err := rows.Scan(&convID); err != nil {
 			return res, err
 		}
@@ -79,7 +79,7 @@ func (d *DB) GetSubscriptionExists(convID chat1.APIConvID, repo string, branch s
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
-	`, base.ShortID(convID), repo, branch)
+	`, convID, repo, branch)
 	var rowRes string
 	scanErr := row.Scan(&rowRes)
 	switch scanErr {
@@ -97,7 +97,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.APIConvID, repo string) (
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, base.ShortID(convID), repo)
+	`, convID, repo)
 	var rowRes string
 	err = row.Scan(&rowRes)
 	switch err {
@@ -115,7 +115,7 @@ func (d *DB) GetHookIDForRepo(convID chat1.APIConvID, repo string) (hookID int64
 	SELECT hook_id
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, base.ShortID(convID), repo)
+	`, convID, repo)
 	err = row.Scan(&hookID)
 	if err != nil {
 		return -1, err

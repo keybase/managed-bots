@@ -130,7 +130,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 				Config: map[string]interface{}{
 					"url":          h.httpPrefix + "/githubbot/webhook",
 					"content_type": "json",
-					"secret":       makeSecret(args[0], base.ShortConvID(msg.ConvID), h.secret),
+					"secret":       makeSecret(args[0], msg.ConvID, h.secret),
 				},
 				Events: []string{"*"},
 			})
