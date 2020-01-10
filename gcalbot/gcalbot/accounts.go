@@ -59,13 +59,9 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) accountsConnectHandler(cmd string, msg chat1.MsgSummary) error {
-	args, err := base.ArgumentsFromCmd(cmd, 3)
-	if err != nil {
-		return err
-	}
+func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
 		if err != nil {
 			return fmt.Errorf("error sending message: %s", err)
 		}
@@ -107,13 +103,9 @@ func (h *Handler) accountsConnectHandler(cmd string, msg chat1.MsgSummary) error
 	return nil
 }
 
-func (h *Handler) accountsDisconnectHandler(cmd string, msg chat1.MsgSummary) error {
-	args, err := base.ArgumentsFromCmd(cmd, 3)
-	if err != nil {
-		return err
-	}
+func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
 		if err != nil {
 			return fmt.Errorf("error sending message: %s", err)
 		}

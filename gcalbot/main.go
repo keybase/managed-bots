@@ -41,27 +41,30 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
+const back = "`"
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 
 	accountsConnectDesc := fmt.Sprintf(`Connects a Google account to the Google Calendar bot and stores the connection under a descriptive nickname.
+View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
 !gcal accounts connect personal
 !gcal accounts connect work%s`,
-		backs, backs)
+		back, back, backs, backs)
 
 	accountsDisconnectDesc := fmt.Sprintf(`Disconnects a Google account from the Google Calendar bot given the connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
 !gcal accounts disconnect personal
 !gcal accounts disconnect work%s`,
-		backs, backs)
+		back, back, backs, backs)
 
 	commands := []chat1.UserBotCommandInput{
 		{
-			Name:        "gcal accounts",
+			Name:        "gcal accounts list",
 			Description: "List your connected Google accounts",
 		},
 		{

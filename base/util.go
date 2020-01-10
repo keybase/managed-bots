@@ -213,10 +213,10 @@ func IdentifierFromMsg(msg chat1.MsgSummary) string {
 	}
 }
 
-func ArgumentsFromCmd(cmd string, prefixLength int) (tokens []string, err error) {
+func TokensFromCommand(cmd string) (tokens []string, err error) {
 	tokens, err = shellquote.Split(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("error splitting command string: %s", err)
 	}
-	return tokens[prefixLength:], nil
+	return tokens, nil
 }
