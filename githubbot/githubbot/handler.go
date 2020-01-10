@@ -50,7 +50,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	cmd := strings.TrimSpace(msg.Content.Text.Body)
+	cmd := strings.ToLower(strings.TrimSpace(msg.Content.Text.Body))
 	if !strings.HasPrefix(cmd, "!github") {
 		h.Debug("ignoring non-command message")
 		return nil
@@ -246,25 +246,23 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 		return fmt.Errorf(msg.ConvID, "error splitting command: %s", err)
 	}
 	args := toks[2:]
-	if len(args) != 1 || (args[0] != "stop" && args[0] != "enable") {
-		message = "I don't understand! Try `!github mentions stop` or `!github mentions enable`."
+	if len(args) != 1 || (args[0] != "disable" && args[0] != "enable") {
+		message = "I don't understand! Try `!github mentions disable` or `!github mentions enable`."
 		return nil
 	}
 
-	if args[0] == "enable" {
-		err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: true})
-		if err != nil {
-			return fmt.Errorf("error setting user preference: %s", err)
-		}
-		message = "Okay, you'll be mentioned in GitHub events involving your linked GitHub account."
-		return nil
-	}
-
-	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: false})
+	allowMentions := args[0] == "enable"
+	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: true})
 	if err != nil {
 		return fmt.Errorf("error setting user preference: %s", err)
 	}
-	message = "Okay, you won't be mentioned in future GitHub events."
+
+	if allowMentions {
+		message = "Okay, you'll be mentioned in GitHub events involving your linked GitHub account."
+	} else {
+		message = "Okay, you won't be mentioned in future GitHub events."
+	}
+
 	return
 
 }

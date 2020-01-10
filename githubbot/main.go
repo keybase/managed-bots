@@ -71,7 +71,7 @@ Example:%s
 	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
 
 Examples:%s
-!github mentions stop
+!github mentions disable
 !github mentions enable%s
 	`, backs, backs)
 
@@ -116,7 +116,7 @@ Examples:%s
 			Name:        "github mentions",
 			Description: "Enable or disable mentions in GitHub events for your username.",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github mentions* <stop/enable>`,
+				Title:       `*!github mentions* <disable/enable>`,
 				DesktopBody: mentionsExtended,
 				MobileBody:  mentionsExtended,
 			},

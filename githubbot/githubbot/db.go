@@ -169,12 +169,12 @@ type UserPreferences struct {
 	Mention bool
 }
 
-func (d *DB) GetUserPreferences(username string) (prefs *UserPreferences, err error) {
+func (d *DB) GetUserPreferences(username string) (*UserPreferences, error) {
 	row := d.DB.QueryRow(`SELECT mention
 		FROM user_prefs
 		WHERE username = ?`, username)
-	prefs = &UserPreferences{}
-	err = row.Scan(&prefs.Mention)
+	prefs := &UserPreferences{}
+	err := row.Scan(&prefs.Mention)
 	switch err {
 	case nil:
 		return prefs, nil
