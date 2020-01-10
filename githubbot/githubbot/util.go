@@ -110,15 +110,22 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent, username string) (res stri
 			}
 			pr := suite.PullRequests[0]
 			res = fmt.Sprintf(":white_check_mark: All tests passed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-		case "failure", "timed_out":
+		case "failure", "timed_out", "action_required":
 			if !isPullRequest {
 				res = fmt.Sprintf(":x: Tests failed for %s/%s.", repo, suite.GetHeadBranch())
 				break
 			}
 			pr := suite.PullRequests[0]
 			res = fmt.Sprintf(":x: Tests failed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
+		case "cancelled":
+			if !isPullRequest {
+				res = fmt.Sprintf(":warning: Tests cancelled for %s/%s.", repo, suite.GetHeadBranch())
+				break
+			}
+			pr := suite.PullRequests[0]
+			res = fmt.Sprintf(":warning: Tests cancelled for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
 		}
-		if strings.HasPrefix(username, "@") && isPullRequest {
+		if strings.HasPrefix(username, "@") && isPullRequest && res != "" {
 			res = res + "\n" + username
 		}
 	}
