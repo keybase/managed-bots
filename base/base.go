@@ -165,7 +165,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 		}
 
 		if err := handler.HandleCommand(msg); err != nil {
-			s.Debug("listenForMsgs: unable to HandleCommand: %v", err)
+			s.ChatDebug(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
 		}
 	}
 }

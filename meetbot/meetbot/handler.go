@@ -2,6 +2,7 @@ package meetbot
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -107,12 +108,10 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 	calendarId := "primary"
 	event, err = srv.Events.Insert(calendarId, event).ConferenceDataVersion(1).Do()
 	if err != nil {
-		h.Debug("meetHandler: unable to create event %v", err)
-		return err
+		return fmt.Errorf("meetHandler: unable to create event %s", err)
 	}
 	if err := srv.Events.Delete(calendarId, event.Id).Do(); err != nil {
-		h.Debug("meetHandler: unable to delete event %v", err)
-		return err
+		return fmt.Errorf("meetHandler: unable to delete event %s", err)
 	}
 
 	if confData := event.ConferenceData; confData != nil {

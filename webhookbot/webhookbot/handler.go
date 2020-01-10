@@ -35,51 +35,47 @@ func (h *Handler) formURL(id string) string {
 	return fmt.Sprintf("%s/webhookbot/%s", h.httpPrefix, id)
 }
 
-func (h *Handler) checkAdmin(msg chat1.MsgSummary) bool {
+func (h *Handler) checkAdmin(msg chat1.MsgSummary) (bool, error) {
 	ok, err := base.IsAdmin(h.kbc, msg)
 	if err != nil {
-		h.ChatDebug(msg.ConvID, "handleCreate: failed to check admin: %s", err)
-		return false
+		return false, fmt.Errorf("handleCreate: failed to check admin: %s", err)
 	}
 	if !ok {
-		h.ChatEcho(msg.ConvID, "only admins can administer webhooks")
-		return false
+		return false, fmt.Errorf("only admins can administer webhooks")
 	}
-	return true
+	return true, nil
 }
 
-func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
-		h.ChatDebug(convID, "invalid number of arguments, must specify a name")
-		return
+		return fmt.Errorf("invalid number of arguments, must specify a name")
 	}
-	if !h.checkAdmin(msg) {
-		return
+	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+		return err
 	}
 	name := toks[2]
 	if err := h.db.Remove(name, convID); err != nil {
-		h.ChatDebug(convID, "handleRemove: failed to remove webhook: %s", err)
-		return
+		return fmt.Errorf("handleRemove: failed to remove webhook: %s", err)
 	}
 	h.ChatEcho(convID, "Success!")
+	return nil
 }
 
-func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	hooks, err := h.db.List(convID)
 	if err != nil {
-		h.ChatDebug(convID, "handleList: failed to list hook: %s", err)
-		return
+		return fmt.Errorf("handleList: failed to list hook: %s", err)
 	}
-	if !h.checkAdmin(msg) {
-		return
+	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+		return err
 	}
 
 	if len(hooks) == 0 {
 		h.ChatEcho(convID, "No hooks in this conversation")
-		return
+		return nil
 	}
 	var body string
 	for _, hook := range hooks {
@@ -89,29 +85,29 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) {
 		h.Debug(convID, "handleList: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "List sent to @%s", msg.Sender.Username)
+	return nil
 }
 
-func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
-		h.ChatDebug(convID, "invalid number of arguments, must specify a name")
-		return
+		return fmt.Errorf("invalid number of arguments, must specify a name")
 	}
-	if !h.checkAdmin(msg) {
-		return
+	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+		return err
 	}
 
 	name := toks[2]
 	id, err := h.db.Create(name, convID)
 	if err != nil {
-		h.ChatDebug(convID, "handleCreate: failed to create webhook: %s", err)
-		return
+		return fmt.Errorf("handleCreate: failed to create webhook: %s", err)
 	}
 	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", h.formURL(id)); err != nil {
 		h.Debug(convID, "handleCreate: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "Success! New URL sent to @%s", msg.Sender.Username)
+	return nil
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
@@ -127,11 +123,11 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!webhook create"):
-		h.handleCreate(cmd, msg)
+		return h.handleCreate(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook list"):
-		h.handleList(cmd, msg)
+		return h.handleList(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook remove"):
-		h.handleRemove(cmd, msg)
+		return h.handleRemove(cmd, msg)
 	default:
 		h.Debug("ignoring unknown command: %q", cmd)
 	}

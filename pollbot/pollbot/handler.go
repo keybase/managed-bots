@@ -41,16 +41,14 @@ func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice 
 }
 
 func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, prompt string,
-	options []string) {
+	options []string) error {
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	sendRes, err := h.kbc.SendMessageByConvID(convID, promptBody)
 	if err != nil {
-		h.ChatDebug(convID, "failed to send poll: %s", err)
-		return
+		return fmt.Errorf("failed to send poll: %s", err)
 	}
 	if sendRes.Result.MessageID == nil {
-		h.ChatDebug(convID, "failed to get ID of prompt message")
-		return
+		return fmt.Errorf("failed to get ID of prompt message")
 	}
 	promptMsgID := *sendRes.Result.MessageID
 	var body string
@@ -59,26 +57,23 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
 	if _, err = h.kbc.SendMessageByConvID(convID, body); err != nil {
-		h.ChatDebug(convID, "failed to send choices: %s", err)
-		return
+		return fmt.Errorf("failed to send choices: %s", err)
 	}
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
-		h.ChatDebug(convID, "failed to send poll: %s", err)
-		return
+		return fmt.Errorf("failed to send poll: %s", err)
 	}
 	if sendRes.Result.MessageID == nil {
-		h.ChatDebug(convID, "failed to get ID of result message")
-		return
+		return fmt.Errorf("failed to get ID of result message")
 	}
 	resultMsgID := *sendRes.Result.MessageID
 	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID, len(options)); err != nil {
-		h.ChatDebug(convID, "failed to create poll: %s", err)
-		return
+		return fmt.Errorf("failed to create poll: %s", err)
 	}
+	return nil
 }
 
 func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt string,
-	options []string) {
+	options []string) error {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
 		body += fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option)
@@ -86,12 +81,10 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	body += "Tap a reaction below to register your vote!"
 	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
 	if err != nil {
-		h.ChatDebug(convID, "failed to send poll: %s", err)
-		return
+		return fmt.Errorf("failed to send poll: %s", err)
 	}
 	if sendRes.Result.MessageID == nil {
-		h.ChatDebug(convID, "failed to get ID of prompt message")
-		return
+		return fmt.Errorf("failed to get ID of prompt message")
 	}
 	for index := range options {
 		if _, err := h.kbc.ReactByConvID(convID, *sendRes.Result.MessageID,
@@ -99,30 +92,29 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 			h.ChatDebug(convID, "failed to set reaction option: %s", err)
 		}
 	}
+	return nil
 }
 
-func (h *Handler) handlePoll(cmd, convID string, msgID chat1.MessageID) {
+func (h *Handler) handlePoll(cmd, convID string, msgID chat1.MessageID) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
-		h.ChatDebug(convID, "failed to parse poll command: %s", err)
-		return
+		return fmt.Errorf("failed to parse poll command: %s", err)
 	}
 	var anonymous bool
 	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
 	flags.BoolVar(&anonymous, "anonymous", false, "")
 	if err := flags.Parse(toks[1:]); err != nil {
-		h.ChatDebug(convID, "failed to parse poll command: %s", err)
-		return
+		return fmt.Errorf("failed to parse poll command: %s", err)
 	}
 	args := flags.Args()
 	if len(args) < 2 {
-		h.ChatDebug(convID, "must specify a prompt and at least one option")
+		return fmt.Errorf("must specify a prompt and at least one option")
 	}
 	prompt := args[0]
 	if anonymous {
-		h.generateAnonymousPoll(convID, msgID, prompt, args[1:])
+		return h.generateAnonymousPoll(convID, msgID, prompt, args[1:])
 	} else {
-		h.generatePoll(convID, msgID, prompt, args[1:])
+		return h.generatePoll(convID, msgID, prompt, args[1:])
 	}
 }
 
@@ -157,7 +149,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.ToLower(strings.TrimSpace(msg.Content.Text.Body))
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
-		h.handlePoll(cmd, msg.ConvID, msg.Id)
+		return h.handlePoll(cmd, msg.ConvID, msg.Id)
 	case cmd == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	default:

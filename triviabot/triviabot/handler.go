@@ -61,11 +61,10 @@ func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {
 	h.ChatEcho(convID, "Session stopped")
 }
 
-func (h *Handler) handleTop(convID string) {
+func (h *Handler) handleTop(convID string) error {
 	users, err := h.db.TopUsers(convID)
 	if err != nil {
-		h.ChatDebug(convID, "handleTop: failed to get top users: %s", err)
-		return
+		return fmt.Errorf("handleTop: failed to get top users: %s", err)
 	}
 	var resLines []string
 	if len(users) == 0 {
@@ -76,15 +75,16 @@ func (h *Handler) handleTop(convID string) {
 			index+1, u.username, u.points, u.correct, u.incorrect))
 	}
 	h.ChatEcho(convID, strings.Join(resLines, "\n"))
+	return nil
 }
 
-func (h *Handler) handleReset(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleReset(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	if err := h.db.ResetConv(convID); err != nil {
-		h.ChatDebug(convID, "handleReset: failed to reset: %s", err)
-		return
+		return fmt.Errorf("handleReset: failed to reset: %s", err)
 	}
 	h.ChatEcho(convID, "Leaderboard reset")
+	return nil
 }
 
 func (h *Handler) handleAnswer(convID string, reaction chat1.MessageReaction, sender string) {
@@ -122,9 +122,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!trivia end"):
 		h.handleStop(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
-		h.handleTop(msg.ConvID)
+		return h.handleTop(msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
-		h.handleReset(cmd, msg)
+		return h.handleReset(cmd, msg)
 	default:
 		h.Debug("ignoring unknown command: %q", cmd)
 	}
