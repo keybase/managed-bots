@@ -68,6 +68,13 @@ Example:%s
 !github unwatch facebook/react gh-pages%s
 	`, backs, backs)
 
+	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
+
+Examples:%s
+!github mentions disable
+!github mentions enable%s
+	`, backs, backs)
+
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "github subscribe",
@@ -103,6 +110,15 @@ Example:%s
 				Title:       `*!github unwatch* <username/repo> <branch>`,
 				DesktopBody: unwatchExtended,
 				MobileBody:  unwatchExtended,
+			},
+		},
+		{
+			Name:        "github mentions",
+			Description: "Enable or disable mentions in GitHub events for your username.",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       `*!github mentions* <disable/enable>`,
+				DesktopBody: mentionsExtended,
+				MobileBody:  mentionsExtended,
 			},
 		},
 	}
