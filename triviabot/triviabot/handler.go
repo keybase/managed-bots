@@ -44,7 +44,10 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 	go func() {
 		<-doneCb
 		h.ChatEcho(convID, "Session complete, here are the top players")
-		h.handleTop(convID)
+		err := h.handleTop(convID)
+		if err != nil {
+			h.ChatDebug(msg.ConvID, err.Error())
+		}
 	}()
 }
 
