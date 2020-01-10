@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -21,18 +20,11 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation   string
-	Home              string
-	Announcement      string
+	base.Options
 	HTTPPrefix        string
-	DSN               string
 	Secret            string
 	OAuthClientID     string
 	OAuthClientSecret string
-}
-
-func newOptions() Options {
-	return Options{}
 }
 
 type BotServer struct {
@@ -130,7 +122,7 @@ func (s *BotServer) getSecret() (string, error) {
 		return s.opts.Secret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
-	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
+	cmd := s.opts.Command("fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
@@ -145,7 +137,7 @@ func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err 
 		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
-	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", path)
+	cmd := s.opts.Command("fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
@@ -225,8 +217,7 @@ func main() {
 }
 
 func mainInner() int {
-	opts := newOptions()
-
+	var opts Options
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
 	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),

@@ -15,17 +15,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	DSN             string
-}
-
-func newOptions() Options {
-	return Options{}
-}
-
 type BotServer struct {
 	*base.Server
 
@@ -106,8 +95,7 @@ func main() {
 }
 
 func mainInner() int {
-	opts := newOptions()
-
+	var opts base.Options
 	rand.Seed(time.Now().Unix())
 	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
 	flag.StringVar(&opts.Home, "home", "", "Home directory")
