@@ -21,10 +21,11 @@ import (
 
 type Options struct {
 	base.Options
-	HTTPPrefix        string
-	Secret            string
-	OAuthClientID     string
-	OAuthClientSecret string
+	HTTPPrefix         string
+	Secret             string
+	OAuthClientID      string
+	OAuthClientSecret  string
+	ShouldMentionUsers bool
 }
 
 type BotServer struct {
@@ -199,7 +200,7 @@ func (s *BotServer) Go() (err error) {
 
 	requests := &base.OAuthRequests{}
 	handler := githubbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret, s.opts.ShouldMentionUsers)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -227,6 +228,7 @@ func mainInner() int {
 	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	flag.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	flag.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
+	flag.BoolVar(&opts.ShouldMentionUsers, "at-mention", false, "Enables @mentioning keybase users in bot messages")
 	flag.Parse()
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a poll database DSN\n")

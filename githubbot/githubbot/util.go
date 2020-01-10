@@ -172,8 +172,11 @@ type keybaseID struct {
 	Username string `json:"username"`
 }
 
-func getPossibleKBUser(kbc *kbchat.API, debug *base.DebugOutput, githubUsername string) (u username) {
+func getPossibleKBUser(kbc *kbchat.API, debug *base.DebugOutput, githubUsername string, shouldMention bool) (u username) {
 	u = username{githubUsername: githubUsername}
+	if !shouldMention {
+		return u
+	}
 	id := kbc.Command("id", "-j", fmt.Sprintf("%s@github", githubUsername))
 	output, err := id.Output()
 	if err != nil {
