@@ -47,7 +47,7 @@ func (h *HTTPSrv) showSuccess(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(makeHTMLVoteResult("Vote success!")))
 }
 
-func (h *HTTPSrv) showError(w http.ResponseWriter, msg string) {
+func (h *HTTPSrv) showError(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(makeHTMLVoteResult("Something went wrong, vote not recorded.")))
 }
 
@@ -89,24 +89,24 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 	vote := NewVoteFromEncoded(vstr)
 	if err := h.db.CastVote(username, vote); err != nil {
 		h.Debug("failed to cast vote: %s", err)
-		h.showError(w, err.Error())
+		h.showError(w)
 		return
 	}
 	resultMsgID, numChoices, err := h.db.GetPollInfo(vote.ConvID, vote.MsgID)
 	if err != nil {
 		h.Debug("failed to find poll result msg: %s", err)
-		h.showError(w, err.Error())
+		h.showError(w)
 		return
 	}
 	tally, err := h.db.GetTally(vote.ConvID, vote.MsgID)
 	if err != nil {
 		h.Debug("failed to get tally: %s", err)
-		h.showError(w, err.Error())
+		h.showError(w)
 		return
 	}
 	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, formatTally(tally, numChoices)); err != nil {
 		h.Debug("failed to post result: %s", err)
-		h.showError(w, err.Error())
+		h.showError(w)
 		return
 	}
 	h.showSuccess(w)
