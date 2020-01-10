@@ -85,6 +85,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.accountsDisconnectHandler(cmd, msg)
 	default:
 		h.Debug("ignoring unknown command %q", cmd)
+		// TODO(marcel): send user an error message
 		return nil
 	}
 }
@@ -107,17 +108,31 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 func (h *Handler) accountsConnectHandler(cmd string, msg chat1.MsgSummary) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
+		// TODO(marcel): possibly a better error message
 		h.ChatDebug(msg.ConvID, "error splitting command: %s", err)
 		return nil
 	}
 	args := toks[3:]
 	if len(args) != 1 {
+		// TODO(marcel): possibly a better error message
 		h.ChatDebug(msg.ConvID, "bad args for accounts connect: %s", args)
 		return nil
 	}
 
 	username := msg.Sender.Username
 	accountNickname := args[0]
+
+	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	if err != nil {
+		h.ChatDebug(msg.ConvID, "error checking account: %s", err.Error())
+		return nil
+	}
+	if exists {
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+			"An account connection with the nickname '%s' already exists.", accountNickname)
+		return err
+	}
+
 	// TODO(marcel): is this the best method? adding more columns to the db complicates the existing oauth abstractions
 	identifier := fmt.Sprintf("%s:%s", username, accountNickname)
 	// TODO(marcel): this is very hacky
@@ -131,17 +146,31 @@ func (h *Handler) accountsConnectHandler(cmd string, msg chat1.MsgSummary) error
 func (h *Handler) accountsDisconnectHandler(cmd string, msg chat1.MsgSummary) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
+		// TODO(marcel): possibly a better error message
 		h.ChatDebug(msg.ConvID, "error splitting command: %s", err)
 		return nil
 	}
 	args := toks[3:]
 	if len(args) != 1 {
+		// TODO(marcel): possibly a better error message
 		h.ChatDebug(msg.ConvID, "bad args for accounts connect: %s", args)
 		return nil
 	}
 
 	username := msg.Sender.Username
 	accountNickname := args[0]
+
+	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	if err != nil {
+		h.ChatDebug(msg.ConvID, "error checking account: %s", err.Error())
+		return nil
+	}
+	if !exists {
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+			"No account connection with the nickname '%s' exists.", accountNickname)
+		return err
+	}
+
 	// TODO(marcel): is this the best method? adding more columns to the db complicates the existing oauth abstractions
 	identifier := fmt.Sprintf("%s:%s", username, accountNickname)
 	// TODO(marcel): wrap these into one transcation
