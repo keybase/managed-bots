@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/kballard/go-shellquote"
+
 	"github.com/keybase/go-codec/codec"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -209,4 +211,12 @@ func IdentifierFromMsg(msg chat1.MsgSummary) string {
 	default:
 		return msg.Sender.Username
 	}
+}
+
+func ArgumentsFromCmd(cmd string, prefixLength int) (tokens []string, err error) {
+	tokens, err = shellquote.Split(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("error splitting command string: %s", err)
+	}
+	return tokens[prefixLength:], nil
 }
