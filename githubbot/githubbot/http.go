@@ -85,8 +85,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		message = formatPushMsg(event, author.String())
+		message = formatPushMsg(event, event.GetSender().GetLogin())
 		repo = event.GetRepo().GetFullName()
 		branch = refToName(event.GetRef())
 	case *github.CheckSuiteEvent:
