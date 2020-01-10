@@ -42,6 +42,8 @@ github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 h1:yg56lYPqh9suJe
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123/go.mod h1:r/eVVWCngg6TsFV/3HuS9sWhDkAzGG8mXhiuYA+Z/20=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20200109202707-4b07b012d2a6 h1:SY8vklsRHR2bsHrESJUbJphFaJDvjEeeOpvy/JVqgQY=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20200109202707-4b07b012d2a6/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200110194208-1824df53ad39 h1:YEa1rSTUqqDor6Wc9zVL8z9alMvtPyYzlyC6KXTBdUA=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200110194208-1824df53ad39/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
