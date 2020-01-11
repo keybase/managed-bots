@@ -12,6 +12,7 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
 	"github.com/keybase/managed-bots/base"
 )
 
@@ -65,6 +66,10 @@ func newQuestion(aq apiQuestion) question {
 	}
 }
 
+func (q question) Answer() string {
+	return q.answers[q.correctAnswer]
+}
+
 func (q question) String() (res string) {
 	res = fmt.Sprintf(`*Question:* %s
 Difficulty: %s
@@ -88,14 +93,15 @@ type answer struct {
 type session struct {
 	*base.DebugOutput
 
-	kbc         *kbchat.API
-	db          *DB
-	convID      string
-	curQuestion *question
-	curMsgID    chat1.MessageID
-	answerCh    chan answer
-	stopCh      chan struct{}
-	dupCheck    map[string]bool
+	kbc            *kbchat.API
+	db             *DB
+	convID         string
+	numUsersInConv int
+	curQuestion    *question
+	curMsgID       chat1.MessageID
+	answerCh       chan answer
+	stopCh         chan struct{}
+	dupCheck       map[string]bool
 }
 
 func newSession(kbc *kbchat.API, db *DB, convID string) *session {
@@ -198,8 +204,27 @@ func (s *session) getNextQuestion() error {
 	if len(apiResp.Results) > 0 {
 		q := newQuestion(apiResp.Results[0])
 		s.curQuestion = &q
+		res, err := s.kbc.ListMembersByConvID(s.convID)
+		if err != nil {
+			return err
+		}
+		// ignore bot users here
+		s.numUsersInConv = len(res.Owners) + len(res.Admins) + len(res.Writers) + len(res.Readers)
+		// If we're not a bot member exclude us from the member count.
+		if !s.isBotRole(res) {
+			s.numUsersInConv--
+		}
 	}
 	return nil
+}
+
+func (s *session) isBotRole(members keybase1.TeamMembersDetails) bool {
+	for _, member := range append(members.Bots, members.RestrictedBots...) {
+		if member.Username == s.kbc.GetUsername() {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *session) askQuestion() error {
@@ -256,6 +281,10 @@ func (s *session) regDupe(username string) {
 	s.dupCheck[s.dupKey(username)] = true
 }
 
+func (s *session) numAnswers() int {
+	return len(s.dupCheck)
+}
+
 func (s *session) waitForCorrectAnswer() {
 	timeoutCh := make(chan struct{})
 	doneCh := make(chan struct{})
@@ -288,6 +317,14 @@ func (s *session) waitForCorrectAnswer() {
 				if !isCorrect {
 					s.ChatEcho(s.convID, "Incorrect answer of %s by %s (%d points)",
 						base.NumberToEmoji(answer.selection+1), answer.username, pointAdjust)
+					// If no one else can answer short circuit instead of forcing the timeout
+					if s.numAnswers() >= s.numUsersInConv {
+						s.ChatEcho(s.convID, "Next question!\nCorrect answer was %s *%q*",
+							base.NumberToEmoji(s.curQuestion.correctAnswer+1), s.curQuestion.Answer())
+						s.curQuestion = nil
+						close(doneCh)
+						return
+					}
 				} else {
 					s.ChatEcho(s.convID, "*Correct answer of %s by %s (%d points)*",
 						base.NumberToEmoji(answer.selection+1), answer.username, pointAdjust)
@@ -301,7 +338,8 @@ func (s *session) waitForCorrectAnswer() {
 	}()
 	select {
 	case <-time.After(20 * time.Second):
-		s.ChatEcho(s.convID, "Times up, next question!")
+		s.ChatEcho(s.convID, "Times up, next question!\nCorrect answer was %s *%q*",
+			base.NumberToEmoji(s.curQuestion.correctAnswer+1), s.curQuestion.Answer())
 		close(timeoutCh)
 		return
 	case <-doneCh:
