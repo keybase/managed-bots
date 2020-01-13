@@ -78,6 +78,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 			return h.accountsDisconnectHandler(msg, tokens[3:])
 		}
 		fallthrough
+	case strings.HasPrefix(cmd, "!gcal list-calendars"):
+		return h.handleListCalendars(msg, tokens[2:])
 	default:
 		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Unknown command.")
 		if err != nil {

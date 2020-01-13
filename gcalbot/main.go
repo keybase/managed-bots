@@ -60,7 +60,7 @@ Examples:%s
 !gcal accounts disconnect work%s`,
 		back, back, backs, backs)
 
-	listCalendarsDesc := fmt.Sprintf(`Disconnects a Google account from the Google Calendar bot given the connection's nickname.
+	listCalendarsDesc := fmt.Sprintf(`Lists calendars associated with a Google account given the account connection's nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
