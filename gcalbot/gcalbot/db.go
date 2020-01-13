@@ -17,8 +17,7 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) GetAccountsForUser(username string) (accounts []interface{}, err error) {
-	var account string
+func (d *DB) GetAccountsForUser(username string) (accounts []string, err error) {
 	rows, err := d.DB.Query(`SELECT nickname
 		FROM accounts
 		WHERE username = ?
@@ -29,6 +28,7 @@ func (d *DB) GetAccountsForUser(username string) (accounts []interface{}, err er
 		return nil, err
 	}
 	for rows.Next() {
+		var account string
 		err = rows.Scan(&account)
 		if err != nil {
 			return nil, err

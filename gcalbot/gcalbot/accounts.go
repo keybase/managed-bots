@@ -63,7 +63,12 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	}
 
 	accountListMessage := "Here are your connected accounts:" + strings.Repeat("\n• %s", len(accounts))
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, accountListMessage, accounts...)
+	accountInterfaces := make([]interface{}, len(accounts))
+	for index := range accounts {
+		accountInterfaces[index] = accounts[index]
+	}
+
+	_, err = h.kbc.SendMessageByConvID(msg.ConvID, accountListMessage, accountInterfaces...)
 	if err != nil {
 		return fmt.Errorf("error sending message: %s", err)
 	}
@@ -85,13 +90,8 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
-	}
-	if exists {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-			"An account connection with the nickname '%s' already exists.", accountNickname)
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+	} else if exists {
+		// An account connection with the nickname already exists.
 		return nil
 	}
 
@@ -129,13 +129,8 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
-	}
-	if !exists {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-			"No account connection with the nickname '%s' exists.", accountNickname)
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+	} else if !exists {
+		// No account connection with the nickname exists.
 		return nil
 	}
 
