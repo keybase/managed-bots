@@ -17,7 +17,7 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) RecordAnswer(convID chat1.APIConvID, username string, pointAdjust int, isCorrect bool) error {
+func (d *DB) RecordAnswer(convID chat1.ConvIDStr, username string, pointAdjust int, isCorrect bool) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		correct := 0
 		incorrect := 0
@@ -45,7 +45,7 @@ type topUser struct {
 	incorrect int
 }
 
-func (d *DB) TopUsers(convID chat1.APIConvID) (res []topUser, err error) {
+func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []topUser, err error) {
 	rows, err := d.Query(`
 		SELECT username, points, correct, incorrect
 		FROM leaderboard
@@ -67,7 +67,7 @@ func (d *DB) TopUsers(convID chat1.APIConvID) (res []topUser, err error) {
 	return res, nil
 }
 
-func (d *DB) ResetConv(convID chat1.APIConvID) error {
+func (d *DB) ResetConv(convID chat1.ConvIDStr) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`
 			DELETE FROM leaderboard WHERE conv_id  = ?
@@ -78,7 +78,7 @@ func (d *DB) ResetConv(convID chat1.APIConvID) error {
 	})
 }
 
-func (d *DB) GetAPIToken(convID chat1.APIConvID) (res string, err error) {
+func (d *DB) GetAPIToken(convID chat1.ConvIDStr) (res string, err error) {
 	row := d.QueryRow(`
 		SELECT token FROM tokens where conv_id = ?
 	`, base.ShortConvID(convID))
@@ -88,7 +88,7 @@ func (d *DB) GetAPIToken(convID chat1.APIConvID) (res string, err error) {
 	return res, nil
 }
 
-func (d *DB) SetAPIToken(convID chat1.APIConvID, token string) error {
+func (d *DB) SetAPIToken(convID chat1.ConvIDStr, token string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`
 			REPLACE INTO tokens (conv_id, token) VALUES (?, ?)

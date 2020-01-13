@@ -177,7 +177,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID chat1.APIConvID, create bool, client *github.Client) error {
+func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, client *github.Client) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)

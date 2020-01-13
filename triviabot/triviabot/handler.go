@@ -17,7 +17,7 @@ type Handler struct {
 
 	kbc      *kbchat.API
 	db       *DB
-	sessions map[chat1.APIConvID]*session
+	sessions map[chat1.ConvIDStr]*session
 }
 
 var _ base.Handler = (*Handler)(nil)
@@ -27,7 +27,7 @@ func NewHandler(kbc *kbchat.API, db *DB) *Handler {
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
-		sessions:    make(map[chat1.APIConvID]*session),
+		sessions:    make(map[chat1.ConvIDStr]*session),
 	}
 }
 
@@ -64,7 +64,7 @@ func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {
 	h.ChatEcho(convID, "Session stopped")
 }
 
-func (h *Handler) handleTop(convID chat1.APIConvID) error {
+func (h *Handler) handleTop(convID chat1.ConvIDStr) error {
 	users, err := h.db.TopUsers(convID)
 	if err != nil {
 		return fmt.Errorf("handleTop: failed to get top users: %s", err)
@@ -90,7 +90,7 @@ func (h *Handler) handleReset(cmd string, msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleAnswer(convID chat1.APIConvID, reaction chat1.MessageReaction, sender string) {
+func (h *Handler) handleAnswer(convID chat1.ConvIDStr, reaction chat1.MessageReaction, sender string) {
 	h.Lock()
 	defer h.Unlock()
 	session, ok := h.sessions[convID]

@@ -8,7 +8,7 @@ import (
 )
 
 type Vote struct {
-	ConvID chat1.APIConvID
+	ConvID chat1.ConvIDStr
 	MsgID  chat1.MessageID
 	Choice int
 }
@@ -19,7 +19,7 @@ type voteToEncode struct {
 	Choice int             `codec:"i"`
 }
 
-func NewVote(convID chat1.APIConvID, msgID chat1.MessageID, choice int) Vote {
+func NewVote(convID chat1.ConvIDStr, msgID chat1.MessageID, choice int) Vote {
 	return Vote{
 		ConvID: convID,
 		MsgID:  msgID,
@@ -32,7 +32,7 @@ func NewVoteFromEncoded(sdat string) Vote {
 	dat, _ := base.URLEncoder().DecodeString(sdat)
 	_ = base.MsgpackDecode(&ve, dat)
 	return Vote{
-		ConvID: chat1.APIConvID(hex.EncodeToString(ve.ConvID)),
+		ConvID: chat1.ConvIDStr(hex.EncodeToString(ve.ConvID)),
 		MsgID:  ve.MsgID,
 		Choice: ve.Choice,
 	}

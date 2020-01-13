@@ -96,7 +96,7 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 			s.Debug("announcement success")
 		}
 	}()
-	if _, err := s.kbc.SendMessageByConvID(chat1.APIConvID(announcement), running); err != nil {
+	if _, err := s.kbc.SendMessageByConvID(chat1.ConvIDStr(announcement), running); err != nil {
 		s.Debug("failed to announce self as conv ID: %s", err)
 	} else {
 		return nil

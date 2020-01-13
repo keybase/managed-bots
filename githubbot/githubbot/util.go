@@ -15,7 +15,7 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
-func makeSecret(repo string, convID chat1.APIConvID, secret string) string {
+func makeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(base.ShortConvID(convID))+secret)))
 }
 

@@ -20,7 +20,7 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.APIConvID, repo string, branch string, hookID int64) error {
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64) error {
 	// TODO: ignore dupes with feedback?
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
@@ -33,7 +33,7 @@ func (d *DB) CreateSubscription(convID chat1.APIConvID, repo string, branch stri
 	})
 }
 
-func (d *DB) DeleteSubscription(convID chat1.APIConvID, repo string, branch string) error {
+func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
@@ -43,7 +43,7 @@ func (d *DB) DeleteSubscription(convID chat1.APIConvID, repo string, branch stri
 	})
 }
 
-func (d *DB) DeleteSubscriptionsForRepo(convID chat1.APIConvID, repo string) error {
+func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
@@ -53,7 +53,7 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.APIConvID, repo string) err
 	})
 }
 
-func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.APIConvID, err error) {
+func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
@@ -64,7 +64,7 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.APIConv
 		return res, err
 	}
 	for rows.Next() {
-		var convID chat1.APIConvID
+		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
 			return res, err
 		}
@@ -73,7 +73,7 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.APIConv
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(convID chat1.APIConvID, repo string, branch string) (exists bool, err error) {
+func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
@@ -92,7 +92,7 @@ func (d *DB) GetSubscriptionExists(convID chat1.APIConvID, repo string, branch s
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(convID chat1.APIConvID, repo string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
@@ -110,7 +110,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.APIConvID, repo string) (
 	}
 }
 
-func (d *DB) GetHookIDForRepo(convID chat1.APIConvID, repo string) (hookID int64, err error) {
+func (d *DB) GetHookIDForRepo(convID chat1.ConvIDStr, repo string) (hookID int64, err error) {
 	row := d.DB.QueryRow(`
 	SELECT hook_id
 	FROM subscriptions

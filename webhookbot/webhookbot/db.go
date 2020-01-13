@@ -20,7 +20,7 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) makeID(name string, convID chat1.APIConvID) (string, error) {
+func (d *DB) makeID(name string, convID chat1.ConvIDStr) (string, error) {
 	secret, err := base.RandBytes(16)
 	if err != nil {
 		return "", err
@@ -35,7 +35,7 @@ func (d *DB) makeID(name string, convID chat1.APIConvID) (string, error) {
 	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
-func (d *DB) Create(name string, convID chat1.APIConvID) (string, error) {
+func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
 	id, err := d.makeID(name, convID)
 	if err != nil {
 		return "", err
@@ -66,11 +66,11 @@ func (d *DB) GetHook(id string) (res webhook, err error) {
 
 type webhook struct {
 	id     string
-	convID chat1.APIConvID
+	convID chat1.ConvIDStr
 	name   string
 }
 
-func (d *DB) List(convID chat1.APIConvID) (res []webhook, err error) {
+func (d *DB) List(convID chat1.ConvIDStr) (res []webhook, err error) {
 	rows, err := d.DB.Query(`
 		SELECT id, name FROM hooks WHERE conv_id = ?
 	`, convID)
@@ -89,7 +89,7 @@ func (d *DB) List(convID chat1.APIConvID) (res []webhook, err error) {
 	return res, nil
 }
 
-func (d *DB) Remove(name string, convID chat1.APIConvID) error {
+func (d *DB) Remove(name string, convID chat1.ConvIDStr) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM hooks WHERE conv_id = ? AND name = ?
