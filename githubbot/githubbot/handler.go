@@ -252,7 +252,7 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	}
 
 	allowMentions := args[0] == "enable"
-	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: true})
+	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: allowMentions})
 	if err != nil {
 		return fmt.Errorf("error setting user preference: %s", err)
 	}
