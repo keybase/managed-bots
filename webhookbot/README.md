@@ -18,6 +18,13 @@ In order to run the Webhook bot, there needs to be a running MySQL database in o
    ```
 5. Run `webhookbot --help` for more options.
 
+### Helpful Tips
+
+- If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
+  ```
+  keybase chat api -m '{"method": "clearcommands"}'
+  ```
+
 ### Docker
 
 There are a few complications running a Keybase chat bot, and it is likely easiest to deploy using Docker. See https://hub.docker.com/r/keybaseio/client for our preferred client image to get started.
