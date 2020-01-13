@@ -26,7 +26,7 @@ type OAuthHTTPSrv struct {
 	oauth       *oauth2.Config
 	requests    *OAuthRequests
 	storage     OAuthStorage
-	callback    func(chat1.MsgSummary) error
+	callback    func(msg chat1.MsgSummary, identifier string) error
 	htmlTitle   string
 	htmlLogoB64 string
 	htmlLogoSrc string
@@ -37,7 +37,7 @@ func NewOAuthHTTPSrv(
 	oauth *oauth2.Config,
 	requests *OAuthRequests,
 	storage OAuthStorage,
-	callback func(chat1.MsgSummary) error,
+	callback func(msg chat1.MsgSummary, identifier string) error,
 	htmlTitle string,
 	htmlLogoB64 string,
 	urlPrefix string,
@@ -93,7 +93,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.callback(req.callbackMsg); err != nil {
+	if err = o.callback(req.callbackMsg, req.tokenIdentifier); err != nil {
 		return
 	}
 
@@ -141,8 +141,6 @@ type GetOAuthOpts struct {
 	AllowNonAdminForTeamAuth bool
 	// set the OAuth2 OfflineAccessType (default: false)
 	OAuthOfflineAccessType bool
-	// if the token is not found, don't request new authorization (default: false)
-	SkipAuthentication bool
 	// template for the auth message (default: "Visit %s\n to authorize me.")
 	AuthMessageTemplate string
 	// optional callback which constructs and sends auth URL (default: disabled)
@@ -165,11 +163,6 @@ func GetOAuthClient(
 
 	// we need to request new authorization
 	if token == nil {
-		// skip authentication if specified
-		if opts.SkipAuthentication {
-			return nil, nil
-		}
-
 		// if required, check if the user is an admin before executing auth
 		if !opts.AllowNonAdminForTeamAuth {
 			isAdmin, err := IsAdmin(kbc, callbackMsg)

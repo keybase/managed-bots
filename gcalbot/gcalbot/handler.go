@@ -57,27 +57,12 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	switch {
-	case strings.HasPrefix(cmd, "!gcal accounts"):
-		if !(msg.Sender.Username == msg.Channel.Name) {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, "All `!gcal accounts` commands must be sent over direct message.")
-			if err != nil {
-				return fmt.Errorf("error sending message: %s", err)
-			}
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "Feel free to send me `!gcal accounts` commands here, over direct message.")
-			if err != nil {
-				return fmt.Errorf("error sending message: %s", err)
-			}
-			return nil
-		}
-		switch {
-		case strings.HasPrefix(cmd, "!gcal accounts list"):
-			return h.accountsListHandler(msg)
-		case strings.HasPrefix(cmd, "!gcal accounts connect"):
-			return h.accountsConnectHandler(msg, tokens[3:])
-		case strings.HasPrefix(cmd, "!gcal accounts disconnect"):
-			return h.accountsDisconnectHandler(msg, tokens[3:])
-		}
-		fallthrough
+	case strings.HasPrefix(cmd, "!gcal accounts list"):
+		return h.accountsListHandler(msg)
+	case strings.HasPrefix(cmd, "!gcal accounts connect"):
+		return h.accountsConnectHandler(msg, tokens[3:])
+	case strings.HasPrefix(cmd, "!gcal accounts disconnect"):
+		return h.accountsDisconnectHandler(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal list-calendars"):
 		return h.handleListCalendars(msg, tokens[2:])
 	default:

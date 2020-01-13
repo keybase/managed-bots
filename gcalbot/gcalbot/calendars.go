@@ -23,26 +23,12 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 
 	username := msg.Sender.Username
 	accountNickname := args[0]
-	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
-	if err != nil {
-		return err
-	} else if !exists {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
-			"No account connection with the nickname '%s' exists.", accountNickname)
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
-		return nil
-	}
 
-	identifier := fmt.Sprintf("%s:%s", username, accountNickname)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db, base.GetOAuthOpts{
-		SkipAuthentication: true,
-	})
-	if err != nil {
+	identifier := GetAccountIdentifier(username, accountNickname)
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+		h.getAccountOAuthOpts(msg, accountNickname))
+	if err != nil || client == nil {
 		return err
-	} else if client == nil {
-		return fmt.Errorf("token was not found in storage for identifier '%s'", identifier)
 	}
 
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
