@@ -44,6 +44,10 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
+func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
+	return h.HandleCommand(msg)
+}
+
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")
@@ -63,7 +67,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	identifier := base.IdentifierFromMsg(msg)
 	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to set up GitHub notifications.", base.GetOAuthOpts{})
+		base.GetOAuthOpts{
+			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub notifications.",
+		})
 	if err != nil || tc == nil {
 		return err
 	}

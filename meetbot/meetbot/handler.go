@@ -18,14 +18,14 @@ type Handler struct {
 	*base.DebugOutput
 
 	kbc      *kbchat.API
-	db       *DB
+	db       *base.GoogleOAuthDB
 	requests *base.OAuthRequests
 	config   *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+func NewHandler(kbc *kbchat.API, db *base.GoogleOAuthDB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
@@ -38,6 +38,10 @@ func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *o
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+}
+
+func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
+	return h.HandleCommand(msg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -74,8 +78,10 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 	identifier := base.IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		"Visit %s\n to authorize me to create events.",
-		base.GetOAuthOpts{OAuthOfflineAccessType: true})
+		base.GetOAuthOpts{
+			AuthMessageTemplate:    "Visit %s\n to authorize me to create events.",
+			OAuthOfflineAccessType: true,
+		})
 	if err != nil || client == nil {
 		return err
 	}

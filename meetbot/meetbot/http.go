@@ -17,17 +17,17 @@ type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
 	kbc     *kbchat.API
-	db      *DB
+	db      *base.GoogleOAuthDB
 	handler *Handler
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *base.GoogleOAuthDB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleCommand,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
 		"meetbot", base.Images["logo"], "/meetbot")
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)

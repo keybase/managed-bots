@@ -26,7 +26,7 @@ type OAuthHTTPSrv struct {
 	oauth       *oauth2.Config
 	requests    *OAuthRequests
 	storage     OAuthStorage
-	callback    func(chat1.MsgSummary) error
+	callback    func(msg chat1.MsgSummary, identifier string) error
 	htmlTitle   string
 	htmlLogoB64 string
 	htmlLogoSrc string
@@ -37,7 +37,7 @@ func NewOAuthHTTPSrv(
 	oauth *oauth2.Config,
 	requests *OAuthRequests,
 	storage OAuthStorage,
-	callback func(chat1.MsgSummary) error,
+	callback func(msg chat1.MsgSummary, identifier string) error,
 	htmlTitle string,
 	htmlLogoB64 string,
 	urlPrefix string,
@@ -93,7 +93,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.callback(req.callbackMsg); err != nil {
+	if err = o.callback(req.callbackMsg, req.tokenIdentifier); err != nil {
 		return
 	}
 
@@ -141,6 +141,10 @@ type GetOAuthOpts struct {
 	AllowNonAdminForTeamAuth bool
 	// set the OAuth2 OfflineAccessType (default: false)
 	OAuthOfflineAccessType bool
+	// template for the auth message (default: "Visit %s\n to authorize me.")
+	AuthMessageTemplate string
+	// optional callback which constructs and sends auth URL (default: disabled)
+	AuthURLCallback func(authUrl string) error
 }
 
 func GetOAuthClient(
@@ -150,7 +154,6 @@ func GetOAuthClient(
 	requests *OAuthRequests,
 	config *oauth2.Config,
 	storage OAuthStorage,
-	authMessageTemplate string,
 	opts GetOAuthOpts,
 ) (*http.Client, error) {
 	token, err := storage.GetToken(tokenIdentifier)
@@ -185,16 +188,30 @@ func GetOAuthClient(
 		authURL := config.AuthCodeURL(state, oauthOpts...)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
-		_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
+		if opts.AuthURLCallback != nil {
+			err = opts.AuthURLCallback(authURL)
+		} else {
+			authMessageTemplate := opts.AuthMessageTemplate
+			if authMessageTemplate == "" {
+				authMessageTemplate = "Visit %s\n to authorize me."
+			}
+			_, err = kbc.SendMessageByTlfName(callbackMsg.Sender.Username, authMessageTemplate, authURL)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error sending message: %s", err)
+		}
 
 		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
 		if callbackMsg.Channel.MembersType == "team" || !(callbackMsg.Sender.Username == callbackMsg.Channel.Name ||
 			len(strings.Split(callbackMsg.Channel.Name, ",")) == 2) {
 			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", callbackMsg.Sender.Username)
+			if err != nil {
+				return nil, fmt.Errorf("error sending message: %s", err)
+			}
 		}
 
-		return nil, err
+		return nil, nil
 	}
 
 	return config.Client(context.Background(), token), nil
