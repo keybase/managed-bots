@@ -249,7 +249,7 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
-		return fmt.Errorf(msg.ConvID, "error splitting command: %s", err)
+		return fmt.Errorf("error splitting command: %s", err)
 	}
 	args := toks[2:]
 	if len(args) != 1 || (args[0] != "disable" && args[0] != "enable") {
