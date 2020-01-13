@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/keybase/managed-bots/base"
@@ -56,7 +57,7 @@ func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
 
 func (d *DB) DeleteToken(identifier string) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := d.DB.Exec(`DELETE FROM oauth
+		_, err := tx.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)
 		return err
 	})
@@ -64,6 +65,7 @@ func (d *DB) DeleteToken(identifier string) error {
 }
 
 func (d *DB) GetAccountsForUser(username string) (accounts []interface{}, err error) {
+	var account string
 	rows, err := d.DB.Query(`SELECT nickname
 		FROM accounts
 		WHERE username = ?
@@ -74,7 +76,6 @@ func (d *DB) GetAccountsForUser(username string) (accounts []interface{}, err er
 		return nil, err
 	}
 	for rows.Next() {
-		var account string
 		err = rows.Scan(&account)
 		if err != nil {
 			return nil, err
@@ -104,8 +105,14 @@ func (d *DB) InsertAccountForUser(username string, nickname string) error {
 }
 
 func (d *DB) DeleteAccountForUser(username string, nickname string) error {
+	identifier := fmt.Sprintf("%s:%s", username, nickname)
 	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := d.DB.Exec(`DELETE FROM accounts
+		_, err := tx.Exec(`DELETE FROM oauth
+	WHERE identifier = ?`, identifier)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(`DELETE FROM accounts
 	WHERE username = ? and nickname = ?`, username, nickname)
 		return err
 	})

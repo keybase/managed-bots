@@ -6,8 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+
+	"golang.org/x/oauth2"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -20,11 +21,8 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	DSN             string
-	KBFSRoot        string
+	base.Options
+	KBFSRoot string
 }
 
 type BotServer struct {
@@ -62,6 +60,14 @@ Examples:%s
 !gcal accounts disconnect work%s`,
 		back, back, backs, backs)
 
+	listCalendarsDesc := fmt.Sprintf(`Disconnects a Google account from the Google Calendar bot given the connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+
+Examples:%s
+!gcal list-calendars personal
+!gcal list-calendars work%s`,
+		back, back, backs, backs)
+
 	commands := []chat1.UserBotCommandInput{
 		{
 			Name:        "gcal accounts list",
@@ -87,6 +93,17 @@ Examples:%s
 				MobileBody:  accountsDisconnectDesc,
 			},
 		},
+
+		{
+			Name:        "gcal list-calendars",
+			Description: "List calendars that a Google account is subscribed to",
+			Usage:       "<account nickname>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal list-calendars* <account nickname>",
+				DesktopBody: listCalendarsDesc,
+				MobileBody:  listCalendarsDesc,
+			},
+		},
 	}
 
 	return kbchat.Advertisement{
@@ -100,23 +117,32 @@ Examples:%s
 	}
 }
 
-func (s *BotServer) Go() (err error) {
+func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	if len(s.opts.KBFSRoot) == 0 {
-		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
-	cmd := exec.Command(s.opts.KeybaseLocation, "fs", "read", configPath)
+	cmd := s.opts.Command("fs", "read", configPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not read credentials.json: %v", err)
+		return nil, fmt.Errorf("could not read credentials.json: %v", err)
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
 	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope)
 	if err != nil {
-		return fmt.Errorf("unable to parse client secret file to config: %v", err)
+		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
+	}
+
+	return config, nil
+}
+
+func (s *BotServer) Go() (err error) {
+	config, err := s.getOAuthConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get config %v", err)
 	}
 
 	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {

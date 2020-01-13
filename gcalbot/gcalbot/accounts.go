@@ -12,19 +12,19 @@ import (
 
 func (h *Handler) HandleAuth(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
-	toks, err := shellquote.Split(cmd)
+	tokens, err := shellquote.Split(cmd)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error splitting command: %s", err)
 		return nil
 	}
-	args := toks[3:]
-	if len(args) != 1 {
-		h.ChatDebug(msg.ConvID, "bad args for accounts connect: %s", args)
+
+	if !strings.HasPrefix(cmd, "!gcal accounts connect") || len(tokens) != 4 {
+		h.ChatDebug(msg.ConvID, "invalid command: %s", cmd)
 		return nil
 	}
 
 	username := msg.Sender.Username
-	accountNickname := args[0]
+	accountNickname := tokens[3]
 	err = h.db.InsertAccountForUser(username, accountNickname)
 	if err != nil {
 		h.ChatDebug(msg.ConvID, "error connecting account %s", accountNickname)
@@ -32,7 +32,10 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary) error {
 	}
 
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Account '%s' has been connected.", accountNickname)
-	return err
+	if err != nil {
+		return fmt.Errorf("error sending message: %s", err)
+	}
+	return nil
 }
 
 func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
@@ -84,7 +87,6 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	// TODO(marcel): is this the best method? adding more columns to the db complicates the existing oauth abstractions
 	identifier := fmt.Sprintf("%s:%s", username, accountNickname)
 
 	authURLCallback := func(authURL string) error {
@@ -128,13 +130,6 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 		return nil
 	}
 
-	// TODO(marcel): is this the best method? adding more columns to the db complicates the existing oauth abstractions
-	identifier := fmt.Sprintf("%s:%s", username, accountNickname)
-	// TODO(marcel): wrap these into one transcation
-	err = h.db.DeleteToken(identifier)
-	if err != nil {
-		return err
-	}
 	err = h.db.DeleteAccountForUser(username, accountNickname)
 	if err != nil {
 		return err

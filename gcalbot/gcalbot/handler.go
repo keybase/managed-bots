@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kballard/go-shellquote"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -32,7 +34,7 @@ func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *o
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
+	welcomeMsg := "Hello! I can get you setup with Google Calendar anytime, just send me `!gcal accounts connect <account nickname>`."
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
@@ -48,9 +50,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	tokens, err := base.TokensFromCommand(cmd)
+	tokens, err := shellquote.Split(cmd)
 	if err != nil {
-		return err
+		// TODO(marcel): send better error message to user
+		return fmt.Errorf("error splitting command string: %s", err)
 	}
 
 	switch {
