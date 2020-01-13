@@ -2,7 +2,6 @@ package gcalbot
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/keybase/managed-bots/base"
 )
@@ -58,7 +57,7 @@ func (d *DB) InsertAccountForUser(username string, nickname string) error {
 }
 
 func (d *DB) DeleteAccountForUser(username string, nickname string) error {
-	identifier := fmt.Sprintf("%s:%s", username, nickname)
+	identifier := GetAccountIdentifier(username, nickname)
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)
