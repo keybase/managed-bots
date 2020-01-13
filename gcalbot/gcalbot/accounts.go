@@ -10,30 +10,36 @@ import (
 	"github.com/keybase/managed-bots/base"
 )
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary) error {
+func (h *Handler) HandleAuth(msg chat1.MsgSummary) (err error) {
+	defer func() {
+		if err != nil {
+			if _, err := h.kbc.SendMessageByConvID(msg.ConvID, "Something went wrong!"); err != nil {
+				h.Debug("failed to send error message: %s", err)
+			}
+		}
+	}()
+
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	tokens, err := shellquote.Split(cmd)
 	if err != nil {
-		h.ChatDebug(msg.ConvID, "error splitting command: %s", err)
-		return nil
+		return fmt.Errorf("error splitting command: %s", err)
 	}
 
 	if !strings.HasPrefix(cmd, "!gcal accounts connect") || len(tokens) != 4 {
-		h.ChatDebug(msg.ConvID, "invalid command: %s", cmd)
-		return nil
+		return fmt.Errorf("invalid command: %s", cmd)
 	}
 
 	username := msg.Sender.Username
 	accountNickname := tokens[3]
 	err = h.db.InsertAccountForUser(username, accountNickname)
 	if err != nil {
-		h.ChatDebug(msg.ConvID, "error connecting account %s", accountNickname)
-		return err
+		return fmt.Errorf("error connecting account '%s': %s", accountNickname, err)
 	}
 
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Account '%s' has been connected.", accountNickname)
 	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
+		h.Debug("error sending message: %s", err)
+		return nil // no need to display an error on the web page, the account was successfully connected
 	}
 	return nil
 }
@@ -42,8 +48,7 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
 	accounts, err := h.db.GetAccountsForUser(username)
 	if err != nil {
-		h.ChatDebug(msg.ConvID, "error fetching accounts from database %q", err)
-		return nil
+		return fmt.Errorf("error fetching accounts from database %q", err)
 	}
 
 	if len(accounts) == 0 {
