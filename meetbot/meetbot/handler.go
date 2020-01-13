@@ -18,14 +18,14 @@ type Handler struct {
 	*base.DebugOutput
 
 	kbc      *kbchat.API
-	db       *DB
+	db       *base.GoogleOAuthDB
 	requests *base.OAuthRequests
 	config   *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+func NewHandler(kbc *kbchat.API, db *base.GoogleOAuthDB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,

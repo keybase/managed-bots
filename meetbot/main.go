@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"golang.org/x/oauth2"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/oauth2"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -92,7 +93,7 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
-	db := meetbot.NewDB(sdb)
+	db := base.NewGoogleOAuthDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Debug("advertise error: %s", err)
 		return err

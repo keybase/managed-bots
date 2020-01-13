@@ -17,11 +17,11 @@ type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
 	kbc     *kbchat.API
-	db      *DB
+	db      *base.GoogleOAuthDB
 	handler *Handler
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *base.GoogleOAuthDB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
