@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"google.golang.org/api/googleapi"
-
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
@@ -19,8 +17,8 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		// Sync header, safe to ignore
 		return
 	}
-	// channel := r.Header.Get("X-Goog-Channel-Id")
-	// resource := r.Header.Get("X-Goog-Resource-Id")
+	//channel := r.Header.Get("X-Goog-Channel-Id")
+	//resource := r.Header.Get("X-Goog-Resource-Id")
 	// TODO(marcel): do something with this
 }
 
@@ -33,7 +31,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	if len(args) != 2 {
+	if len(args) != 1 {
 		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
 		if err != nil {
 			return fmt.Errorf("error sending message: %s", err)
@@ -43,7 +41,6 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 
 	username := msg.Sender.Username
 	accountNickname := args[0]
-	calendarID := args[1]
 	identifier := GetAccountIdentifier(username, accountNickname)
 
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
@@ -57,31 +54,28 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	requestID, err := base.MakeRequestID()
+	primaryCalendar, err := getPrimaryCalendar(srv)
 	if err != nil {
 		return err
 	}
 
-	_, err = srv.Events.Watch(calendarID, &calendar.Channel{
+	// TODO(marcel): store (possibly persist?) channelID
+	channelID, err := base.MakeRequestID()
+	if err != nil {
+		return err
+	}
+
+	_, err = srv.Events.Watch(primaryCalendar.Id, &calendar.Channel{
 		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.baseURL),
-		Id:      requestID,
+		Id:      channelID,
 		Type:    "web_hook",
 	}).Do()
 	if err != nil {
-		switch googleErr := err.(type) {
-		case *googleapi.Error:
-			if googleErr.Code == 404 {
-				_, err = h.kbc.SendMessageByConvID(msg.ConvID, "No calendar with ID '%s' was found.", calendarID)
-				if err != nil {
-					return fmt.Errorf("error sending message: %s", err)
-				}
-				return nil
-			}
-		}
 		return err
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "OK, you will be notified of event invites from now on.")
+	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+		"OK, you will be notified of event invites for your primary calendar '%s' from now on.", primaryCalendar.Summary)
 	if err != nil {
 		return fmt.Errorf("error sending message: %s", err)
 	}
