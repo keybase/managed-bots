@@ -30,21 +30,20 @@ type Server struct {
 	*DebugOutput
 	sync.Mutex
 
-	shutdownCh         chan struct{}
-	announcement       string
-	awsRegion          string
-	cloudwatchlogGroup string
-	kbc                *kbchat.API
-	botAdmins          []string
+	shutdownCh chan struct{}
+
+	announcement string
+	awsOpts      *AWSOptions
+	kbc          *kbchat.API
+	botAdmins    []string
 }
 
-func NewServer(announcement, awsRegion, cloudwatchlogGroup string) *Server {
+func NewServer(announcement string, awsOpts *AWSOptions) *Server {
 	return &Server{
-		announcement:       announcement,
-		awsRegion:          awsRegion,
-		cloudwatchlogGroup: cloudwatchlogGroup,
-		botAdmins:          DefaultBotAdmins,
-		shutdownCh:         make(chan struct{}),
+		announcement: announcement,
+		awsOpts:      awsOpts,
+		botAdmins:    DefaultBotAdmins,
+		shutdownCh:   make(chan struct{}),
 	}
 }
 
@@ -300,13 +299,12 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	if s.awsRegion == "" || s.cloudwatchlogGroup == "" {
-		return fmt.Errorf("AWS not properly configured. region: %q, logGroup: %q",
-			s.awsRegion, s.cloudwatchlogGroup)
+	if s.awsOpts == nil {
+		return fmt.Errorf("AWS not properly configured")
 	}
 
 	s.ChatEcho(msg.ConvID, "fetching logs from cloud watch")
-	logs, err := GetLatestCloudwatchLogs(s.awsRegion, s.cloudwatchlogGroup)
+	logs, err := GetLatestCloudwatchLogs(s.awsOpts.AWSRegion, s.awsOpts.CloudWatchLogGroup)
 	if err != nil {
 		return err
 	}
