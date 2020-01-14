@@ -57,9 +57,10 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 		} else {
 			data = append(data, calendarItem.Summary)
 		}
+		data = append(data, calendarItem.Id)
 	}
 
-	calendarListMessage := "Here are the calendars associated with the account '%s':" + strings.Repeat("\n• %s", len(calendarList.Items))
+	calendarListMessage := "Here are the calendars associated with the account '%s':" + strings.Repeat("\n• %s - %s", len(calendarList.Items))
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID, calendarListMessage, data...)
 	if err != nil {
 		return fmt.Errorf("error sending message: %s", err)

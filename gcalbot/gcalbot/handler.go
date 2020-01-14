@@ -19,17 +19,25 @@ type Handler struct {
 	db       *DB
 	requests *base.OAuthRequests
 	config   *oauth2.Config
+	baseURL  string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+func NewHandler(
+	kbc *kbchat.API,
+	db *DB,
+	requests *base.OAuthRequests,
+	config *oauth2.Config,
+	baseURL string,
+) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
 		requests:    requests,
 		config:      config,
+		baseURL:     baseURL,
 	}
 }
 
@@ -65,6 +73,14 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.accountsDisconnectHandler(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal list-calendars"):
 		return h.handleListCalendars(msg, tokens[2:])
+	case strings.HasPrefix(cmd, "!gcal subscribe invites"):
+		return h.handleSubscribeInvites(msg, tokens[3:])
+	default:
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Unknown command.")
+		if err != nil {
+			h.Debug("error sending message: %s", err)
+		}
+		return nil
 	}
 	return nil
 }

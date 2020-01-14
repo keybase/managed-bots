@@ -23,6 +23,7 @@ import (
 type Options struct {
 	*base.Options
 	KBFSRoot string
+	BaseURL  string
 }
 
 func NewOptions() *Options {
@@ -110,6 +111,17 @@ Examples:%s
 				MobileBody:  listCalendarsDesc,
 			},
 		},
+
+		{
+			Name:        "gcal subscribe invites",
+			Description: "TODO",
+			Usage:       "<account nickname> <calendar id>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal subscribe invites* <account nickname> <calendar id>",
+				DesktopBody: "TODO",
+				MobileBody:  "TODO",
+			},
+		},
 	}
 
 	return kbchat.Advertisement{
@@ -137,7 +149,7 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope)
+	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope, calendar.CalendarEventsScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
@@ -170,7 +182,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := gcalbot.NewHandler(s.kbc, db, requests, config)
+	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.BaseURL)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
@@ -192,6 +204,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
+	fs.StringVar(&opts.BaseURL, "base-url", os.Getenv("BOT_BASE_URL"), "base url of the bot's web server")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
@@ -201,6 +214,7 @@ func mainInner() int {
 		return 3
 	}
 	bs := NewBotServer(*opts)
+
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err)
 		return 3
