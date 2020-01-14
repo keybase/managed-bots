@@ -95,19 +95,14 @@ func main() {
 }
 
 func mainInner() int {
-	var opts base.Options
 	rand.Seed(time.Now().Unix())
-	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
-	flag.StringVar(&opts.Home, "home", "", "Home directory")
-	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
-		"Where to announce we are running")
-	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Trivia database DSN")
-	flag.Parse()
-	if len(opts.DSN) == 0 {
-		fmt.Printf("must specify a trivia database DSN\n")
+
+	opts := &base.Options{}
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}
-	bs := NewBotServer(opts)
+	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err)
 	}

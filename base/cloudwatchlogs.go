@@ -8,21 +8,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 )
 
-func GetSession(region string) (sess *session.Session, err error) {
-	if sess, err = session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	}); err != nil {
-		return nil, err
-	}
-	return sess, nil
-}
-
 func GetLatestCloudwatchLogs(region string, logGroupName string) ([]string, error) {
-	session, err := GetSession(region)
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(region),
+	})
 	if err != nil {
 		return nil, err
 	}
-	svc := cloudwatchlogs.New(session)
+	svc := cloudwatchlogs.New(sess)
 
 	streamsIn := new(cloudwatchlogs.DescribeLogStreamsInput).SetDescending(
 		true).SetLimit(1).SetLogGroupName(logGroupName).SetOrderBy("LastEventTime")
@@ -55,7 +48,10 @@ func GetLatestCloudwatchLogs(region string, logGroupName string) ([]string, erro
 
 	res := make([]string, 0, len(eventOut.Events))
 	for _, event := range eventOut.Events {
-		res = append(res, event.String())
+		if event == nil || event.Message == nil || *event.Message == "" {
+			continue
+		}
+		res = append(res, *event.Message)
 	}
 	return res, nil
 }

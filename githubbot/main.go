@@ -233,24 +233,19 @@ func main() {
 }
 
 func mainInner() int {
-	var opts Options
-	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
-	flag.StringVar(&opts.Home, "home", "", "Home directory")
-	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
-		"Where to announce we are running")
-	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
-	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
-	flag.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
-	flag.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
-	flag.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
-	flag.Parse()
-	if len(opts.DSN) == 0 {
-		fmt.Printf("must specify a poll database DSN\n")
+	opts := &Options{}
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
+	fs.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
+	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
+	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}
-	bs := NewBotServer(opts)
+	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %v\n", err)
+		return 3
 	}
 	return 0
 }

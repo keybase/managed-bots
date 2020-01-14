@@ -294,7 +294,7 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 	}
 
 	s.ChatEcho(msg.ConvID, "fetching logs from cloud watch")
-	logs, err := GetLatestCloudwatchLogs("/ecs/meetbot", "us-east-1")
+	logs, err := GetLatestCloudwatchLogs("us-east-1", "/ecs/meetbot")
 	if err != nil {
 		return err
 	}

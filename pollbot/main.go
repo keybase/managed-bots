@@ -124,20 +124,14 @@ func main() {
 }
 
 func mainInner() int {
-	var opts Options
-	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
-	flag.StringVar(&opts.Home, "home", "", "Home directory")
-	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
-		"Where to announce we are running")
-	flag.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
-	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "Poll database DSN")
-	flag.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
-	flag.Parse()
-	if len(opts.DSN) == 0 {
-		fmt.Printf("must specify a poll database DSN\n")
+	opts := &Options{}
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
+	fs.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
+	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}
-	bs := NewBotServer(opts)
+	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %v\n", err)
 	}
