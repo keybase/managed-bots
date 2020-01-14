@@ -156,6 +156,11 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 					s.Debug("listenForMsgs: unable to handleLogSend: %v", err)
 				}
 				continue
+			case strings.HasPrefix(cmd, "!botlog"):
+				if err := s.handleBotLogs(msg); err != nil {
+					s.Debug("listenForMsgs: unable to handleBotLogs: %v", err)
+				}
+				continue
 			case strings.HasPrefix(cmd, "!pprof"):
 				if err := s.handlePProf(msg); err != nil {
 					s.Debug("listenForMsgs: unable to handlePProf: %v", err)
@@ -278,5 +283,21 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 			s.ChatDebugFull(msg.ConvID, "unable to send attachment profile: %v", err)
 		}
 	}()
+	return nil
+}
+
+func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
+	sender := msg.Sender.Username
+	if !s.allowHiddenCommand(msg) {
+		s.Debug("ignoring bot log request from @%s, botAdmins: %v", sender, s.botAdmins)
+		return nil
+	}
+
+	s.ChatEcho(msg.ConvID, "fetching logs from cloud watch")
+	logs, err := GetLatestCloudwatchLogs("/ecs/meetbot", "us-east-1")
+	if err != nil {
+		return err
+	}
+	s.ChatDebugFull(msg.ConvID, "log send output: ```%v```", strings.Join(logs, "\n"))
 	return nil
 }
