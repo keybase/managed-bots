@@ -97,9 +97,13 @@ func main() {
 func mainInner() int {
 	rand.Seed(time.Now().Unix())
 
-	opts := &base.Options{}
+	opts := base.NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	if err := opts.Parse(fs, os.Args); err != nil {
+		return 3
+	}
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}
 	bs := NewBotServer(*opts)

@@ -20,11 +20,17 @@ import (
 )
 
 type Options struct {
-	base.Options
+	*base.Options
 	HTTPPrefix        string
 	Secret            string
 	OAuthClientID     string
 	OAuthClientSecret string
+}
+
+func NewOptions() *Options {
+	return &Options{
+		Options: base.NewOptions(),
+	}
 }
 
 type BotServer struct {
@@ -233,13 +239,17 @@ func main() {
 }
 
 func mainInner() int {
-	opts := &Options{}
+	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	fs.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		return 3
+	}
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}
 	bs := NewBotServer(*opts)

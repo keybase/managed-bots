@@ -21,8 +21,14 @@ import (
 )
 
 type Options struct {
-	base.Options
+	*base.Options
 	KBFSRoot string
+}
+
+func NewOptions() *Options {
+	return &Options{
+		Options: base.NewOptions(),
+	}
 }
 
 type BotServer struct {
@@ -184,10 +190,14 @@ func main() {
 }
 
 func mainInner() int {
-	opts := &Options{}
+	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		return 3
+	}
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}
 	bs := NewBotServer(*opts)

@@ -15,9 +15,15 @@ import (
 )
 
 type Options struct {
-	base.Options
+	*base.Options
 	HTTPPrefix  string
 	LoginSecret string
+}
+
+func NewOptions() *Options {
+	return &Options{
+		Options: base.NewOptions(),
+	}
 }
 
 type BotServer struct {
@@ -124,11 +130,15 @@ func main() {
 }
 
 func mainInner() int {
-	opts := &Options{}
+	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "")
 	fs.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		return 3
+	}
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}
 	bs := NewBotServer(*opts)

@@ -22,6 +22,12 @@ type Options struct {
 	AWSOpts         *AWSOptions
 }
 
+func NewOptions() *Options {
+	return &Options{
+		AWSOpts: &AWSOptions{},
+	}
+}
+
 func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	if len(argv) <= 1 {
 		return fmt.Errorf("Bad usage: no arguments specified")
@@ -31,16 +37,10 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
-	if o.AWSOpts == nil {
-		o.AWSOpts = &AWSOptions{}
-	}
 	fs.StringVar(&o.AWSOpts.AWSRegion, "aws-region", os.Getenv("BOT_DSN"), "AWS region for cloudwatch logs, optional")
 	fs.StringVar(&o.AWSOpts.CloudWatchLogGroup, "cloudwatch-log-group", os.Getenv("BOT_CLOUDWATCH_LOG_GROUP"), "Cloudwatch log group name, optional")
 	if err := fs.Parse(argv[1:]); err != nil {
 		return err
-	}
-	if len(o.DSN) == 0 {
-		return fmt.Errorf("must specify a database DSN\n")
 	}
 	return nil
 
