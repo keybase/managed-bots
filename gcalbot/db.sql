@@ -18,3 +18,13 @@ CREATE TABLE `oauth` (
   `expiry` datetime NOT NULL,
   PRIMARY KEY (`identifier`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `subscriptions`;
+
+CREATE TABLE `subscriptions` (
+    `username` varchar(128) NOT NULL,
+    `nickname` varchar(128) NOT NULL,
+    `calendar` varchar(128) NOT NULL,
+    `type` ENUM('invites', 'updates', 'notifications') NOT NULL,
+    PRIMARY KEY(`username`, `nickname`, `calendar`, `type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

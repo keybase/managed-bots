@@ -15,11 +15,12 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	kbc      *kbchat.API
-	db       *DB
-	requests *base.OAuthRequests
-	config   *oauth2.Config
-	baseURL  string
+	kbc             *kbchat.API
+	db              *DB
+	requests        *base.OAuthRequests
+	webhookChannels *WebhookChannels
+	config          *oauth2.Config
+	baseURL         string
 }
 
 var _ base.Handler = (*Handler)(nil)
@@ -28,16 +29,18 @@ func NewHandler(
 	kbc *kbchat.API,
 	db *DB,
 	requests *base.OAuthRequests,
+	webhookChannels *WebhookChannels,
 	config *oauth2.Config,
 	baseURL string,
 ) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
-		kbc:         kbc,
-		db:          db,
-		requests:    requests,
-		config:      config,
-		baseURL:     baseURL,
+		DebugOutput:     base.NewDebugOutput("Handler", kbc),
+		kbc:             kbc,
+		db:              db,
+		requests:        requests,
+		webhookChannels: webhookChannels,
+		config:          config,
+		baseURL:         baseURL,
 	}
 }
 
