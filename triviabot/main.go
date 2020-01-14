@@ -24,7 +24,7 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement),
+		Server: base.NewServer(opts.Announcement, opts.AWSRegion, opts.CloudWatchLogGroup),
 		opts:   opts,
 	}
 }

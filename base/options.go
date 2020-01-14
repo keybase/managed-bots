@@ -10,10 +10,12 @@ import (
 )
 
 type Options struct {
-	KeybaseLocation string
-	Home            string
-	Announcement    string
-	DSN             string
+	KeybaseLocation    string
+	Home               string
+	Announcement       string
+	DSN                string
+	AWSRegion          string
+	CloudWatchLogGroup string
 }
 
 func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
@@ -25,6 +27,8 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
 		"Where to announce we are running")
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
+	fs.StringVar(&o.AWSRegion, "aws-region", os.Getenv("BOT_DSN"), "AWS region for cloudwatch logs, optional")
+	fs.StringVar(&o.CloudWatchLogGroup, "cloudwatch-log-group", os.Getenv("BOT_CLOUDWATCH_LOG_GROUP"), "Cloudwatch log group name, optional")
 	if err := fs.Parse(argv[1:]); err != nil {
 		return err
 	}

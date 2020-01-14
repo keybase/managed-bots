@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -29,18 +30,26 @@ type Server struct {
 	*DebugOutput
 	sync.Mutex
 
-	shutdownCh   chan struct{}
-	announcement string
-	kbc          *kbchat.API
-	botAdmins    []string
+	shutdownCh         chan struct{}
+	announcement       string
+	awsRegion          string
+	cloudwatchlogGroup string
+	kbc                *kbchat.API
+	botAdmins          []string
 }
 
-func NewServer(announcement string) *Server {
+func NewServer(announcement, awsRegion, cloudwatchlogGroup string) *Server {
 	return &Server{
-		announcement: announcement,
-		botAdmins:    DefaultBotAdmins,
-		shutdownCh:   make(chan struct{}),
+		announcement:       announcement,
+		awsRegion:          awsRegion,
+		cloudwatchlogGroup: cloudwatchlogGroup,
+		botAdmins:          DefaultBotAdmins,
+		shutdownCh:         make(chan struct{}),
 	}
+}
+
+func (s *Server) SetBotAdmins(admins []string) {
+	s.botAdmins = admins
 }
 
 func (s *Server) Shutdown() error {
@@ -70,10 +79,6 @@ func (s *Server) HandleSignals(shutdowner Shutdowner) (err error) {
 		}
 	}
 	return nil
-}
-
-func (s *Server) SetBotAdmins(admins []string) {
-	s.botAdmins = admins
 }
 
 func (s *Server) Start(keybaseLoc, home string) (kbc *kbchat.API, err error) {
@@ -153,17 +158,17 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 			switch {
 			case strings.HasPrefix(cmd, "!logsend"):
 				if err := s.handleLogSend(msg); err != nil {
-					s.Debug("listenForMsgs: unable to handleLogSend: %v", err)
+					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handleLogSend: %v", err)
 				}
 				continue
 			case strings.HasPrefix(cmd, "!botlog"):
 				if err := s.handleBotLogs(msg); err != nil {
-					s.Debug("listenForMsgs: unable to handleBotLogs: %v", err)
+					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handleBotLogs: %v", err)
 				}
 				continue
 			case strings.HasPrefix(cmd, "!pprof"):
 				if err := s.handlePProf(msg); err != nil {
-					s.Debug("listenForMsgs: unable to handlePProf: %v", err)
+					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
 			}
@@ -206,14 +211,15 @@ func (s *Server) allowHiddenCommand(msg chat1.MsgSummary) bool {
 }
 
 func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
-	sender := msg.Sender.Username
 	if !s.allowHiddenCommand(msg) {
-		s.Debug("ignoring log send from @%s, botAdmins: %v", sender, s.botAdmins)
+		s.Debug("ignoring log send from @%s, botAdmins: %v",
+			msg.Sender.Username, s.botAdmins)
 		return nil
 	}
 
 	s.ChatEcho(msg.ConvID, "starting a log send...")
-	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback", fmt.Sprintf("managed-bot log requested by @%s", sender))
+	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback",
+		fmt.Sprintf("managed-bot log requested by @%s", msg.Sender.Username))
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		s.ChatDebugFull(msg.ConvID, "unable to get output pipe: %v", err)
@@ -240,7 +246,8 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 
 func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 	if !s.allowHiddenCommand(msg) {
-		s.Debug("ignoring pprof from @%s, botAdmins: %v", msg.Sender.Username, s.botAdmins)
+		s.Debug("ignoring pprof from @%s, botAdmins: %v",
+			msg.Sender.Username, s.botAdmins)
 		return nil
 	}
 
@@ -287,17 +294,41 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 }
 
 func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
-	sender := msg.Sender.Username
 	if !s.allowHiddenCommand(msg) {
-		s.Debug("ignoring bot log request from @%s, botAdmins: %v", sender, s.botAdmins)
+		s.Debug("ignoring bot log request from @%s, botAdmins: %v",
+			msg.Sender.Username, s.botAdmins)
 		return nil
 	}
 
+	if s.awsRegion == "" || s.cloudwatchlogGroup == "" {
+		return fmt.Errorf("AWS not properly configured. region: %q, logGroup: %q",
+			s.awsRegion, s.cloudwatchlogGroup)
+	}
+
 	s.ChatEcho(msg.ConvID, "fetching logs from cloud watch")
-	logs, err := GetLatestCloudwatchLogs("us-east-1", "/ecs/meetbot")
+	logs, err := GetLatestCloudwatchLogs(s.awsRegion, s.cloudwatchlogGroup)
 	if err != nil {
 		return err
 	}
-	s.ChatDebugFull(msg.ConvID, "log send output: ```%v```", strings.Join(logs, "\n"))
+	tld := "private"
+	if msg.Channel.MembersType == "team" {
+		tld = "team"
+	}
+
+	folder := fmt.Sprintf("/keybase/%s/%s/botlogs", tld, msg.Channel.Name)
+	if err := exec.Command("keybase", "fs", "mkdir", folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to make directory: %s", err)
+	}
+	fileName := fmt.Sprintf("botlogs-%d.txt", time.Now().Unix())
+	filePath := fmt.Sprintf("/tmp/%s", fileName)
+	defer os.Remove(filePath)
+	if err := ioutil.WriteFile(filePath, []byte(strings.Join(logs, "\n")), 0644); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to write log output: %s", err)
+	}
+	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to move log output: %s", err)
+	}
+	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
+	s.ChatEcho(msg.ConvID, "log output: %s", destFilePath)
 	return nil
 }

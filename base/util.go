@@ -16,7 +16,6 @@ var DefaultBotAdmins = []string{
 	"joshblum",
 	"mikem",
 	"01",
-	"botua",
 }
 
 func MsgpackDecode(dst interface{}, src []byte) error {

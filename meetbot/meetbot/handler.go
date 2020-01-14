@@ -54,10 +54,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	switch {
 	case strings.HasPrefix(cmd, "!meet"):
 		return h.meetHandler(msg)
-	default:
-		h.Debug("ignoring unknown command: %q", cmd)
-		return nil
 	}
+	return nil
 }
 
 func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
