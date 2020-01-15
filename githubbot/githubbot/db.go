@@ -53,13 +53,13 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) err
 	})
 }
 
-func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
+func (d *DB) GetConvsFromRepo(repo string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
-		WHERE (repo = ? AND branch = ?)
+		WHERE repo = ?
 		GROUP BY conv_id
-	`, repo, branch)
+	`, repo)
 	if err != nil {
 		return res, err
 	}
@@ -72,6 +72,26 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDS
 	}
 	return res, nil
 }
+
+// func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
+// 	rows, err := d.DB.Query(`
+// 		SELECT conv_id
+// 		FROM subscriptions
+// 		WHERE (repo = ? AND branch = ?)
+// 		GROUP BY conv_id
+// 	`, repo, branch)
+// 	if err != nil {
+// 		return res, err
+// 	}
+// 	for rows.Next() {
+// 		var convID chat1.ConvIDStr
+// 		if err := rows.Scan(&convID); err != nil {
+// 			return res, err
+// 		}
+// 		res = append(res, convID)
+// 	}
+// 	return res, nil
+// }
 
 func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
