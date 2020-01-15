@@ -61,9 +61,9 @@ const channelConfigToMessageBody = (channelConfig: Configs.TeamChannelConfig) =>
 
 *defaultNewIssueProject:* ${channelConfig.defaultNewIssueProject ||
     '<undefined>'}
-*enabledProjects:* ${channelConfig.enabledProjects.join(',') || '<empty>'}
+*enabledProjects:* ${channelConfig.enabledProjects.join(',') || '<all>'}
 
-In this channel you can only interract with projects in \`enabledProjects\`. When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
+If \`enabledProjects\` is set, you can only interract with the specified projects in this channel. When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
 `
 
 const handleChannelConfig = async (
@@ -101,17 +101,12 @@ const handleChannelConfig = async (
     }
 
     if (!parsedMessage.toSet) {
-      oldCachedConfig
-        ? replyChat(
-            context,
-            parsedMessage,
-            channelConfigToMessageBody(oldCachedConfig.config)
-          )
-        : Errors.reportErrorAndReplyChat(
-            context,
-            parsedMessage.context,
-            Errors.JirabotNotEnabledForChannelError
-          )
+      oldCachedConfig &&
+        replyChat(
+          context,
+          parsedMessage,
+          channelConfigToMessageBody(oldCachedConfig.config)
+        )
       return Errors.makeResult(undefined)
     }
 
@@ -161,7 +156,8 @@ const jiraConfigToMessageBody = (
   jiraConfig: Configs.TeamJiraConfig
 ) =>
   `This team is now configured for \`${jiraConfig.jiraHost}\`. ` +
-  'In Jira admin settings, create an application link of type "Generic Application".' +
+  "If you haven't, here are instructions for connecting on Jira side:\n"
+'In Jira admin settings, create an application link of type "Generic Application".' +
   ` Use \`${context.botConfig.httpAddressPrefix}\` as the URL of the application.` +
   `\n\n_Tip: Can't find application link settings on Jira? Try the "Search Jira Admin" box in the top right corner of admin settings._` +
   '\n\nAfter the application link has been created, edit the link and configure "Incoming Authentication" as following:' +
@@ -170,11 +166,19 @@ const jiraConfigToMessageBody = (
   jiraConfig.jiraAuth.publicKey +
   '```\n' +
   '\nOther fields can be empty or arbitrary values.'
+'\n\nAfter this has been done, any user in this team can use `!jira auth` to connect their account with Jirabot. You can also use `jira config channel` to customize Jirabot for each channel in this team.'
 
 const handleTeamConfig = async (
   context: Context,
   parsedMessage: Message.ConfigMessage
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
+  // TODO
+  refreshJiraMetadata(
+    context,
+    parsedMessage.context.teamName,
+    parsedMessage.context.senderUsername
+  )
+
   if (parsedMessage.configType !== Message.ConfigType.Team) {
     return Errors.makeError(undefined)
   }
@@ -226,6 +230,7 @@ const handleTeamConfig = async (
         return Errors.makeError(undefined)
       }
       const details = detailsRet.result
+
       const newConfig = {
         jiraHost: parsedMessage.toSet.value,
         jiraAuth: {
@@ -233,6 +238,8 @@ const handleTeamConfig = async (
           publicKey: details.publicKey,
           privateKey: details.privateKey,
         },
+        issueTypes: [] as Array<string>,
+        projects: [] as Array<string>,
       }
       const updateRet = await context.configs.updateTeamJiraConfig(
         parsedMessage.context.teamName,

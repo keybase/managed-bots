@@ -116,6 +116,28 @@ class JiraClientWrapper {
       })
       .then(({key}: {key: string}) => `https://${this.jiraHost}/browse/${key}`)
   }
+
+  getIssueTypes(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getIssueTypes',
+    })
+    return this.jiraClient.issueType
+      .getAllIssueTypes()
+      .then((resp: Array<{name: string}>) =>
+        resp.map(({name}) => name.toLowerCase())
+      )
+  }
+
+  getProjects(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getProjects',
+    })
+    return this.jiraClient.project
+      .getAllProjects()
+      .then((resp: Array<{key: string}>) =>
+        resp.map(({key}) => key.toLowerCase())
+      )
+  }
 }
 
 const jiraClientCacheTimeout = 60 * 1000 // 1min
@@ -211,3 +233,50 @@ export const getJiraFromTeamnameAndUsername = async (
     new JiraClientWrapper(jiraClient, teamJiraConfig.jiraHost)
   )
 }
+
+export type JiraMetadata = Readonly<{
+  issueTypes: Array<string>
+  projects: Array<string>
+}>
+
+const emptyJiraMetadata: JiraMetadata = {
+  issueTypes: [],
+  projects: [],
+}
+
+export const getJiraMetadata = async (
+  context: Context,
+  teamname: string,
+  username: string
+): Promise<JiraMetadata> => {
+  // TODO cache
+
+  const jiraRet = await getJiraFromTeamnameAndUsername(
+    context,
+    teamname,
+    username
+  )
+  if (jiraRet.type === Errors.ReturnType.Error) {
+    switch (jiraRet.error.type) {
+      case Errors.ErrorType.JirabotNotEnabled:
+        break
+      case Errors.ErrorType.Unknown:
+        logger.warn({msg: 'refreshJiraMetadata', error: jiraRet.error})
+        break
+      default:
+        let _: never = jiraRet.error
+    }
+    return emptyJiraMetadata
+  }
+
+  const jira = jiraRet.result
+  try {
+    const issueTypes = await jira.getIssueTypes()
+    const projects = await jira.getProjects()
+    return {issueTypes, projects}
+  } catch (error) {
+    logger.warn({msg: 'refreshJiraMetadata', error})
+    return emptyJiraMetadata
+  }
+}
+

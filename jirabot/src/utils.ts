@@ -1,5 +1,6 @@
 import {Context} from './context'
 import {MessageContext} from './message'
+import * as Errors from './errors'
 
 const quotes: {
   [key: string]: string
@@ -74,3 +75,23 @@ export const replyToMessageContext = (
   messageContext: MessageContext,
   body: string
 ): Promise<any> => context.bot.chat.send(messageContext.conversationId, {body})
+
+export const getJiraAccountID = async (
+  context: Context,
+  kbTeamname: string,
+  kbUsername: string
+): Promise<Errors.ResultOrError<string | undefined, Errors.UnknownError>> => {
+  const assigneeUserConfigRet = await context.configs.getTeamUserConfig(
+    kbTeamname,
+    kbUsername
+  )
+  if (assigneeUserConfigRet.type === Errors.ReturnType.Ok) {
+    return Errors.makeResult(assigneeUserConfigRet.result.config.jiraAccountID)
+  } else if (
+    assigneeUserConfigRet.error.type === Errors.ErrorType.KVStoreNotFound
+  ) {
+    return Errors.makeResult(undefined)
+  } else {
+    return Errors.makeError(assigneeUserConfigRet.error)
+  }
+}

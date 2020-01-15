@@ -3,11 +3,6 @@ import {Context} from './context'
 import * as Errors from './errors'
 import * as Utils from './utils'
 
-const kb2jiraMention = (context: Context, kb: string) =>
-  context.botConfig.jira.usernameMapper[kb]
-    ? `[~${context.botConfig.jira.usernameMapper[kb]}]`
-    : kb
-
 export default async (
   context: Context,
   parsedMessage: CommentMessage

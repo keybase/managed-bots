@@ -3,6 +3,7 @@ import * as Utils from './utils'
 import {Context} from './context'
 import * as Errors from './errors'
 import logger from './logger'
+import * as Configs from './configs'
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -119,33 +120,35 @@ const checkAndGetProjectName = async (
   required: boolean
 ): Promise<Errors.ResultOrError<
   string,
-  | Errors.UnknownError
-  | Errors.DisabledProjectError
-  | Errors.ChannelNotConfiguredError
-  | Errors.MissingProjectError
+  Errors.UnknownError | Errors.DisabledProjectError | Errors.MissingProjectError
 >> => {
   const teamChannelConfigRet = await context.configs.getTeamChannelConfig(
     messageContext.teamName,
     messageContext.channelName
   )
+  let teamChannelConfig: Configs.TeamChannelConfig
   if (teamChannelConfigRet.type === Errors.ReturnType.Error) {
     switch (teamChannelConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
         return Errors.makeError(teamChannelConfigRet.error)
       case Errors.ErrorType.KVStoreNotFound:
-        return Errors.channelNotConfiguredError
+        teamChannelConfig = Configs.emptyTeamChannelConfig
     }
+  } else {
+    teamChannelConfig = teamChannelConfigRet.result.config
   }
-  const teamChannelConfig = teamChannelConfigRet.result
   if (!project) {
-    const defaultProject = teamChannelConfig.config.defaultNewIssueProject
+    const defaultProject = teamChannelConfig.defaultNewIssueProject
     return required
       ? defaultProject
         ? Errors.makeResult<string>(defaultProject)
         : Errors.missingProjectError
       : Errors.makeResult<string>('')
   }
-  if (!teamChannelConfig.config.enabledProjects.includes(project)) {
+  if (
+    teamChannelConfig.enabledProjects.length &&
+    !teamChannelConfig.enabledProjects.includes(project)
+  ) {
     return Errors.makeError({
       type: Errors.ErrorType.DisabledProject,
       projectName: project,
@@ -161,16 +164,6 @@ const checkStatusError = (
   status && !context.botConfig.jira.status.includes(status)
     ? `invalid status: ${status} is not one of ${Utils.humanReadableArray(
         context.botConfig.jira.status
-      )}`
-    : undefined
-
-const checkAssigneeError = (
-  context: Context,
-  assignee: string
-): string | undefined =>
-  assignee && !context.botConfig.jira.usernameMapper[assignee]
-    ? `invalid assignee: ${assignee} is not one of ${Utils.humanReadableArray(
-        Object.keys(context.botConfig.jira.usernameMapper)
       )}`
     : undefined
 
@@ -315,14 +308,6 @@ export const parseMessage = async (
       const assignee = args.assignee
         ? args.assignee.replace(/^@+/, '')
         : args.for && args.for.replace(/^@+/, '')
-      const assigneeError = checkAssigneeError(context, assignee)
-      if (assigneeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: assigneeError,
-        }
-      }
 
       return {
         context: messageContext,
@@ -360,14 +345,6 @@ export const parseMessage = async (
       }
 
       const assignee = args.assignee && args.assignee.replace(/^@+/, '')
-      const assigneeError = checkAssigneeError(context, assignee)
-      if (assigneeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: assigneeError,
-        }
-      }
 
       const statusError = checkStatusError(context, args.status)
       if (statusError) {

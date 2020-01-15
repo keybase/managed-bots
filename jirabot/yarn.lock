@@ -3564,10 +3564,10 @@ jsprim@^1.2.2:
     json-schema "0.2.3"
     verror "1.10.0"
 
-keybase-bot@3.0.3:
-  version "3.0.3"
-  resolved "https://registry.yarnpkg.com/keybase-bot/-/keybase-bot-3.0.3.tgz#8f95aca37c27ce8644ca398092261d8b2c7d9bb4"
-  integrity sha512-vpCYm72+yOXjILWCWBvC0t1dVLzhzuvFvSvGCtkwnhL7F5Fnj3ntEw85TJEK9E63KDUecjd1eTW018uq384BdA==
+keybase-bot@3.1.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/keybase-bot/-/keybase-bot-3.1.0.tgz#8276569527f2a7ed221718bada48395319b69949"
+  integrity sha512-wxXmqU+VFSqU8K1f59CRBFoKOz63IhJ7IYo3PIxmivEEJ8HrmRstqY8dp6wJnXFEwFkrs4vY/qDaDG64pFTGvg==
   dependencies:
     isexe "2.0.0"
     lodash.camelcase "4.3.0"

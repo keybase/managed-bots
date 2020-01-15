@@ -28,6 +28,20 @@ const buildSearchResultBody = (
   return begin + head + body + (additional ? '\n\n' + additional : '')
 }
 
+const getAssigneeAccountID = async (
+  context: Context,
+  parsedMessage: SearchMessage
+): Promise<Errors.ResultOrError<string | undefined, Errors.UnknownError>> => {
+  if (!parsedMessage.assignee) {
+    return Errors.makeResult(undefined)
+  }
+  return Utils.getJiraAccountID(
+    context,
+    parsedMessage.context.teamName,
+    parsedMessage.assignee
+  )
+}
+
 export default async (
   context: Context,
   parsedMessage: SearchMessage,
@@ -47,14 +61,25 @@ export default async (
     return Errors.makeError(undefined)
   }
   const jira = jiraRet.result
+
+  const assigneeJiraRet = await getAssigneeAccountID(context, parsedMessage)
+  if (assigneeJiraRet.type === Errors.ReturnType.Error) {
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      assigneeJiraRet.error
+    )
+    return Errors.makeError(undefined)
+  }
+  const assigneeJira = assigneeJiraRet.result
+
   try {
     await jira
       .getOrSearch({
         query: parsedMessage.query,
         project: parsedMessage.project,
         status: parsedMessage.status,
-        assigneeJira:
-          context.botConfig.jira.usernameMapper[parsedMessage.assignee] || '',
+        assigneeJira,
       })
       .then(({jql, issues}) =>
         context.bot.chat
