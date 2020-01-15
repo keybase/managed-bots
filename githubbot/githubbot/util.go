@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 
 	"github.com/google/go-github/v28/github"
 )
 
-func makeSecret(repo string, shortConvID base.ShortID, secret string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(shortConvID)+secret)))
+func makeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(base.ShortConvID(convID))+secret)))
 }
 
 func refToName(ref string) (branch string) {

@@ -95,7 +95,7 @@ type session struct {
 
 	kbc            *kbchat.API
 	db             *DB
-	convID         string
+	convID         chat1.ConvIDStr
 	numUsersInConv int
 	curQuestion    *question
 	curMsgID       chat1.MessageID
@@ -104,7 +104,7 @@ type session struct {
 	dupCheck       map[string]bool
 }
 
-func newSession(kbc *kbchat.API, db *DB, convID string) *session {
+func newSession(kbc *kbchat.API, db *DB, convID chat1.ConvIDStr) *session {
 	return &session{
 		DebugOutput: base.NewDebugOutput("session", kbc),
 		db:          db,

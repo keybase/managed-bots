@@ -82,7 +82,7 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
 		body += fmt.Sprintf("%s, %s\n", hook.name, h.formURL(hook.id))
 	}
 	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, body); err != nil {
-		h.Debug(convID, "handleList: failed to send hook: %s", err)
+		h.Debug("handleList: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "List sent to @%s", msg.Sender.Username)
 	return nil
@@ -104,7 +104,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 		return fmt.Errorf("handleCreate: failed to create webhook: %s", err)
 	}
 	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", h.formURL(id)); err != nil {
-		h.Debug(convID, "handleCreate: failed to send hook: %s", err)
+		h.Debug("handleCreate: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "Success! New URL sent to @%s", msg.Sender.Username)
 	return nil

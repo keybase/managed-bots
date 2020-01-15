@@ -3,6 +3,7 @@ package githubbot
 import (
 	"database/sql"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
 )
@@ -19,39 +20,40 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(shortConvID base.ShortID, repo string, branch string, hookID int64) error {
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64) error {
+	// TODO: ignore dupes with feedback?
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT IGNORE INTO subscriptions
 			(conv_id, repo, branch, hook_id)
 			VALUES
 			(?, ?, ?, ?)
-		`, shortConvID, repo, branch, hookID)
+		`, convID, repo, branch, hookID)
 		return err
 	})
 }
 
-func (d *DB) DeleteSubscription(shortConvID base.ShortID, repo string, branch string) error {
+func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ? AND branch = ?)
-		`, shortConvID, repo, branch)
+		`, convID, repo, branch)
 		return err
 	})
 }
 
-func (d *DB) DeleteSubscriptionsForRepo(shortConvID base.ShortID, repo string) error {
+func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
 			WHERE (conv_id = ? AND repo = ?)
-		`, shortConvID, repo)
+		`, convID, repo)
 		return err
 	})
 }
 
-func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID, err error) {
+func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
@@ -62,22 +64,22 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []base.ShortID,
 		return res, err
 	}
 	for rows.Next() {
-		var convID string
+		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
 			return res, err
 		}
-		res = append(res, base.ShortID(convID))
+		res = append(res, convID)
 	}
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch string) (exists bool, err error) {
+func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
-	`, shortConvID, repo, branch)
+	`, convID, repo, branch)
 	var rowRes string
 	scanErr := row.Scan(&rowRes)
 	switch scanErr {
@@ -90,12 +92,12 @@ func (d *DB) GetSubscriptionExists(shortConvID base.ShortID, repo string, branch
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, shortConvID, repo)
+	`, convID, repo)
 	var rowRes string
 	err = row.Scan(&rowRes)
 	switch err {
@@ -108,12 +110,12 @@ func (d *DB) GetSubscriptionForRepoExists(shortConvID base.ShortID, repo string)
 	}
 }
 
-func (d *DB) GetHookIDForRepo(shortConvID base.ShortID, repo string) (hookID int64, err error) {
+func (d *DB) GetHookIDForRepo(convID chat1.ConvIDStr, repo string) (hookID int64, err error) {
 	row := d.DB.QueryRow(`
 	SELECT hook_id
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
-	`, shortConvID, repo)
+	`, convID, repo)
 	err = row.Scan(&hookID)
 	if err != nil {
 		return -1, err
