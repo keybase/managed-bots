@@ -5,8 +5,8 @@ import (
 	"github.com/xanzy/go-gitlab"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
-	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
@@ -60,52 +60,52 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *gitlab.IssueEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
 		message = formatIssueMsg(event, author.String())
-		repo = event.Project.Name
-		branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
-			return
-		}
-	case *github.PullRequestEvent:
+		repo = strings.ToLower(event.Project.PathWithNamespace)
+		//branch, err = getDefaultBranch(repo, github.NewClient(nil))
+		//if err != nil {
+		//	h.Debug("error getting default branch: %s", err)
+		//	return
+		//}
+	case *gitlab.MergeEvent:
 		var author username
-		if event.GetPullRequest().GetMerged() {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
+		if event.ObjectAttributes.State == "merged" {
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
 		}
-		message = formatPRMsg(event, author.String())
-		repo = event.GetRepo().GetFullName()
+		message = formatMRMsg(event, author.String())
+		repo = strings.ToLower(event.Project.PathWithNamespace)
 
-		branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
-			return
-		}
-	case *github.PushEvent:
-		if len(event.Commits) == 0 {
-			break
-		}
-		message = formatPushMsg(event, event.GetSender().GetLogin())
-		repo = event.GetRepo().GetFullName()
-		branch = refToName(event.GetRef())
-	case *github.CheckSuiteEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		repo = event.GetRepo().GetFullName()
-		if len(event.GetCheckSuite().PullRequests) == 0 {
-			// this is a branch test, not associated with a PR
-			branch = event.GetCheckSuite().GetHeadBranch()
-		} else {
-			branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		}
-		message = formatCheckSuiteMsg(event, author.String())
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
-			return
-		}
+		//branch, err = getDefaultBranch(repo, github.NewClient(nil))
+		//if err != nil {
+		//	h.Debug("error getting default branch: %s", err)
+		//	return
+		//}
+	//case *github.PushEvent:
+	//	if len(event.Commits) == 0 {
+	//		break
+	//	}
+	//	message = formatPushMsg(event, event.GetSender().GetLogin())
+	//	repo = event.GetRepo().GetFullName()
+	//	branch = refToName(event.GetRef())
+	//case *github.CheckSuiteEvent:
+	//	author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+	//	repo = event.GetRepo().GetFullName()
+	//	if len(event.GetCheckSuite().PullRequests) == 0 {
+	//		// this is a branch test, not associated with a PR
+	//		branch = event.GetCheckSuite().GetHeadBranch()
+	//	} else {
+	//		branch, err = getDefaultBranch(repo, github.NewClient(nil))
+	//	}
+	//	message = formatCheckSuiteMsg(event, author.String())
+	//	if err != nil {
+	//		h.Debug("error getting default branch: %s", err)
+	//		return
+	//	}
 	}
 
 	if message != "" && repo != "" {
-		signature := r.Header.Get("X-Hub-Signature")
+		signature := r.Header.Get("X-Gitlab-Token")
 
 		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
@@ -114,11 +114,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, convID, h.secret))); err != nil {
-				// if there's an error validating the signature for a conversation, don't send the message to that convo
+			var secretToken = makeSecret(repo, convID, h.secret)
+			if signature != secretToken {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
+
 			_, err = h.kbc.SendMessageByConvID(string(convID), message)
 			if err != nil {
 				h.Debug("Error sending message: %s", err)

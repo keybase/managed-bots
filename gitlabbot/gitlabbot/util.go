@@ -1,12 +1,10 @@
 package gitlabbot
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/xanzy/go-gitlab"
-	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -63,34 +61,34 @@ func formatCommitString(commit string, maxLen int) string {
 func formatIssueMsg(evt *gitlab.IssueEvent, username string) (res string) {
 	action := evt.ObjectAttributes.Action
 	switch action {
-	case "opened":
-		res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", username, evt.ObjectAttributes.Position, evt.Project.Name, evt.ObjectAttributes.Title)
+	case "open":
+		res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.Title)
 		res += evt.ObjectAttributes.URL
-	case "closed":
-		res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, evt.ObjectAttributes.Position, evt.Project.Name)
+	case "reopen":
+		res = fmt.Sprintf("%s reopened issue #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.Title)
+		res += evt.ObjectAttributes.URL
+	case "close":
+		res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, evt.ObjectAttributes.IID, evt.Project.Name)
 		res += evt.ObjectAttributes.URL
 	}
 	return res
 }
 
-func formatPRMsg(evt *github.PullRequestEvent, username string) (res string) {
-	action := evt.Action
-	if action != nil {
-		switch *action {
-		case "opened":
-			res = fmt.Sprintf("%s opened pull request #%d on %s: “%s”\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetTitle())
-			res += evt.GetPullRequest().GetHTMLURL()
-		case "closed":
-			if evt.GetPullRequest().GetMerged() {
-				// PR was merged
-				res = fmt.Sprintf("%s merged pull request #%d into %s/%s.\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetBase().GetRef())
-				res += evt.GetPullRequest().GetHTMLURL()
-			} else {
-				// PR was closed without merging
-				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", username, evt.GetNumber(), evt.GetRepo().GetName())
-				res += evt.GetPullRequest().GetHTMLURL()
-			}
-		}
+func formatMRMsg(evt *gitlab.MergeEvent, username string) (res string) {
+	action := evt.ObjectAttributes.Action
+	switch action {
+	case "open":
+		res = fmt.Sprintf("%s opened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
+		res += evt.ObjectAttributes.URL
+	case "reopen":
+		res = fmt.Sprintf("%s reopened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
+		res += evt.ObjectAttributes.URL
+	case "close":
+		res = fmt.Sprintf("%s closed merge request #%d on %s.\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace)
+		res += evt.ObjectAttributes.URL
+	case "merge":
+		res = fmt.Sprintf("%s merged merge request #%d into %s/%s.\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.TargetBranch)
+		res += evt.ObjectAttributes.URL
 	}
 	return res
 }
@@ -132,24 +130,25 @@ func formatCheckSuiteMsg(evt *github.CheckSuiteEvent, username string) (res stri
 }
 
 func getDefaultBranch(repo string, client *gitlab.Client) (branch string, err error) {
-	args := strings.Split(repo, "/")
-	if len(args) != 2 {
-		return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
-	}
-
-	if client == nil {
-		return "", fmt.Errorf("getDefaultBranch: client is nil")
-	}
-
-	repoObject, res, err := client.Repositories.Get(context.TODO(), args[0], args[1])
-	if res.StatusCode == http.StatusNotFound {
-		return "master", nil
-	}
-	if err != nil {
-		return "", err
-	}
-
-	return repoObject.GetDefaultBranch(), nil
+	//args := strings.Split(repo, "/")
+	//if len(args) != 2 {
+	//	return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
+	//}
+	//
+	//if client == nil {
+	//	return "", fmt.Errorf("getDefaultBranch: client is nil")
+	//}
+	//
+	//repoObject, res, err := client.Repositories.Get(context.TODO(), args[0], args[1])
+	//if res.StatusCode == http.StatusNotFound {
+	//	return "master", nil
+	//}
+	//if err != nil {
+	//	return "", err
+	//}
+	//
+	//return repoObject.GetDefaultBranch(), nil
+	return "master", nil
 }
 
 // keybase IDing
