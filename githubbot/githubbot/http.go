@@ -73,7 +73,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	if repo != "" {
 		signature := r.Header.Get("X-Hub-Signature")
-		convs, err := h.db.GetConvsFromRepo(repo)
+		convs, err := h.db.GetConvIDsFromRepo(repo)
 		if err != nil {
 			h.Debug("Error getting subscriptions for repo: %s", err)
 			return
@@ -85,12 +85,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
-			conv, err := h.kbc.GetConversation(convID)
-			if err != nil {
-				h.Debug("could not get conversation: %s\n", err)
-				return
-			}
-			token, err := h.db.GetToken(conv.Channel.Name)
+			token, err := h.db.GetTokenFromConvID(convID)
 			if err != nil {
 				h.Debug("could not get token for convID: %s\n", err)
 				return

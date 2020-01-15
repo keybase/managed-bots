@@ -20,15 +20,14 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64) error {
-	// TODO: ignore dupes with feedback?
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64, oauthIdentifier string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT IGNORE INTO subscriptions
-			(conv_id, repo, branch, hook_id)
+			INSERT INTO subscriptions
+			(conv_id, repo, branch, hook_id, oauth_identifier)
 			VALUES
-			(?, ?, ?, ?)
-		`, convID, repo, branch, hookID)
+			(?, ?, ?, ?, ?)
+		`, convID, repo, branch, hookID, oauthIdentifier)
 		return err
 	})
 }
@@ -53,7 +52,7 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) err
 	})
 }
 
-func (d *DB) GetConvsFromRepo(repo string) (res []chat1.ConvIDStr, err error) {
+func (d *DB) GetConvIDsFromRepo(repo string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
@@ -72,26 +71,6 @@ func (d *DB) GetConvsFromRepo(repo string) (res []chat1.ConvIDStr, err error) {
 	}
 	return res, nil
 }
-
-// func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
-// 	rows, err := d.DB.Query(`
-// 		SELECT conv_id
-// 		FROM subscriptions
-// 		WHERE (repo = ? AND branch = ?)
-// 		GROUP BY conv_id
-// 	`, repo, branch)
-// 	if err != nil {
-// 		return res, err
-// 	}
-// 	for rows.Next() {
-// 		var convID chat1.ConvIDStr
-// 		if err := rows.Scan(&convID); err != nil {
-// 			return res, err
-// 		}
-// 		res = append(res, convID)
-// 	}
-// 	return res, nil
-// }
 
 func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
@@ -145,6 +124,25 @@ func (d *DB) GetHookIDForRepo(convID chat1.ConvIDStr, repo string) (hookID int64
 }
 
 // OAuth2 token methods
+
+func (d *DB) GetTokenFromConvID(convID chat1.ConvIDStr) (*oauth2.Token, error) {
+	var token oauth2.Token
+	row := d.DB.QueryRow(`
+	SELECT access_token, token_type
+	FROM subscriptions
+	INNER JOIN oauth ON subscriptions.oauth_identifier = oauth.identifier
+	WHERE conv_id = ?
+	`, convID)
+	err := row.Scan(&token.AccessToken, &token.TokenType)
+	switch err {
+	case nil:
+		return &token, nil
+	case sql.ErrNoRows:
+		return nil, nil
+	default:
+		return nil, err
+	}
+}
 
 func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token

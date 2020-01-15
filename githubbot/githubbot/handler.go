@@ -68,7 +68,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	identifier := base.IdentifierFromMsg(msg)
 	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
 		base.GetOAuthOpts{
-			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub notifications.",
+			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub notifications.\n\nI need `repo` access to set up notifications and get details about issues and pull requests.",
 		})
 	if err != nil || tc == nil {
 		return err
@@ -82,9 +82,13 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
 		return h.handleSubscribe(cmd, msg, false, client)
 	case strings.HasPrefix(cmd, "!github watch"):
-		return h.handleWatch(cmd, msg.ConvID, true, client)
+		return h.handleWatch(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unwatch"):
-		return h.handleWatch(cmd, msg.ConvID, false, client)
+		return h.handleWatch(cmd, msg, false, client)
+	case strings.HasPrefix(cmd, "!github auth"):
+		return h.handleAuth(msg, client)
+	default:
+		h.Debug("ignoring unknown command")
 	}
 	return nil
 }
@@ -134,13 +138,18 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			})
 
 			if err != nil {
-				if res.StatusCode != http.StatusNotFound {
+				switch res.StatusCode {
+				case http.StatusNotFound:
+					message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
+					return nil
+				case http.StatusUnprocessableEntity:
+					message = "I couldn't create a webhook on %s, try deleting Keybase webhooks in your repository's settings and try again."
+					return nil
+				default:
 					return fmt.Errorf("error: %s", err)
 				}
-				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
-				return nil
 			}
-			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, hook.GetID())
+			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, hook.GetID(), base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
@@ -175,7 +184,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, client *github.Client) error {
+func (h *Handler) handleWatch(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -184,7 +193,7 @@ func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, c
 	var message string
 	defer func() {
 		if message != "" {
-			_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0], args[1]))
 			if err != nil {
 				err = fmt.Errorf("error sending message: %s", err)
 			}
@@ -199,11 +208,11 @@ func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, c
 		return fmt.Errorf("error getting default branch: %s", err)
 	}
 
-	if exists, err := h.db.GetSubscriptionExists(convID, args[0], defaultBranch); !exists {
+	if exists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], defaultBranch); !exists {
 		if err != nil {
 			return fmt.Errorf("error getting subscription: %s", err)
 		}
-		_, err := h.kbc.SendMessageByConvID(convID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
 		if err != nil {
 			return fmt.Errorf("Error sending message: %s", err)
 		}
@@ -211,12 +220,12 @@ func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, c
 	}
 
 	if create {
-		hookID, err := h.db.GetHookIDForRepo(convID, args[0])
+		hookID, err := h.db.GetHookIDForRepo(msg.ConvID, args[0])
 		if err != nil {
 			return fmt.Errorf("error getting hook ID for subscription: %s", err)
 		}
 
-		err = h.db.CreateSubscription(convID, args[0], args[1], hookID)
+		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], hookID, base.IdentifierFromMsg(msg))
 		if err != nil {
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
@@ -224,7 +233,7 @@ func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, c
 		message = "Now watching for commits on %s/%s."
 		return nil
 	}
-	err = h.db.DeleteSubscription(convID, args[0], args[1])
+	err = h.db.DeleteSubscription(msg.ConvID, args[0], args[1])
 	if err != nil {
 		return fmt.Errorf("error deleting subscription: %s", err)
 	}
@@ -269,4 +278,14 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 
 	return
 
+}
+
+func (h *Handler) handleAuth(msg chat1.MsgSummary, client *github.Client) (err error) {
+	if client != nil {
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You're authenticated with GitHub!")
+		if err != nil {
+			err = fmt.Errorf("error sending message: %s", err)
+		}
+	}
+	return err
 }
