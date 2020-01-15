@@ -81,13 +81,13 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		//	h.Debug("error getting default branch: %s", err)
 		//	return
 		//}
-	//case *github.PushEvent:
-	//	if len(event.Commits) == 0 {
-	//		break
-	//	}
-	//	message = formatPushMsg(event, event.GetSender().GetLogin())
-	//	repo = event.GetRepo().GetFullName()
-	//	branch = refToName(event.GetRef())
+	case *gitlab.PushEvent:
+		if len(event.Commits) == 0 {
+			break
+		}
+		message = formatPushMsg(event, event.UserUsername)
+		repo = strings.ToLower(event.Project.PathWithNamespace)
+		branch = refToName(event.Ref)
 	//case *github.CheckSuiteEvent:
 	//	author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 	//	repo = event.GetRepo().GetFullName()

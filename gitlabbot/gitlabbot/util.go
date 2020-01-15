@@ -29,24 +29,20 @@ func refToName(ref string) (branch string) {
 
 // formatters
 
-func formatPushMsg(evt *github.PushEvent, username string) (res string) {
-	branch := refToName(evt.GetRef())
+func formatPushMsg(evt *gitlab.PushEvent, username string) (res string) {
+	branch := refToName(evt.Ref)
 
 	res = fmt.Sprintf("%s pushed %d commit", username, len(evt.Commits))
 	if len(evt.Commits) != 1 {
 		res += "s"
 	}
-	res += fmt.Sprintf(" to %s/%s:\n", evt.GetRepo().GetName(), branch)
+	res += fmt.Sprintf(" to %s/%s:\n", evt.Project.Name, branch)
 	for _, commit := range evt.Commits {
-		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.GetMessage(), 50))
+		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.Message, 50))
 	}
 
-	urlSplit := strings.Split(evt.GetCompare(), "://")
-	if len(urlSplit) != 2 {
-		// if the compare URL isn't formatted as expected, just skip it
-		return res
-	}
-	res += fmt.Sprintf("\n%s", urlSplit[1])
+	var lastCommitDiffURL = evt.Commits[len(evt.Commits) - 1].URL
+	res += fmt.Sprintf("\n%s", lastCommitDiffURL)
 	return res
 }
 
