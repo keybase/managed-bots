@@ -152,8 +152,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handlePoll(cmd, msg.ConvID, msg.Id)
 	case cmd == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
-	default:
-		h.Debug("ignoring unknown command: %q", cmd)
 	}
 	return nil
 }

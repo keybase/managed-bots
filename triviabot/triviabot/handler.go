@@ -128,8 +128,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleTop(msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
 		return h.handleReset(cmd, msg)
-	default:
-		h.Debug("ignoring unknown command: %q", cmd)
 	}
 	return nil
 }

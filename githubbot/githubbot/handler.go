@@ -85,8 +85,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleWatch(cmd, msg.ConvID, true, client)
 	case strings.HasPrefix(cmd, "!github unwatch"):
 		return h.handleWatch(cmd, msg.ConvID, false, client)
-	default:
-		h.Debug("ignoring unknown command")
 	}
 	return nil
 }
