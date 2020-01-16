@@ -133,7 +133,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 		if len(event.Commits) == 0 {
 			break
 		}
-		message = formatPushMsg(event, "*"+event.GetSender().GetLogin()+"*")
+		message = formatPushMsg(event, fmt.Sprintf("*%s*", event.GetSender().GetLogin()))
 		branch = refToName(event.GetRef())
 	case *github.CheckRunEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())

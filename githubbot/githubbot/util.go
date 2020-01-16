@@ -142,13 +142,13 @@ func formatCheckRunMessage(evt *github.CheckRunEvent, username string) (res stri
 			}
 		}
 		if strings.HasPrefix(username, "@") && isPullRequest && res != "" {
-			res = res + "\n" + username
+			res = fmt.Sprintf("%s\n%s", res, username)
 		}
 	}
 	return res
 }
 
-func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullRequest, username string) (res string) {
+func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullRequest, username string) (res string, err error) {
 	state := evt.GetState()
 	repo := evt.GetRepo().GetName()
 	isPullRequest := len(pullRequests) > 0
@@ -190,7 +190,7 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 		}
 	}
 	if strings.HasPrefix(username, "@") && isPullRequest && res != "" {
-		res = res + "\n" + username
+		res = fmt.Sprintf("%s\n%s", res, username)
 	}
 	return res
 }
