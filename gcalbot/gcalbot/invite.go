@@ -80,6 +80,74 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	return nil
 }
 
+func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) error {
+	if !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "This command can only be run through direct message.")
+		if err != nil {
+			return fmt.Errorf("error sending message: %s", err)
+		}
+		return nil
+	}
+
+	if len(args) != 1 {
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
+		if err != nil {
+			return fmt.Errorf("error sending message: %s", err)
+		}
+		return nil
+	}
+
+	username := msg.Sender.Username
+	accountNickname := args[0]
+	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	if err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	identifier := GetAccountIdentifier(username, accountNickname)
+
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+		h.getAccountOAuthOpts(msg, accountNickname))
+	if err != nil || client == nil {
+		return err
+	}
+
+	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	if err != nil {
+		return err
+	}
+
+	primaryCalendar, err := getPrimaryCalendar(srv)
+	if err != nil {
+		return err
+	}
+
+	channel, err := h.db.GetChannelByUser(username, accountNickname, primaryCalendar.Id)
+	if err != nil || channel == nil {
+		return err
+	}
+
+	err = srv.Channels.Stop(&calendar.Channel{
+		Id:         channel.ID,
+		ResourceId: channel.ResourceID,
+	}).Do()
+	if err != nil {
+		return err
+	}
+
+	err = h.db.DeleteChannelByID(channel.ID)
+
+	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+		"OK, you will no longer be notified of event invites for your primary calendar '%s'.", primaryCalendar.Summary)
+	if err != nil {
+		return fmt.Errorf("error sending message: %s", err)
+	}
+
+	return nil
+}
+
 func (h *Handler) sendEventInvite(username, nickname, calendarID string, event *calendar.Event) {
 	// TODO(marcel): display which calendar and nickname this is for
 	message := `

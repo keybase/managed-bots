@@ -20,9 +20,14 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	channelID := r.Header.Get("X-Goog-Channel-Id")
-	channel, err := h.db.GetChannelByChannelID(channelID)
-	if err != nil {
+	channelID := r.Header.Get("X-Goog-Channel-ID")
+	resourceID := r.Header.Get("X-Goog-Resource-ID")
+	channel, err := h.db.GetChannelByID(channelID)
+	if err != nil || channel == nil {
+		return
+	}
+	// sanity check
+	if channel.ResourceID != resourceID {
 		return
 	}
 
@@ -119,22 +124,24 @@ func (h *Handler) createEventChannel(
 		return err
 	}
 
-	err = h.db.InsertChannel(&Channel{
-		Username:      username,
-		Nickname:      accountNickname,
-		CalendarID:    calendarID,
-		ChannelID:     channelID,
-		NextSyncToken: events.NextSyncToken,
-	})
-	if err != nil {
-		return err
-	}
-
 	// open channel
-	_, err = srv.Events.Watch(calendarID, &calendar.Channel{
+	res, err := srv.Events.Watch(calendarID, &calendar.Channel{
 		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.baseURL),
 		Id:      channelID,
 		Type:    "web_hook",
 	}).Do()
+	if err != nil {
+		return err
+	}
+
+	err = h.db.InsertChannel(&Channel{
+		ID:            channelID,
+		Username:      username,
+		Nickname:      accountNickname,
+		CalendarID:    calendarID,
+		ResourceID:    res.ResourceId,
+		NextSyncToken: events.NextSyncToken,
+	})
+
 	return err
 }

@@ -22,13 +22,14 @@ CREATE TABLE `oauth` (
 DROP TABLE IF EXISTS `channel`;
 
 CREATE TABLE `channel` (
+    `id` varchar(128) NOT NULL,
     `username` varchar(128) NOT NULL,
     `nickname` varchar(128) NOT NULL,
     `calendar_id` varchar(128) NOT NULL,
-    `channel_id` varchar(128) NOT NULL,
+    `resource_id` varchar(128) NOT NULL,
     `next_sync_token` varchar(128) NOT NULL,
-    PRIMARY KEY(`username`, `nickname`, `calendar_id`),
-    UNIQUE KEY(`channel_id`)
+    PRIMARY KEY(`id`),
+    UNIQUE KEY(`username`, `nickname`, `calendar_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `subscription`;

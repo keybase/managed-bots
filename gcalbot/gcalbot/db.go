@@ -70,19 +70,20 @@ func (d *DB) DeleteAccountForUser(username string, nickname string) error {
 }
 
 type Channel struct {
+	ID            string
 	Username      string
 	Nickname      string
 	CalendarID    string
-	ChannelID     string
+	ResourceID    string
 	NextSyncToken string
 }
 
 func (d *DB) InsertChannel(channel *Channel) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`INSERT INTO channel
-			(username, nickname, calendar_id, channel_id, next_sync_token)
-			VALUES (?, ?, ?, ?, ?)
-		`, channel.Username, channel.Nickname, channel.CalendarID, channel.ChannelID, channel.NextSyncToken)
+			(id, username, nickname, calendar_id, resource_id, next_sync_token)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, channel.ID, channel.Username, channel.Nickname, channel.CalendarID, channel.ResourceID, channel.NextSyncToken)
 		return err
 	})
 }
@@ -95,11 +96,12 @@ func (d *DB) ExistsChannelForUser(username, nickname, calendarID string) (exists
 	return exists, err
 }
 
-func (d *DB) GetChannelByChannelID(channelID string) (channel *Channel, err error) {
+func (d *DB) GetChannelByID(id string) (channel *Channel, err error) {
 	channel = &Channel{}
-	row := d.DB.QueryRow(`SELECT username, nickname, calendar_id, channel_id, next_sync_token FROM channel
-		WHERE channel_id = ?`, channelID)
-	err = row.Scan(&channel.Username, &channel.Nickname, &channel.CalendarID, &channel.ChannelID, &channel.NextSyncToken)
+	row := d.DB.QueryRow(`SELECT id, username, nickname, calendar_id, resource_id, next_sync_token FROM channel
+		WHERE id = ?`, id)
+	err = row.Scan(&channel.ID, &channel.Username, &channel.Nickname, &channel.CalendarID,
+		&channel.ResourceID, &channel.NextSyncToken)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	} else if err != nil {
@@ -109,12 +111,36 @@ func (d *DB) GetChannelByChannelID(channelID string) (channel *Channel, err erro
 	}
 }
 
-func (d *DB) UpdateChannelNextSyncToken(channelID, nextSyncToken string) error {
+func (d *DB) GetChannelByUser(username, nickname, calendarID string) (channel *Channel, err error) {
+	channel = &Channel{}
+	row := d.DB.QueryRow(`SELECT id, username, nickname, calendar_id, resource_id, next_sync_token FROM channel
+		WHERE username = ? AND nickname = ? AND calendar_id = ?
+	`, username, nickname, calendarID)
+	err = row.Scan(&channel.ID, &channel.Username, &channel.Nickname, &channel.CalendarID,
+		&channel.ResourceID, &channel.NextSyncToken)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	} else {
+		return channel, nil
+	}
+}
+
+func (d *DB) DeleteChannelByID(id string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`DELETE FROM channel
+			WHERE id = ?`, id)
+		return err
+	})
+}
+
+func (d *DB) UpdateChannelNextSyncToken(id, nextSyncToken string) error {
 	return d.DB.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`UPDATE channel
 			SET next_sync_token = ?
-			WHERE channel_id = ?
-		`, nextSyncToken, channelID)
+			WHERE id = ?
+		`, nextSyncToken, id)
 		return err
 	})
 }

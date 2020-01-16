@@ -83,6 +83,14 @@ Examples:%s
 !gcal subscribe invites work%s`,
 		back, back, backs, backs)
 
+	unsubscribeInvitesDesc := fmt.Sprintf(`Unsubscribes from invites for the primary calendar of a Google account given the account connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+
+Examples:%s
+!gcal unsubscribe invites personal
+!gcal unsubscribe invites work%s`,
+		back, back, backs, backs)
+
 	commands := []chat1.UserBotCommandInput{
 		{
 			Name:        "gcal accounts list",
@@ -128,6 +136,16 @@ Examples:%s
 				Title:       "*!gcal subscribe invites* <account nickname>",
 				DesktopBody: subscribeInvitesDesc,
 				MobileBody:  subscribeInvitesDesc,
+			},
+		},
+		{
+			Name:        "gcal unsubscribe invites",
+			Description: "Unsubscribe from event invites for your primary calendar.",
+			Usage:       "<account nickname>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal unsubscribe invites* <account nickname>",
+				DesktopBody: unsubscribeInvitesDesc,
+				MobileBody:  unsubscribeInvitesDesc,
 			},
 		},
 	}
