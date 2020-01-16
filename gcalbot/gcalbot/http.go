@@ -13,10 +13,9 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	kbc             *kbchat.API
-	db              *DB
-	handler         *Handler
-	webhookChannels *WebhookChannels
+	kbc     *kbchat.API
+	db      *DB
+	handler *Handler
 }
 
 func NewHTTPSrv(
@@ -24,14 +23,12 @@ func NewHTTPSrv(
 	db *DB,
 	handler *Handler,
 	requests *base.OAuthRequests,
-	webhookChannels *WebhookChannels,
 	config *oauth2.Config,
 ) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc:             kbc,
-		db:              db,
-		handler:         handler,
-		webhookChannels: webhookChannels,
+		kbc:     kbc,
+		db:      db,
+		handler: handler,
 	}
 	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
 		"gcalbot", base.Images["logo"], "/gcalbot")

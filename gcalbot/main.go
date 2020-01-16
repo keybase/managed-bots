@@ -190,9 +190,8 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	webhookChannels := &gcalbot.WebhookChannels{}
-	handler := gcalbot.NewHandler(s.kbc, db, requests, webhookChannels, config, s.opts.BaseURL)
-	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, webhookChannels, config)
+	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.BaseURL)
+	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

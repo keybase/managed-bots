@@ -1,9 +1,11 @@
 package gcalbot
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"sync"
+
+	"google.golang.org/api/option"
 
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/googleapi"
@@ -11,53 +13,41 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-type WebhookChannel struct {
-	Username        string
-	Nickname        string
-	CalendarID      string
-	NextSyncToken   string
-	CalendarService *calendar.Service
-}
-
-type WebhookChannels struct {
-	channelMap sync.Map
-}
-
-func (c *WebhookChannels) Get(channelID string) (*WebhookChannel, bool) {
-	val, ok := c.channelMap.Load(channelID)
-	if ok {
-		return val.(*WebhookChannel), true
-	} else {
-		return nil, false
-	}
-}
-
-func (c *WebhookChannels) Set(channelID string, account *WebhookChannel) {
-	c.channelMap.Store(channelID, account)
-}
-
-func (c *WebhookChannels) Delete(channelID string) {
-	c.channelMap.Delete(channelID)
-}
-
 func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	state := r.Header.Get("X-Goog-Resource-State")
 	if state == "sync" {
 		// Sync or deleted header, safe to ignore
 		return
 	}
-	channelID := r.Header.Get("X-Goog-Channel-Id")
 
-	c, ok := h.webhookChannels.Get(channelID)
-	if !ok {
-		// h.Debug("error getting channel from channelID '%s'", channelID)
+	channelID := r.Header.Get("X-Goog-Channel-Id")
+	channel, err := h.db.GetChannelByChannelID(channelID)
+	if err != nil {
 		return
 	}
 
-	events, err := c.CalendarService.Events.
-		List(c.CalendarID).
-		SyncToken(c.NextSyncToken).
-		Do()
+	identifier := GetAccountIdentifier(channel.Username, channel.Nickname)
+	token, err := h.db.GetToken(identifier)
+	if err != nil {
+		return
+	}
+
+	client := h.handler.config.Client(context.Background(), token)
+	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	if err != nil {
+		return
+	}
+
+	var events []*calendar.Event
+	nextSyncToken := channel.NextSyncToken
+	err = srv.Events.
+		List(channel.CalendarID).
+		SyncToken(channel.NextSyncToken).
+		Pages(context.Background(), func(page *calendar.Events) error {
+			nextSyncToken = page.NextSyncToken
+			events = append(events, page.Items...)
+			return nil
+		})
 	if err != nil {
 		switch err := err.(type) {
 		case *googleapi.Error:
@@ -67,59 +57,78 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			}
 		}
 		h.Debug("error updating events for user '%s', nick '%s', cal '%s': %s",
-			c.Username, c.Nickname, c.CalendarID, err)
+			channel.Username, channel.Nickname, channel.CalendarID, err)
+		return
 	}
-	for _, event := range events.Items {
+
+	for _, event := range events {
+		if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
+			// if the event is recurring, only deal with the underlying recurring event
+			continue
+		}
+		if event.Status == "cancelled" {
+			// skip cancelled events
+			continue
+		}
 		for _, attendee := range event.Attendees {
 			if attendee.Self && !attendee.Organizer &&
 				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
-				exists, err := h.db.ExistsInviteForUserEvent(c.Username, c.Nickname, c.CalendarID, event.Id)
+				exists, err := h.db.ExistsInviteForUserEvent(channel.Username, channel.Nickname, channel.CalendarID, event.Id)
 				if err != nil {
 					h.Debug("error checking in db for invite: %s", err)
 					return
 				}
 				if !exists {
 					// user was recently invited to the event
-					h.handler.sendEventInvite(c.Username, c.Nickname, c.CalendarID, event)
+					// TODO(marcel): deal with recurring events
+					h.handler.sendEventInvite(channel.Username, channel.Nickname, channel.CalendarID, event)
 				}
 			}
 		}
 	}
 
+	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
+	if err != nil {
+		return
+	}
+
 	w.WriteHeader(200)
 }
 
-func (h *Handler) getOrCreateEventChannel(
+func (h *Handler) createEventChannel(
 	srv *calendar.Service,
 	username, accountNickname, calendarID string,
-) (channelID string, err error) {
-	// TODO(marcel): read channel
-	ok := false
-	if ok {
-		return channelID, nil
+) error {
+	exists, err := h.db.ExistsChannelForUser(username, accountNickname, calendarID)
+	if err != nil {
+		return err
+	} else if exists {
+		return nil
 	}
 
 	// channel not found, create one
 
-	// TODO(marcel): persist channelID
-	channelID, err = base.MakeRequestID()
+	channelID, err := base.MakeRequestID()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// get all events simply to get the NextSyncToken
 	events, err := srv.Events.List(calendarID).Do()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	h.webhookChannels.Set(channelID, &WebhookChannel{
-		Username:        username,
-		Nickname:        accountNickname,
-		CalendarID:      calendarID,
-		NextSyncToken:   events.NextSyncToken,
-		CalendarService: srv,
+	err = h.db.InsertChannel(&Channel{
+		Username:      username,
+		Nickname:      accountNickname,
+		CalendarID:    calendarID,
+		ChannelID:     channelID,
+		NextSyncToken: events.NextSyncToken,
 	})
+	if err != nil {
+		return err
+	}
 
 	// open channel
 	_, err = srv.Events.Watch(calendarID, &calendar.Channel{
@@ -127,9 +136,5 @@ func (h *Handler) getOrCreateEventChannel(
 		Id:      channelID,
 		Type:    "web_hook",
 	}).Do()
-	if err != nil {
-		return "", err
-	}
-
-	return channelID, err
+	return err
 }

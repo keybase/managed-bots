@@ -67,7 +67,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	_, err = h.getOrCreateEventChannel(srv, username, accountNickname, primaryCalendar.Id)
+	err = h.createEventChannel(srv, username, accountNickname, primaryCalendar.Id)
 	if err != nil {
 		return err
 	}
@@ -132,11 +132,11 @@ Awaiting your response. *Are you going?*
 	}
 
 	err = h.db.InsertInvite(&Invite{
-		username:   username,
-		nickname:   nickname,
-		calendarID: calendarID,
-		eventID:    event.Id,
-		messageID:  uint(*sendRes.Result.MessageID),
+		Username:   username,
+		Nickname:   nickname,
+		CalendarID: calendarID,
+		EventID:    event.Id,
+		MessageID:  uint(*sendRes.Result.MessageID),
 	})
 	if err != nil {
 		h.Debug("error inserting invite: %s", err)
@@ -161,7 +161,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 		return nil
 	}
 
-	identifier := GetAccountIdentifier(invite.username, invite.nickname)
+	identifier := GetAccountIdentifier(invite.Username, invite.Nickname)
 	token, err := h.db.GetToken(identifier)
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 
 	// fetch event
 	// TODO(marcel): check if event was deleted
-	event, err := srv.Events.Get(invite.calendarID, invite.eventID).Fields("attendees").Do()
+	event, err := srv.Events.Get(invite.CalendarID, invite.EventID).Fields("attendees").Do()
 	if err != nil {
 		return err
 	}
@@ -192,14 +192,17 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 	}
 
 	// patch event to reflect new response status
-	event, err = srv.Events.Patch(invite.calendarID, invite.eventID, event).Fields("summary").Do()
+	event, err = srv.Events.Patch(invite.CalendarID, invite.EventID, event).Fields("summary").Do()
 	if err != nil {
 		return err
 	}
 
 	// TODO(marcel): specify which account this is for
-	_, err = h.kbc.SendMessageByTlfName(invite.username, "I've set your status as '%s' for event '%s'.",
+	_, err = h.kbc.SendMessageByTlfName(invite.Username, "I've set your status as '%s' for event '%s'.",
 		confirmationMessageStatus, event.Summary)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

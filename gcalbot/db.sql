@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS `accounts`;
+DROP TABLE IF EXISTS `account`;
 
 CREATE TABLE `account` (
   `username` varchar(128) NOT NULL,
@@ -17,6 +17,28 @@ CREATE TABLE `oauth` (
   `refresh_token` varchar(256) NOT NULL,
   `expiry` datetime NOT NULL,
   PRIMARY KEY (`identifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `channel`;
+
+CREATE TABLE `channel` (
+    `username` varchar(128) NOT NULL,
+    `nickname` varchar(128) NOT NULL,
+    `calendar_id` varchar(128) NOT NULL,
+    `channel_id` varchar(128) NOT NULL,
+    `next_sync_token` varchar(128) NOT NULL,
+    PRIMARY KEY(`username`, `nickname`, `calendar_id`),
+    UNIQUE KEY(`channel_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `subscription`;
+
+CREATE TABLE `subscription` (
+    `username` varchar(128) NOT NULL,
+    `nickname` varchar(128) NOT NULL,
+    `calendar_id` varchar(128) NOT NULL,
+    `type` ENUM('invite'),
+    PRIMARY KEY(`username`, `nickname`, `calendar_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `invite`;
