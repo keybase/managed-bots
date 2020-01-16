@@ -5,7 +5,6 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/xanzy/go-gitlab"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -117,10 +116,6 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		}
 	}()
 
-	defaultBranch, err := getDefaultBranch(args[0], client)
-	if err != nil {
-		return fmt.Errorf("error getting default branch: %s", err)
-	}
 	alreadyExists, err := h.db.GetSubscriptionForRepoExists(base.ShortConvID(msg.ConvID), args[0])
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
@@ -132,21 +127,23 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 	if create {
 		if !alreadyExists {
+			project, err := getProject(args[0], client)
+			if err != nil {
+				return fmt.Errorf("error getting gitlab project: %s", err)
+			}
+
 			var webhookURL = h.httpPrefix + "/gitlabbot/webhook"
 			var eventsFlag = true
 			var token = makeSecret(args[0], base.ShortConvID(msg.ConvID), h.secret)
+			var defaultBranch = project.DefaultBranch
 
-			hook, res, err := client.Projects.AddProjectHook(url.QueryEscape(args[0]), &gitlab.AddProjectHookOptions{
+			hook, res, err := client.Projects.AddProjectHook(args[0], &gitlab.AddProjectHookOptions{
 				URL:                      &webhookURL,
 				PushEvents:               &eventsFlag,
 				IssuesEvents:             &eventsFlag,
 				ConfidentialIssuesEvents: &eventsFlag,
 				MergeRequestsEvents:      &eventsFlag,
-				TagPushEvents:            &eventsFlag,
-				NoteEvents:               &eventsFlag,
-				JobEvents:                &eventsFlag,
 				PipelineEvents:           &eventsFlag,
-				WikiPageEvents:           &eventsFlag,
 				EnableSSLVerification:    nil,
 				Token:                    &token,
 			})
@@ -158,6 +155,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
 				return nil
 			}
+
 			err = h.db.CreateSubscription(base.ShortConvID(msg.ConvID), args[0], defaultBranch, int64(hook.ID))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
@@ -176,7 +174,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			return fmt.Errorf("error getting hook ID for subscription: %s", err)
 		}
 
-		_, err = client.Projects.DeleteProjectHook(url.QueryEscape(args[0]), int(hookID))
+		_, err = client.Projects.DeleteProjectHook(args[0], int(hookID))
 		if err != nil {
 			return fmt.Errorf("error deleting webhook: %s", err)
 		}

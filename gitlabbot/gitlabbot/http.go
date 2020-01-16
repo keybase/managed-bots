@@ -61,11 +61,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
 		message = formatIssueMsg(event, author.String())
 		repo = strings.ToLower(event.Project.PathWithNamespace)
-		//branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		//if err != nil {
-		//	h.Debug("error getting default branch: %s", err)
-		//	return
-		//}
+		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
 		var author username
 		if event.ObjectAttributes.State == "merged" {
@@ -75,12 +71,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		message = formatMRMsg(event, author.String())
 		repo = strings.ToLower(event.Project.PathWithNamespace)
-
-		//branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		//if err != nil {
-		//	h.Debug("error getting default branch: %s", err)
-		//	return
-		//}
+		branch = event.Project.DefaultBranch
 	case *gitlab.PushEvent:
 		if len(event.Commits) == 0 {
 			break
@@ -91,16 +82,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	case *gitlab.PipelineEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
-		//if len(event.GetCheckSuite().PullRequests) == 0 {
-		//	// this is a branch test, not associated with a PR
-		//	branch = event.GetCheckSuite().GetHeadBranch()
-		//} else {
-		//	branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		//	if err != nil {
-		//		h.Debug("error getting default branch: %s", err)
-		//		return
-		//	}
-		//}
+		if event.MergeRequest.IID == 0 {
+			branch = event.ObjectAttributes.Ref
+		} else {
+			branch = event.Project.DefaultBranch
+		}
 		message = formatPipelineMsg(event, author.String())
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/xanzy/go-gitlab"
+	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -122,26 +123,17 @@ func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) 
 	return res
 }
 
-func getDefaultBranch(repo string, client *gitlab.Client) (branch string, err error) {
-	//args := strings.Split(repo, "/")
-	//if len(args) != 2 {
-	//	return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)
-	//}
-	//
-	//if client == nil {
-	//	return "", fmt.Errorf("getDefaultBranch: client is nil")
-	//}
-	//
-	//repoObject, res, err := client.Repositories.Get(context.TODO(), args[0], args[1])
-	//if res.StatusCode == http.StatusNotFound {
-	//	return "master", nil
-	//}
-	//if err != nil {
-	//	return "", err
-	//}
-	//
-	//return repoObject.GetDefaultBranch(), nil
-	return "master", nil
+func getProject(repo string, client *gitlab.Client) (*gitlab.Project, error) {
+	if client == nil {
+		return nil, fmt.Errorf("getDefaultBranch: client is nil")
+	}
+
+	project, res, err := client.Projects.GetProject(repo, &gitlab.GetProjectOptions{})
+	if err != nil || res.StatusCode != http.StatusOK {
+		return nil, err
+	}
+
+	return project, nil
 }
 
 // keybase IDing
