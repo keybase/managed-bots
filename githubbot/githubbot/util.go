@@ -148,7 +148,7 @@ func formatCheckRunMessage(evt *github.CheckRunEvent, username string) (res stri
 	return res
 }
 
-func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullRequest, username string) (res string, err error) {
+func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullRequest, username string) (res string) {
 	state := evt.GetState()
 	repo := evt.GetRepo().GetName()
 	isPullRequest := len(pullRequests) > 0
