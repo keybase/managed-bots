@@ -281,11 +281,14 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 }
 
 func (h *Handler) handleAuth(msg chat1.MsgSummary, client *github.Client) (err error) {
-	if client != nil {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You're authenticated with GitHub!")
-		if err != nil {
-			err = fmt.Errorf("error sending message: %s", err)
-		}
+	if client == nil {
+		err = fmt.Errorf("auth check called with empty client")
+		return err
+	}
+
+	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You're authenticated with GitHub!")
+	if err != nil {
+		err = fmt.Errorf("error sending message: %s", err)
 	}
 	return err
 }
