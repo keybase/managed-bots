@@ -3,8 +3,6 @@ package githubbot
 import (
 	"database/sql"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
@@ -29,20 +27,9 @@ func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch stri
 			(conv_id, repo, branch, hook_id, oauth_identifier)
 			VALUES
 			(?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			hook_id=VALUES(hook_id)
 		`, convID, repo, branch, hookID, oauthIdentifier)
-		if txErr, ok := err.(*mysql.MySQLError); ok {
-			// if dupe key, update hook id
-			if txErr.Number == 1062 {
-				return d.RunTxn(func(tx *sql.Tx) error {
-					_, err := tx.Exec(`
-					UPDATE subscriptions
-					SET hook_id = ?
-					WHERE (conv_id = ? AND repo = ? AND branch = ?)
-				`, hookID, convID, repo, branch)
-					return err
-				})
-			}
-		}
 		return err
 	})
 }
