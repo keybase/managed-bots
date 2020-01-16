@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS `accounts`;
 
-CREATE TABLE `accounts` (
+CREATE TABLE `account` (
   `username` varchar(128) NOT NULL,
   `nickname` varchar(128) NOT NULL,
   PRIMARY KEY (`username`, `nickname`)
@@ -19,12 +19,14 @@ CREATE TABLE `oauth` (
   PRIMARY KEY (`identifier`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-DROP TABLE IF EXISTS `subscriptions`;
+DROP TABLE IF EXISTS `invite`;
 
-CREATE TABLE `subscriptions` (
+CREATE TABLE `invite` (
     `username` varchar(128) NOT NULL,
     `nickname` varchar(128) NOT NULL,
-    `calendar` varchar(128) NOT NULL,
-    `type` ENUM('invites', 'updates', 'notifications') NOT NULL,
-    PRIMARY KEY(`username`, `nickname`, `calendar`, `type`)
+    `calendar_id` varchar(128) NOT NULL,
+    `event_id` varchar(128) NOT NULL,
+    `message_id` int(11) unsigned NOT NULL,
+    PRIMARY KEY(`username`, `nickname`, `event_id`),
+    UNIQUE KEY(`username`, `message_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

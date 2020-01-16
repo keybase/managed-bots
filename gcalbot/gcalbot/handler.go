@@ -50,6 +50,10 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
+		return h.handleReaction(msg)
+	}
+
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")
 		return nil
@@ -85,5 +89,20 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		}
 		return nil
 	}
+	return nil
+}
+
+func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
+	username := msg.Sender.Username
+	messageID := uint(msg.Content.Reaction.MessageID)
+	reaction := msg.Content.Reaction.Body
+
+	invite, err := h.db.GetInviteEventByUserMessage(username, messageID)
+	if err != nil {
+		return err
+	} else if invite != nil {
+		return h.updateEventResponseStatus(invite, InviteReaction(reaction))
+	}
+
 	return nil
 }
