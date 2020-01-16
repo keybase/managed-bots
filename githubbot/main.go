@@ -64,7 +64,7 @@ Subscribe to a specific branch:%s
 Example:%s
 !github unsubscribe keybase/client%s
 
-Unsubscribe to a specific branch:%s
+Unsubscribe from a specific branch:%s
 !github unsubscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
