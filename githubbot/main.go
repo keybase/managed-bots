@@ -127,6 +127,10 @@ Examples:%s
 				MobileBody:  mentionsExtended,
 			},
 		},
+		{
+			Name:        "github auth",
+			Description: "Check if GitHub is authenticated for your account.",
+		},
 	}
 	return kbchat.Advertisement{
 		Alias: "GitHub",
@@ -214,7 +218,7 @@ func (s *BotServer) Go() (err error) {
 	config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       []string{"admin:repo_hook"},
+		Scopes:       []string{"repo"},
 		Endpoint:     oauth2github.Endpoint,
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
 	}

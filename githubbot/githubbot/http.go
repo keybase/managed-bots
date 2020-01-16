@@ -1,6 +1,7 @@
 package githubbot
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
+	config  *oauth2.Config
 	kbc     *kbchat.API
 	db      *DB
 	handler *Handler
@@ -41,7 +43,7 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		h.Debug("Error reading payload: %s", err)
+		h.Debug("Error reading payload: %s\n", err)
 		return
 	}
 	defer r.Body.Close()
@@ -52,61 +54,26 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var message string
+	type genericPayload interface {
+		GetRepo() *github.Repository
+	}
 	var repo string
-	branch := "master"
 	switch event := event.(type) {
-	case *github.IssuesEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		message = formatIssueMsg(event, author.String())
-		repo = event.GetRepo().GetFullName()
-		branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
-			return
-		}
-	case *github.PullRequestEvent:
-		var author username
-		if event.GetPullRequest().GetMerged() {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
-		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		}
-		message = formatPRMsg(event, author.String())
-		repo = event.GetRepo().GetFullName()
-
-		branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
-			return
-		}
 	case *github.PushEvent:
-		if len(event.Commits) == 0 {
-			break
-		}
-		message = formatPushMsg(event, event.GetSender().GetLogin())
+		// PushEvent.GetRepo() returns *github.PushEventRepository instead of *github.Repository, so we handle it separately
 		repo = event.GetRepo().GetFullName()
-		branch = refToName(event.GetRef())
-	case *github.CheckSuiteEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		repo = event.GetRepo().GetFullName()
-		if len(event.GetCheckSuite().PullRequests) == 0 {
-			// this is a branch test, not associated with a PR
-			branch = event.GetCheckSuite().GetHeadBranch()
+	default:
+		if evt, ok := event.(genericPayload); ok {
+			repo = evt.GetRepo().GetFullName()
 		} else {
-			branch, err = getDefaultBranch(repo, github.NewClient(nil))
-		}
-		message = formatCheckSuiteMsg(event, author.String())
-		if err != nil {
-			h.Debug("error getting default branch: %s", err)
+			h.Debug("could not get repo from webhook, webhook type: %s\n", github.WebHookType(r))
 			return
 		}
 	}
 
-	if message != "" && repo != "" {
+	if repo != "" {
 		signature := r.Header.Get("X-Hub-Signature")
-
-		convs, err := h.db.GetSubscribedConvs(repo, branch)
+		convs, err := h.db.GetConvIDsFromRepo(repo)
 		if err != nil {
 			h.Debug("Error getting subscriptions for repo: %s", err)
 			return
@@ -118,11 +85,84 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
-			_, err = h.kbc.SendMessageByConvID(convID, message)
+			token, err := h.db.GetTokenFromConvID(convID)
 			if err != nil {
-				h.Debug("Error sending message: %s", err)
+				h.Debug("could not get token for convID: %s\n", err)
 				return
+			}
+			client := github.NewClient(h.config.Client(context.TODO(), token))
+			message, branch := h.formatMessage(event, repo, client)
+			if message != "" {
+				subscriptionExists, err := h.db.GetSubscriptionExists(convID, repo, branch)
+				if err != nil {
+					h.Debug("could not get subscription: %s\n", err)
+					return
+				}
+
+				if subscriptionExists {
+					_, err = h.kbc.SendMessageByConvID(convID, message)
+					if err != nil {
+						h.Debug("Error sending message: %s", err)
+						return
+					}
+				}
 			}
 		}
 	}
+}
+
+func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.Client) (message string, branch string) {
+	branch, err := getDefaultBranch(repo, client)
+	if err != nil {
+		h.Debug("formatMessage: error getting default branch: %s", err)
+		return "", ""
+	}
+	switch event := event.(type) {
+	case *github.IssuesEvent:
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+		message = formatIssueMsg(event, author.String())
+	case *github.PullRequestEvent:
+		var author username
+		if event.GetPullRequest().GetMerged() {
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
+		} else {
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+		}
+		message = formatPRMsg(event, author.String())
+	case *github.PushEvent:
+		if len(event.Commits) == 0 {
+			break
+		}
+		message = formatPushMsg(event, fmt.Sprintf("*%s*", event.GetSender().GetLogin()))
+		branch = refToName(event.GetRef())
+	case *github.CheckRunEvent:
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+		if len(event.GetCheckRun().PullRequests) == 0 {
+			// this is a branch test, not associated with a PR
+			branch = event.GetCheckRun().GetCheckSuite().GetHeadBranch()
+		}
+		// if we're parsing a pr, use the default branch
+		message = formatCheckRunMessage(event, author.String())
+	case *github.StatusEvent:
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
+		pullRequests, _, err := client.PullRequests.ListPullRequestsWithCommit(
+			context.TODO(),
+			event.GetRepo().GetOwner().GetLogin(),
+			event.GetRepo().GetName(),
+			event.GetSHA(),
+			&github.PullRequestListOptions{
+				State: "open",
+			},
+		)
+		if err != nil {
+			h.Debug("error getting pull requests from commit: %s", err)
+		}
+		if len(pullRequests) == 0 && len(event.Branches) >= 1 {
+			// this is a branch test, not associated with a PR
+			branch = event.Branches[0].GetName()
+		}
+		message = formatStatusMessage(event, pullRequests, author.String())
+
+	}
+	return message, branch
 }
