@@ -154,7 +154,7 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 	isPullRequest := len(pullRequests) > 0
 	var branch string
 	if len(evt.Branches) < 1 {
-		return
+		return ""
 	}
 	branch = evt.Branches[0].GetName()
 	var testName string
