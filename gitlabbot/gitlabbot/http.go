@@ -88,20 +88,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		message = formatPushMsg(event, event.UserUsername)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = refToName(event.Ref)
-	//case *github.CheckSuiteEvent:
-	//	author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-	//	repo = event.GetRepo().GetFullName()
-	//	if len(event.GetCheckSuite().PullRequests) == 0 {
-	//		// this is a branch test, not associated with a PR
-	//		branch = event.GetCheckSuite().GetHeadBranch()
-	//	} else {
-	//		branch, err = getDefaultBranch(repo, github.NewClient(nil))
-	//	}
-	//	message = formatCheckSuiteMsg(event, author.String())
-	//	if err != nil {
-	//		h.Debug("error getting default branch: %s", err)
-	//		return
-	//	}
+	case *gitlab.PipelineEvent:
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
+		repo = strings.ToLower(event.Project.PathWithNamespace)
+		//if len(event.GetCheckSuite().PullRequests) == 0 {
+		//	// this is a branch test, not associated with a PR
+		//	branch = event.GetCheckSuite().GetHeadBranch()
+		//} else {
+		//	branch, err = getDefaultBranch(repo, github.NewClient(nil))
+		//	if err != nil {
+		//		h.Debug("error getting default branch: %s", err)
+		//		return
+		//	}
+		//}
+		message = formatPipelineMsg(event, author.String())
 	}
 
 	if message != "" && repo != "" {

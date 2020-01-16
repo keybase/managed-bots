@@ -9,8 +9,6 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
-
-	"github.com/google/go-github/v28/github"
 )
 
 func makeSecret(repo string, shortConvID base.ShortID, secret string) string {
@@ -89,38 +87,37 @@ func formatMRMsg(evt *gitlab.MergeEvent, username string) (res string) {
 	return res
 }
 
-func formatCheckSuiteMsg(evt *github.CheckSuiteEvent, username string) (res string) {
-	action := evt.Action
-	if *action == "completed" {
-		suite := evt.GetCheckSuite()
-		repo := evt.GetRepo().GetName()
-		isPullRequest := len(suite.PullRequests) > 0
-		switch suite.GetConclusion() {
-		case "success":
-			if !isPullRequest {
-				res = fmt.Sprintf(":white_check_mark: Tests passed for %s/%s.", repo, suite.GetHeadBranch())
-			} else {
-				pr := suite.PullRequests[0]
-				res = fmt.Sprintf(":white_check_mark: All tests passed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-			}
-		case "failure", "timed_out", "action_required":
-			if !isPullRequest {
-				res = fmt.Sprintf(":x: Tests failed for %s/%s.", repo, suite.GetHeadBranch())
-			} else {
-				pr := suite.PullRequests[0]
-				res = fmt.Sprintf(":x: Tests failed for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-			}
-		case "cancelled":
-			if !isPullRequest {
-				res = fmt.Sprintf(":warning: Tests cancelled for %s/%s.", repo, suite.GetHeadBranch())
-			} else {
-				pr := suite.PullRequests[0]
-				res = fmt.Sprintf(":warning: Tests cancelled for pull request #%d on %s.\n%s/pull/%d", pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-			}
+func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) {
+	action := evt.ObjectAttributes.Status
+	suite := evt.ObjectAttributes
+	repo := evt.Project.PathWithNamespace
+	isMergeRequest := evt.MergeRequest.IID != 0
+	pipelineURL := fmt.Sprintf("https://gitlab.com/%s/pipelines/%d", repo, evt.ObjectAttributes.ID)
+	switch action {
+	case "success":
+		if !isMergeRequest {
+			res = fmt.Sprintf(":white_check_mark: Tests passed for %s/%s.\n%s", repo, suite.Ref, pipelineURL)
+		} else {
+			mr := evt.MergeRequest
+			res = fmt.Sprintf(":white_check_mark: All tests passed for merge request #%d on %s.\n%s", mr.IID, repo, mr.URL)
 		}
-		if strings.HasPrefix(username, "@") && isPullRequest && res != "" {
-			res = res + "\n" + username
+	case "failed":
+		if !isMergeRequest {
+			res = fmt.Sprintf(":x: Tests failed for %s/%s.\n%s", repo, suite.Ref, pipelineURL)
+		} else {
+			mr := evt.MergeRequest
+			res = fmt.Sprintf(":x: Tests failed for merge request #%d on %s.\n%s", mr.IID, repo, mr.URL)
 		}
+	case "canceled":
+		if !isMergeRequest {
+			res = fmt.Sprintf(":warning: Tests cancelled for %s/%s.\n%s", repo, suite.Ref, pipelineURL)
+		} else {
+			mr := evt.MergeRequest
+			res = fmt.Sprintf(":warning: Tests cancelled for pull request #%d on %s.\n%s", mr.IID, repo, mr.URL)
+		}
+	}
+	if strings.HasPrefix(username, "@") && isMergeRequest && res != "" {
+		res = res + "\n" + username
 	}
 	return res
 }
