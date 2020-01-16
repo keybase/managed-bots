@@ -138,6 +138,9 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	}
 
 	err = h.db.DeleteChannelByID(channel.ID)
+	if err != nil {
+		return err
+	}
 
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
 		"OK, you will no longer be notified of event invites for your primary calendar '%s'.", primaryCalendar.Summary)
