@@ -66,7 +66,7 @@ Example:%s
 
 Unsubscribe to a specific branch:%s
 !github unsubscribe facebook/react gh-pages%s`,
-		backs, backs)
+		backs, backs, backs, backs)
 
 
 	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
