@@ -81,10 +81,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleSubscribe(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
 		return h.handleSubscribe(cmd, msg, false, client)
-	case strings.HasPrefix(cmd, "!github watch"):
-		return h.handleWatch(cmd, msg, true, client)
-	case strings.HasPrefix(cmd, "!github unwatch"):
-		return h.handleWatch(cmd, msg, false, client)
 	case strings.HasPrefix(cmd, "!github auth"):
 		return h.handleAuth(msg, client)
 	default:
@@ -98,6 +94,11 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
 	}
+
+	if isSubscribeToBranch(toks) {
+		return h.handleSubscribeToBranch(cmd, msg, create, client)
+	}
+
 	args := toks[2:]
 	if len(args) < 1 {
 		return fmt.Errorf("bad args for subscribe: %v", args)
@@ -180,11 +181,11 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	message = "You aren't subscribed to updates for %s!"
+	message = "You aren't subscribed to updates yet!\nFirst do this: `!github subscribe %s`"
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) error {
+func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -201,7 +202,7 @@ func (h *Handler) handleWatch(cmd string, msg chat1.MsgSummary, create bool, cli
 	}()
 
 	if len(args) < 2 {
-		return fmt.Errorf("bad args for watch: %v", args)
+		return fmt.Errorf("bad args for subscribe to branch: %v", args)
 	}
 	defaultBranch, err := getDefaultBranch(args[0], client)
 	if err != nil {
@@ -212,7 +213,7 @@ func (h *Handler) handleWatch(cmd string, msg chat1.MsgSummary, create bool, cli
 		if err != nil {
 			return fmt.Errorf("error getting subscription: %s", err)
 		}
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("You aren't subscribed to updates yet!\nFirst do this: `!github subscribe %s`", args[0]))
 		if err != nil {
 			return fmt.Errorf("Error sending message: %s", err)
 		}
@@ -230,7 +231,7 @@ func (h *Handler) handleWatch(cmd string, msg chat1.MsgSummary, create bool, cli
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
 
-		message = "Now watching for commits on %s/%s."
+		message = "Now subscribed for commits on %s/%s."
 		return nil
 	}
 	err = h.db.DeleteSubscription(msg.ConvID, args[0], args[1])
@@ -277,7 +278,6 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	}
 
 	return
-
 }
 
 func (h *Handler) handleAuth(msg chat1.MsgSummary, client *github.Client) (err error) {

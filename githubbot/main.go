@@ -53,26 +53,21 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
 
 Example:%s
-!github subscribe keybase/client%s`,
-		backs, backs)
+!github subscribe keybase/client%s
+
+Subscribe to a specific branch:%s
+!github subscribe facebook/react gh-pages%s`,
+		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
 
 Example:%s
-!github unsubscribe keybase/client%s`,
+!github unsubscribe keybase/client%s
+
+Unsubscribe to a specific branch:%s
+!github unsubscribe facebook/react gh-pages%s`,
 		backs, backs)
 
-	watchExtended := fmt.Sprintf(`Subscribes to updates from a non-default branch on the provided repo.
-	
-Example:%s
-!github watch facebook/react gh-pages%s`,
-		backs, backs)
-
-	unwatchExtended := fmt.Sprintf(`Disables updates from a non-default branch on the provided repo.
-
-Example:%s
-!github unwatch facebook/react gh-pages%s
-	`, backs, backs)
 
 	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
 
@@ -92,30 +87,12 @@ Examples:%s
 			},
 		},
 		{
-			Name:        "github watch",
-			Description: "Watch pushes from branch",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github watch* <username/repo> <branch>`,
-				DesktopBody: watchExtended,
-				MobileBody:  watchExtended,
-			},
-		},
-		{
 			Name:        "github unsubscribe",
 			Description: "Disable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       `*!github unsubscribe* <username/repo>`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
-			},
-		},
-		{
-			Name:        "github unwatch",
-			Description: "Disable updates from branch",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github unwatch* <username/repo> <branch>`,
-				DesktopBody: unwatchExtended,
-				MobileBody:  unwatchExtended,
 			},
 		},
 		{
