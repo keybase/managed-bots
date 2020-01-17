@@ -106,7 +106,6 @@ func (s *BotServer) Go() (err error) {
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
 		s.Debug("failed to announce self: %s", err)
-		return err
 	}
 
 	requests := &base.OAuthRequests{}
