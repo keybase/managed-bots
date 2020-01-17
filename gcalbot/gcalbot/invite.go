@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -54,6 +56,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.requests, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
 	if err != nil || client == nil {
+		// if no error, account doesn't exist, short circuit
 		return err
 	}
 
@@ -74,11 +77,9 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	}
 
 	exists, err := h.db.ExistsSubscription(subscription)
-	if err != nil {
+	if err != nil || exists {
+		// if no error, subscription exists, short circuit
 		return err
-	} else if exists {
-		// short circuit
-		return nil
 	}
 
 	err = h.createEventChannel(srv, accountID, primaryCalendar.Id)
@@ -121,14 +122,12 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	accountID := GetAccountID(keybaseUsername, accountNickname)
 
 	token, err := h.db.GetToken(accountID)
-	if err != nil {
+	if err != nil || token == nil {
+		// if no error, account doesn't exist, short circuit
 		return err
-	} else if token == nil {
-		// account doesn't exist, short circuit
-		return nil
 	}
-	client := h.config.Client(context.Background(), token)
 
+	client := h.config.Client(context.Background(), token)
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		return err
@@ -144,11 +143,9 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		CalendarID: primaryCalendar.Id,
 		Type:       SubscriptionTypeInvite,
 	})
-	if err != nil {
+	if err != nil || !exists {
+		// if no error, subscription doesn't exist, short circuit
 		return err
-	} else if !exists {
-		// subscription doesn't exists, short circuit
-		return nil
 	}
 
 	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(accountID, primaryCalendar.Id)
@@ -157,22 +154,33 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	}
 
 	if subscriptionCount == 0 {
+		// if there are no more subscriptions for this account + calendar, remove the channel
 		channel, err := h.db.GetChannelByAccountAndCalendarID(accountID, primaryCalendar.Id)
-		if err != nil || channel == nil {
-			return err
-		}
-
-		err = srv.Channels.Stop(&calendar.Channel{
-			Id:         channel.ChannelID,
-			ResourceId: channel.ResourceID,
-		}).Do()
 		if err != nil {
 			return err
 		}
 
-		err = h.db.DeleteChannelByChannelID(channel.ChannelID)
-		if err != nil {
-			return err
+		if channel != nil {
+			// TODO(marcel): exponential backoff for api calls
+			err = srv.Channels.Stop(&calendar.Channel{
+				Id:         channel.ChannelID,
+				ResourceId: channel.ResourceID,
+			}).Do()
+			if err != nil {
+				switch err := err.(type) {
+				case *googleapi.Error:
+					if err.Code != 404 {
+						return err
+					}
+				default:
+					return err
+				}
+			}
+
+			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -187,6 +195,8 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 
 func (h *Handler) sendEventInvite(accountID, calendarID string, event *calendar.Event) error {
 	// TODO(marcel): display which calendar and nickname this is for
+	// TODO(marcel): better date formatting
+	// TODO(marcel): possibly sanitize titles/info
 	message := `
 You've been invited to an event: %s
 What: *%s*
@@ -278,7 +288,6 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 	}
 
 	client := h.config.Client(context.Background(), token)
-
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		return err
