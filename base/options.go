@@ -37,7 +37,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 
 	awsOpts := &AWSOptions{}
-	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_DSN"), "AWS region for cloudwatch logs, optional")
+	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_AWS_REGION"), "AWS region for cloudwatch logs, optional")
 	fs.StringVar(&awsOpts.CloudWatchLogGroup, "cloudwatch-log-group", os.Getenv("BOT_CLOUDWATCH_LOG_GROUP"), "Cloudwatch log group name, optional")
 	if o.AWSOpts.IsEmpty() && !awsOpts.IsEmpty() {
 		o.AWSOpts = awsOpts
