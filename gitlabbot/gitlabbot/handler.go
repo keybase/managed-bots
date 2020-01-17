@@ -86,10 +86,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleSubscribe(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
 		return h.handleSubscribe(cmd, msg, false, client)
-	case strings.HasPrefix(cmd, "!gitlab watch"):
-		return h.handleWatch(cmd, msg.ConvID, true, client)
-	case strings.HasPrefix(cmd, "!gitlab unwatch"):
-		return h.handleWatch(cmd, msg.ConvID, false, client)
 	}
 	return nil
 }
@@ -103,6 +99,12 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if len(args) < 1 {
 		return fmt.Errorf("bad args for subscribe: %v", args)
 	}
+
+	// Check if command is subscribing to a branch
+	if len(toks) == 4 {
+		return h.handleSubscribeToBranch(cmd, msg, create, client)
+	}
+
 
 	var message string
 	defer func() {
@@ -189,61 +191,69 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, client *gitlab.Client) (err error) {
-//	toks, err := shellquote.Split(cmd)
-//	if err != nil {
-//		return fmt.Errorf("error splitting command: %s", err)
-//	}
-//	args := toks[2:]
-//	var message string
-//	defer func() {
-//		if message != "" {
-//			_, err = h.kbc.SendMessageByConvID(convID, fmt.Sprintf(message, args[0], args[1]))
-//			if err != nil {
-//				err = fmt.Errorf("error sending message: %s", err)
-//			}
-//		}
-//	}()
-//
-//	if len(args) < 2 {
-//		return fmt.Errorf("bad args for watch: %v", args)
-//	}
-//	defaultBranch, err := getDefaultBranch(args[0], client)
-//	if err != nil {
-//		return fmt.Errorf("error getting default branch: %s", err)
-//	}
-//
-//	if exists, err := h.db.GetSubscriptionExists(convID, args[0], defaultBranch); !exists {
-//		if err != nil {
-//			return fmt.Errorf("error getting subscription: %s", err)
-//		}
-//		_, err := h.kbc.SendMessageByConvID(convID, fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0]))
-//		if err != nil {
-//			return fmt.Errorf("Error sending message: %s", err)
-//		}
-//		return nil
-//	}
-//
-//	if create {
-//		hookID, err := h.db.GetHookIDForRepo(convID, args[0])
-//		if err != nil {
-//			return fmt.Errorf("error getting hook ID for subscription: %s", err)
-//		}
-//
-//		err = h.db.CreateSubscription(convID, args[0], args[1], hookID)
-//		if err != nil {
-//			return fmt.Errorf("error creating subscription: %s", err)
-//		}
-//
-//		message = "Now watching for commits on %s/%s."
-//		return nil
-//	}
-//	err = h.db.DeleteSubscription(convID, args[0], args[1])
-//	if err != nil {
-//		return fmt.Errorf("error deleting subscription: %s", err)
-//	}
-//
-//	message = "Okay, you won't receive notifications for commits in %s/%s."
+func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, create bool, client *gitlab.Client) (err error) {
+	toks, err := shellquote.Split(cmd)
+	if err != nil {
+		return fmt.Errorf("error splitting command: %s", err)
+	}
+	args := toks[2:]
+	var message string
+	defer func() {
+		if message != "" {
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0], args[1]))
+			if err != nil {
+				err = fmt.Errorf("error sending message: %s", err)
+			}
+		}
+	}()
+
+	if len(args) < 2 {
+		return fmt.Errorf("bad args for subscribe to branch: %v", args)
+	}
+
+	project, err := getProject(args[0], client)
+	if err != nil {
+		return fmt.Errorf("error getting gitlab project: %s", err)
+	}
+	var defaultBranch = project.DefaultBranch
+
+	if exists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], defaultBranch); !exists {
+		if err != nil {
+			return fmt.Errorf("error getting subscription: %s", err)
+		}
+		var message string
+		if create {
+			message = fmt.Sprintf("You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", args[0])
+		} else {
+			message = fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0])
+		}
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, message)
+		if err != nil {
+			return fmt.Errorf("Error sending message: %s", err)
+		}
+		return nil
+	}
+
+	if create {
+		hookID, err := h.db.GetHookIDForRepo(msg.ConvID, args[0])
+		if err != nil {
+			return fmt.Errorf("error getting hook ID for subscription: %s", err)
+		}
+
+		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], hookID)
+		if err != nil {
+			return fmt.Errorf("error creating subscription: %s", err)
+		}
+
+		message = "Now subscribed to commits on %s/%s."
+		return nil
+	}
+	err = h.db.DeleteSubscription(msg.ConvID, args[0], args[1])
+	if err != nil {
+		return fmt.Errorf("error deleting subscription: %s", err)
+	}
+
+	message = "Okay, you won't receive notifications for commits in %s/%s."
 	return nil
 }
 

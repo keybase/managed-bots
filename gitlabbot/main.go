@@ -50,29 +50,23 @@ func NewBotServer(opts Options) *BotServer {
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitLab repository to this conversation.
+	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitLab project to this conversation.
 
 Example:%s
-!gitlab subscribe keybase/client%s`,
-		backs, backs)
+!gitlab subscribe keybase/client%s
 
-	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitLab repository to this conversation.
+Subscribe to a specific branch:%s
+!gitlab subscribe facebook/react gh-pages%s`,
+		backs, backs, backs, backs)
 
-Example:%s
-!gitlab unsubscribe keybase/client%s`,
-		backs, backs)
-
-	watchExtended := fmt.Sprintf(`Subscribes to updates from a non-default branch on the provided repo.
-	
-Example:%s
-!gitlab watch facebook/react gh-pages%s`,
-		backs, backs)
-
-	unwatchExtended := fmt.Sprintf(`Disables updates from a non-default branch on the provided repo.
+	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitLab project to this conversation.
 
 Example:%s
-!gitlab unwatch facebook/react gh-pages%s
-	`, backs, backs)
+!gitlab unsubscribe keybase/client%s
+
+Unsubscribe from a specific branch:%s
+!gitlab unsubscribe facebook/react gh-pages%s`,
+		backs, backs, backs, backs)
 
 	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitLab events that involve your proven GitLab username. 
 
@@ -84,43 +78,25 @@ Examples:%s
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "gitlab subscribe",
-			Description: "Enable updates from GitLab repos",
+			Description: "Enable updates from GitLab projects",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab subscribe* <username/repo>`,
+				Title:       `*!gitlab subscribe* <username/project> [branch]`,
 				DesktopBody: subExtended,
 				MobileBody:  subExtended,
 			},
 		},
 		{
-			Name:        "gitlab watch",
-			Description: "Watch pushes from branch",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab watch* <username/repo> <branch>`,
-				DesktopBody: watchExtended,
-				MobileBody:  watchExtended,
-			},
-		},
-		{
 			Name:        "gitlab unsubscribe",
-			Description: "Disable updates from GitHub repos",
+			Description: "Disable updates from GitLab projects",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab unsubscribe* <username/repo>`,
+				Title:       `*!gitlab unsubscribe* <username/project> [branch]`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
 			},
 		},
 		{
-			Name:        "gitlab unwatch",
-			Description: "Disable updates from branch",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab unwatch* <username/repo> <branch>`,
-				DesktopBody: unwatchExtended,
-				MobileBody:  unwatchExtended,
-			},
-		},
-		{
 			Name:        "gitlab mentions",
-			Description: "Enable or disable mentions in GitHub events for your username.",
+			Description: "Enable or disable mentions in GitLab events for your username.",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       `*!gitlab mentions* <disable/enable>`,
 				DesktopBody: mentionsExtended,
@@ -129,7 +105,7 @@ Examples:%s
 		},
 	}
 	return kbchat.Advertisement{
-		Alias: "GitHub",
+		Alias: "GitLab",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ:      "public",
