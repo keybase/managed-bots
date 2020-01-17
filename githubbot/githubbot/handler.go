@@ -182,7 +182,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	message = "You aren't subscribed to notifications for %s!"
+	message = "You aren't subscribed to updates for %s!"
 	return nil
 }
 
