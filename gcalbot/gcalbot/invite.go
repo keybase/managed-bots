@@ -49,9 +49,9 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 
 	username := msg.Sender.Username
 	accountNickname := args[0]
-	identifier := GetAccountIdentifier(username, accountNickname)
+	accountID := GetAccountID(username, accountNickname)
 
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.requests, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
 	if err != nil || client == nil {
 		return err
@@ -67,8 +67,27 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	err = h.createEventChannel(srv, username, accountNickname, primaryCalendar.Id)
+	subscription := &Subscription{
+		AccountID:  accountID,
+		CalendarID: primaryCalendar.Id,
+		Type:       SubscriptionTypeInvite,
+	}
+
+	exists, err := h.db.ExistsSubscription(subscription)
 	if err != nil {
+		return err
+	} else if exists {
+		// short circuit
+		return nil
+	}
+
+	err = h.createEventChannel(srv, accountID, primaryCalendar.Id)
+	if err != nil {
+		return err
+	}
+
+	err = h.db.InsertSubscription(subscription)
+	if err != err {
 		return err
 	}
 
@@ -97,22 +116,18 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
-	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	accountID := GetAccountID(keybaseUsername, accountNickname)
+
+	token, err := h.db.GetToken(accountID)
 	if err != nil {
 		return err
-	} else if !exists {
+	} else if token == nil {
+		// account doesn't exist, short circuit
 		return nil
 	}
-
-	identifier := GetAccountIdentifier(username, accountNickname)
-
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		h.getAccountOAuthOpts(msg, accountNickname))
-	if err != nil || client == nil {
-		return err
-	}
+	client := h.config.Client(context.Background(), token)
 
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
@@ -124,22 +139,41 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		return err
 	}
 
-	channel, err := h.db.GetChannelByUser(username, accountNickname, primaryCalendar.Id)
-	if err != nil || channel == nil {
+	exists, err := h.db.DeleteSubscription(&Subscription{
+		AccountID:  accountID,
+		CalendarID: primaryCalendar.Id,
+		Type:       SubscriptionTypeInvite,
+	})
+	if err != nil {
 		return err
+	} else if !exists {
+		// subscription doesn't exists, short circuit
+		return nil
 	}
 
-	err = srv.Channels.Stop(&calendar.Channel{
-		Id:         channel.ID,
-		ResourceId: channel.ResourceID,
-	}).Do()
+	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(accountID, primaryCalendar.Id)
 	if err != nil {
 		return err
 	}
 
-	err = h.db.DeleteChannelByID(channel.ID)
-	if err != nil {
-		return err
+	if subscriptionCount == 0 {
+		channel, err := h.db.GetChannelByAccountAndCalendarID(accountID, primaryCalendar.Id)
+		if err != nil || channel == nil {
+			return err
+		}
+
+		err = srv.Channels.Stop(&calendar.Channel{
+			Id:         channel.ChannelID,
+			ResourceId: channel.ResourceID,
+		}).Do()
+		if err != nil {
+			return err
+		}
+
+		err = h.db.DeleteChannelByChannelID(channel.ChannelID)
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
@@ -151,7 +185,7 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	return nil
 }
 
-func (h *Handler) sendEventInvite(username, nickname, calendarID string, event *calendar.Event) {
+func (h *Handler) sendEventInvite(accountID, calendarID string, event *calendar.Event) error {
 	// TODO(marcel): display which calendar and nickname this is for
 	message := `
 You've been invited to an event: %s
@@ -167,51 +201,54 @@ Where: %s
 Awaiting your response. *Are you going?*
 `
 
+	account, err := h.db.GetAccountByAccountID(accountID)
+	if err != nil {
+		return err
+	}
+
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
 
 	startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
 	if err != nil {
-		return
+		return err
 	}
 	startTimeFormatted := startTime.Format(time.RFC1123)
 	endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
 	if err != nil {
-		return
+		return err
 	}
 	endTimeFormatted := endTime.Format(time.RFC1123)
 
 	var sendRes kbchat.SendResponse
 	if event.Location != "" {
-		sendRes, err = h.kbc.SendMessageByTlfName(username, messageWithLocation,
+		sendRes, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername, messageWithLocation,
 			url, event.Summary, startTimeFormatted, endTimeFormatted, event.Location)
 	} else {
-		sendRes, err = h.kbc.SendMessageByTlfName(username, message,
+		sendRes, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
 			url, event.Summary, startTimeFormatted, endTimeFormatted)
 	}
 	if err != nil {
-		h.Debug("error sending message: %s", err)
-		return
+		return err
 	}
 
 	for _, reaction := range []InviteReaction{InviteReactionYes, InviteReactionNo, InviteReactionMaybe} {
-		_, err = h.kbc.ReactByChannel(chat1.ChatChannel{Name: username}, *sendRes.Result.MessageID, string(reaction))
+		_, err = h.kbc.ReactByChannel(chat1.ChatChannel{Name: account.KeybaseUsername},
+			*sendRes.Result.MessageID, string(reaction))
 		if err != nil {
-			h.Debug("error reacting to message: %s", err)
-			return
+			return err
 		}
 	}
 
 	err = h.db.InsertInvite(&Invite{
-		Username:   username,
-		Nickname:   nickname,
-		CalendarID: calendarID,
-		EventID:    event.Id,
-		MessageID:  uint(*sendRes.Result.MessageID),
+		AccountID:       accountID,
+		CalendarID:      calendarID,
+		EventID:         event.Id,
+		KeybaseUsername: account.KeybaseUsername,
+		MessageID:       uint(*sendRes.Result.MessageID),
 	})
-	if err != nil {
-		h.Debug("error inserting invite: %s", err)
-	}
+
+	return err
 }
 
 func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReaction) error {
@@ -232,12 +269,11 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 		return nil
 	}
 
-	identifier := GetAccountIdentifier(invite.Username, invite.Nickname)
-	token, err := h.db.GetToken(identifier)
+	token, err := h.db.GetToken(invite.AccountID)
 	if err != nil {
 		return err
 	} else if token == nil {
-		h.Debug("token not found for '%s'", identifier)
+		h.Debug("token not found for '%s'", invite.AccountID)
 		return nil
 	}
 
@@ -269,7 +305,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 	}
 
 	// TODO(marcel): specify which account this is for
-	_, err = h.kbc.SendMessageByTlfName(invite.Username, "I've set your status as '%s' for event '%s'.",
+	_, err = h.kbc.SendMessageByTlfName(invite.KeybaseUsername, "I've set your status as '%s' for event '%s'.",
 		confirmationMessageStatus, event.Summary)
 	if err != nil {
 		return err

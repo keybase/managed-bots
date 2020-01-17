@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"google.golang.org/api/option"
 
@@ -14,6 +15,13 @@ import (
 )
 
 func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Request) {
+	var err error
+	defer func() {
+		if err != nil {
+			h.Debug("error in event update webhook: ", err)
+		}
+	}()
+
 	state := r.Header.Get("X-Goog-Resource-State")
 	if state == "sync" {
 		// Sync or deleted header, safe to ignore
@@ -22,17 +30,19 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 
 	channelID := r.Header.Get("X-Goog-Channel-ID")
 	resourceID := r.Header.Get("X-Goog-Resource-ID")
-	channel, err := h.db.GetChannelByID(channelID)
+	channel, err := h.db.GetChannelByChannelID(channelID)
 	if err != nil || channel == nil {
 		return
 	}
+
 	// sanity check
 	if channel.ResourceID != resourceID {
+		err = fmt.Errorf("channel and request resourceIDs do not match: %s != %s",
+			channel.ResourceID, resourceID)
 		return
 	}
 
-	identifier := GetAccountIdentifier(channel.Username, channel.Nickname)
-	token, err := h.db.GetToken(identifier)
+	token, err := h.db.GetToken(channel.AccountID)
 	if err != nil {
 		return
 	}
@@ -61,8 +71,8 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 				return
 			}
 		}
-		h.Debug("error updating events for user '%s', nick '%s', cal '%s': %s",
-			channel.Username, channel.Nickname, channel.CalendarID, err)
+		err = fmt.Errorf("error updating events for account ID '%s', cal '%s': %s",
+			channel.AccountID, channel.CalendarID, err)
 		return
 	}
 
@@ -78,15 +88,18 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		for _, attendee := range event.Attendees {
 			if attendee.Self && !attendee.Organizer &&
 				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
-				exists, err := h.db.ExistsInviteForUserEvent(channel.Username, channel.Nickname, channel.CalendarID, event.Id)
+				exists, err := h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
 				if err != nil {
-					h.Debug("error checking in db for invite: %s", err)
+					err = fmt.Errorf("error checking in db for invite: %s", err)
 					return
 				}
 				if !exists {
 					// user was recently invited to the event
 					// TODO(marcel): deal with recurring events
-					h.handler.sendEventInvite(channel.Username, channel.Nickname, channel.CalendarID, event)
+					err = h.handler.sendEventInvite(channel.AccountID, channel.CalendarID, event)
+					if err != nil {
+						return
+					}
 				}
 			}
 		}
@@ -102,9 +115,9 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 
 func (h *Handler) createEventChannel(
 	srv *calendar.Service,
-	username, accountNickname, calendarID string,
+	accountID, calendarID string,
 ) error {
-	exists, err := h.db.ExistsChannelForUser(username, accountNickname, calendarID)
+	exists, err := h.db.ExistsChannelByAccountAndCalID(accountID, calendarID)
 	if err != nil {
 		return err
 	} else if exists {
@@ -135,11 +148,11 @@ func (h *Handler) createEventChannel(
 	}
 
 	err = h.db.InsertChannel(&Channel{
-		ID:            channelID,
-		Username:      username,
-		Nickname:      accountNickname,
+		ChannelID:     channelID,
+		AccountID:     accountID,
 		CalendarID:    calendarID,
 		ResourceID:    res.ResourceId,
+		Expiry:        time.Unix(res.Expiration/1e3, 0),
 		NextSyncToken: events.NextSyncToken,
 	})
 
