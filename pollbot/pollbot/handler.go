@@ -34,13 +34,13 @@ func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *H
 	}
 }
 
-func (h *Handler) generateVoteLink(convID string, msgID chat1.MessageID, choice int) string {
+func (h *Handler) generateVoteLink(convID chat1.ConvIDStr, msgID chat1.MessageID, choice int) string {
 	vote := NewVote(convID, msgID, choice)
 	link := h.httpPrefix + "/pollbot/vote?=" + url.QueryEscape(vote.Encode())
 	return strings.ReplaceAll(link, "%", "%%")
 }
 
-func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, prompt string,
+func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.MessageID, prompt string,
 	options []string) error {
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	sendRes, err := h.kbc.SendMessageByConvID(convID, promptBody)
@@ -72,7 +72,7 @@ func (h *Handler) generateAnonymousPoll(convID string, msgID chat1.MessageID, pr
 	return nil
 }
 
-func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt string,
+func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, prompt string,
 	options []string) error {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
@@ -95,7 +95,7 @@ func (h *Handler) generatePoll(convID string, msgID chat1.MessageID, prompt stri
 	return nil
 }
 
-func (h *Handler) handlePoll(cmd, convID string, msgID chat1.MessageID) error {
+func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.MessageID) error {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to parse poll command: %s", err)
@@ -152,8 +152,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handlePoll(cmd, msg.ConvID, msg.Id)
 	case cmd == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
-	default:
-		h.Debug("ignoring unknown command: %q", cmd)
 	}
 	return nil
 }

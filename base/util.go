@@ -39,7 +39,7 @@ func codecHandle() *codec.MsgpackHandle {
 	return &mh
 }
 
-func ShortConvID(convID string) ShortID {
+func ShortConvID(convID chat1.ConvIDStr) ShortID {
 	if len(convID) <= 20 {
 		return ShortID(convID)
 	}

@@ -21,8 +21,14 @@ import (
 )
 
 type Options struct {
-	base.Options
+	*base.Options
 	KBFSRoot string
+}
+
+func NewOptions() *Options {
+	return &Options{
+		Options: base.NewOptions(),
+	}
 }
 
 type BotServer struct {
@@ -34,7 +40,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement),
+		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
 		opts:   opts,
 	}
 }
@@ -123,16 +129,18 @@ func main() {
 }
 
 func mainInner() int {
-	var opts Options
-	flag.StringVar(&opts.KeybaseLocation, "keybase", "keybase", "keybase command")
-	flag.StringVar(&opts.Home, "home", "", "Home directory")
-	flag.StringVar(&opts.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
-		"Where to announce we are running")
-	flag.StringVar(&opts.DSN, "dsn", os.Getenv("BOT_DSN"), "bot database DSN")
-	flag.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
-	flag.Parse()
+	opts := NewOptions()
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
+	if err := opts.Parse(fs, os.Args); err != nil {
+		return 3
+	}
+	if len(opts.DSN) == 0 {
+		fmt.Printf("must specify a database DSN\n")
+		return 3
+	}
 
-	bs := NewBotServer(opts)
+	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err)
 	}
