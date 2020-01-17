@@ -133,7 +133,6 @@ type Channel struct {
 }
 
 func (d *DB) InsertChannel(channel *Channel) error {
-	// TODO(marcel): should I fix the timestamp?
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO channel
@@ -296,6 +295,8 @@ func (d *DB) DeleteSubscription(subscription *Subscription) (exists bool, err er
 	})
 	return exists, err
 }
+
+// Invite
 
 type Invite struct {
 	AccountID       string
