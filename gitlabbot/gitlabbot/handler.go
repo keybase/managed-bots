@@ -90,8 +90,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleWatch(cmd, msg.ConvID, true, client)
 	case strings.HasPrefix(cmd, "!gitlab unwatch"):
 		return h.handleWatch(cmd, msg.ConvID, false, client)
-	default:
-		h.Debug("ignoring unknown command")
 	}
 	return nil
 }
@@ -191,7 +189,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleWatch(cmd string, convID string, create bool, client *gitlab.Client) (err error) {
+func (h *Handler) handleWatch(cmd string, convID chat1.ConvIDStr, create bool, client *gitlab.Client) (err error) {
 //	toks, err := shellquote.Split(cmd)
 //	if err != nil {
 //		return fmt.Errorf("error splitting command: %s", err)
