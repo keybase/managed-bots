@@ -182,7 +182,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	message = "You aren't subscribed to updates yet!\nFirst do this: `!github subscribe %s`"
+	message = "You aren't subscribed to notifications for %s!"
 	return nil
 }
 
