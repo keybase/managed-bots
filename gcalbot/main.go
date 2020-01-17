@@ -175,6 +175,8 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
+	// Need CalendarReadonlyScope to list calendars and get primary calendar
+	// Need CalendarEventsScope to set a response status for events that a user is invited to
 	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope, calendar.CalendarEventsScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
