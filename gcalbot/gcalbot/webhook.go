@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"google.golang.org/api/option"
-
 	"github.com/keybase/managed-bots/base"
-	"google.golang.org/api/googleapi"
 
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +66,8 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		switch err := err.(type) {
 		case *googleapi.Error:
 			if err.Code == 410 {
-				// TODO(marcel)
+				// TODO(marcel): next sync token has expired, need to do a "full refresh"
+				// could lead to really old events not in db having invites sent out
 				return
 			}
 		}
@@ -117,20 +117,19 @@ func (h *Handler) createEventChannel(
 	accountID, calendarID string,
 ) error {
 	exists, err := h.db.ExistsChannelByAccountAndCalID(accountID, calendarID)
-	if err != nil {
+	if err != nil || exists {
+		// if err is nil but the channel exists, return
 		return err
-	} else if exists {
-		return nil
 	}
 
 	// channel not found, create one
-
 	channelID, err := base.MakeRequestID()
 	if err != nil {
 		return err
 	}
 
-	// get all events simply to get the NextSyncToken
+	// get all events simply to get the NextSyncToken and begin receiving invites from there
+	// TODO(marcel): possibly page through them and fill in existing invites into db
 	events, err := srv.Events.List(calendarID).Do()
 	if err != nil {
 		return err
