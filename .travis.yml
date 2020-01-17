@@ -11,4 +11,5 @@ matrix:
     - language: node_js
       node_js: 10
       script:
+        - cd jirabot && yarn
         - cd jirabot && yarn ci
