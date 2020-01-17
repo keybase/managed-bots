@@ -262,8 +262,7 @@ func (d *DB) InsertSubscription(subscription *Subscription) error {
 func (d *DB) ExistsSubscription(subscription *Subscription) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(
-		    SELECT * FROM subscription
-		    	WHERE account_id = ? AND calendar_id = ? AND TYPE = ?
+		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND type = ?
 	)`, subscription.AccountID, subscription.CalendarID, subscription.Type)
 	err = row.Scan(&exists)
 	return exists, err
