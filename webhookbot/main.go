@@ -131,6 +131,7 @@ func mainInner() int {
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"),
 		"Desired prefix for generated webhooks")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
 	}
 	if len(opts.DSN) == 0 {

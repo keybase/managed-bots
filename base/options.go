@@ -2,7 +2,6 @@ package base
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -31,9 +30,6 @@ func NewOptions() *Options {
 }
 
 func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
-	if len(argv) <= 1 {
-		return fmt.Errorf("Bad usage: no arguments specified")
-	}
 	fs.StringVar(&o.KeybaseLocation, "keybase", "keybase", "keybase command")
 	fs.StringVar(&o.Home, "home", "", "Home directory")
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),

@@ -250,6 +250,7 @@ func mainInner() int {
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
 	}
 	if len(opts.DSN) == 0 {
