@@ -90,7 +90,6 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
 				exists, err := h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
 				if err != nil {
-					err = fmt.Errorf("error checking in db for invite: %s", err)
 					return
 				}
 				if !exists {

@@ -87,7 +87,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	}
 
 	err = h.db.InsertSubscription(subscription)
-	if err != err {
+	if err != nil {
 		return err
 	}
 
