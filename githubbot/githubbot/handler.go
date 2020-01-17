@@ -95,7 +95,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return fmt.Errorf("error splitting command: %s", err)
 	}
 
-	if isSubscribeToBranch(toks) {
+	// Check if command is subscribing to a branch
+	if len(toks) == 4 {
 		return h.handleSubscribeToBranch(cmd, msg, create, client)
 	}
 
@@ -213,7 +214,13 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 		if err != nil {
 			return fmt.Errorf("error getting subscription: %s", err)
 		}
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf("You aren't subscribed to updates yet!\nFirst do this: `!github subscribe %s`", args[0]))
+		var message string
+		if create {
+			message = fmt.Sprintf("You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", args[0])
+		} else {
+			message = fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0])
+		}
+		_, err := h.kbc.SendMessageByConvID(msg.ConvID, message)
 		if err != nil {
 			return fmt.Errorf("Error sending message: %s", err)
 		}
@@ -231,7 +238,7 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
 
-		message = "Now subscribed for commits on %s/%s."
+		message = "Now subscribed to commits on %s/%s."
 		return nil
 	}
 	err = h.db.DeleteSubscription(msg.ConvID, args[0], args[1])

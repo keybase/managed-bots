@@ -29,10 +29,6 @@ func refToName(ref string) (branch string) {
 	return branch
 }
 
-func isSubscribeToBranch(toks []string) bool {
-	return len(toks) == 4
-}
-
 // formatters
 
 func formatPushMsg(evt *github.PushEvent, username string) (res string) {

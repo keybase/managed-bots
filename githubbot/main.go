@@ -81,7 +81,7 @@ Examples:%s
 			Name:        "github subscribe",
 			Description: "Enable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github subscribe* <username/repo>`,
+				Title:       `*!github subscribe* <username/repo> [branch]`,
 				DesktopBody: subExtended,
 				MobileBody:  subExtended,
 			},
@@ -90,7 +90,7 @@ Examples:%s
 			Name:        "github unsubscribe",
 			Description: "Disable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github unsubscribe* <username/repo>`,
+				Title:       `*!github unsubscribe* <username/repo> [branch]`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
 			},
