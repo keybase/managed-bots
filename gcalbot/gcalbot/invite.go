@@ -8,7 +8,6 @@ import (
 
 	"google.golang.org/api/googleapi"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
@@ -196,19 +195,16 @@ func (h *Handler) sendEventInvite(accountID, calendarID string, event *calendar.
 	// TODO(marcel): display which calendar and nickname this is for
 	// TODO(marcel): better date formatting
 	// TODO(marcel): possibly sanitize titles/info
+	var location string
+	if event.Location != "" {
+		location = fmt.Sprintf("Where: %s\n", event.Location)
+	}
 	message := `
 You've been invited to an event: %s
 What: *%s*
 When: %s - %s
-Awaiting your response. *Are you going?*
-`
-	messageWithLocation := `
-You've been invited to an event: %s
-What: *%s*
-When: %s - %s
-Where: %s
-Awaiting your response. *Are you going?*
-`
+` + location +
+		`Awaiting your response. *Are you going?*`
 
 	account, err := h.db.GetAccountByAccountID(accountID)
 	if err != nil {
@@ -229,14 +225,19 @@ Awaiting your response. *Are you going?*
 	}
 	endTimeFormatted := endTime.Format(time.RFC1123)
 
-	var sendRes kbchat.SendResponse
-	if event.Location != "" {
-		sendRes, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername, messageWithLocation,
-			url, event.Summary, startTimeFormatted, endTimeFormatted, event.Location)
-	} else {
-		sendRes, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-			url, event.Summary, startTimeFormatted, endTimeFormatted)
+	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
+		url, event.Summary, startTimeFormatted, endTimeFormatted)
+	if err != nil {
+		return err
 	}
+
+	err = h.db.InsertInvite(Invite{
+		AccountID:       accountID,
+		CalendarID:      calendarID,
+		EventID:         event.Id,
+		KeybaseUsername: account.KeybaseUsername,
+		MessageID:       uint(*sendRes.Result.MessageID),
+	})
 	if err != nil {
 		return err
 	}
@@ -249,15 +250,7 @@ Awaiting your response. *Are you going?*
 		}
 	}
 
-	err = h.db.InsertInvite(Invite{
-		AccountID:       accountID,
-		CalendarID:      calendarID,
-		EventID:         event.Id,
-		KeybaseUsername: account.KeybaseUsername,
-		MessageID:       uint(*sendRes.Result.MessageID),
-	})
-
-	return err
+	return nil
 }
 
 func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReaction) error {
@@ -300,10 +293,17 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 	}
 
 	// update response status on event
+	shouldPatch := false
 	for index := range event.Attendees {
 		if event.Attendees[index].Self {
 			event.Attendees[index].ResponseStatus = string(responseStatus)
+			shouldPatch = true
+			break
 		}
+	}
+
+	if !shouldPatch {
+		return nil
 	}
 
 	// patch event to reflect new response status
