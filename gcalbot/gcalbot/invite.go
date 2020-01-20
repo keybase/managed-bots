@@ -70,7 +70,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	subscription := &Subscription{
+	subscription := Subscription{
 		AccountID:  accountID,
 		CalendarID: primaryCalendar.Id,
 		Type:       SubscriptionTypeInvite,
@@ -138,7 +138,7 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		return err
 	}
 
-	exists, err := h.db.DeleteSubscription(&Subscription{
+	exists, err := h.db.DeleteSubscription(Subscription{
 		AccountID:  accountID,
 		CalendarID: primaryCalendar.Id,
 		Type:       SubscriptionTypeInvite,
@@ -249,7 +249,7 @@ Awaiting your response. *Are you going?*
 		}
 	}
 
-	err = h.db.InsertInvite(&Invite{
+	err = h.db.InsertInvite(Invite{
 		AccountID:       accountID,
 		CalendarID:      calendarID,
 		EventID:         event.Id,

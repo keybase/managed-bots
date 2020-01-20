@@ -25,7 +25,7 @@ type Account struct {
 	AccountID       string
 }
 
-func (d *DB) InsertAccount(account *Account) error {
+func (d *DB) InsertAccount(account Account) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO account
@@ -43,12 +43,13 @@ func (d *DB) GetAccountByAccountID(accountID string) (account *Account, err erro
 			WHERE account_id = ?
 	`, accountID)
 	err = row.Scan(&account.KeybaseUsername, &account.AccountNickname, &account.AccountID)
-	if err == sql.ErrNoRows {
+	switch err {
+	case sql.ErrNoRows:
 		return nil, nil
-	} else if err != nil {
-		return nil, err
-	} else {
+	case nil:
 		return account, nil
+	default:
+		return nil, err
 	}
 }
 
@@ -67,9 +68,7 @@ func (d *DB) GetAccountNicknameListForUsername(keybaseUsername string) (accounts
 			WHERE keybase_username = ?
 			ORDER BY account_nickname
 	`, keybaseUsername)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
@@ -132,7 +131,7 @@ type Channel struct {
 	NextSyncToken string
 }
 
-func (d *DB) InsertChannel(channel *Channel) error {
+func (d *DB) InsertChannel(channel Channel) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO channel
@@ -152,13 +151,14 @@ func (d *DB) GetChannelByAccountAndCalendarID(accountID, calendarID string) (cha
 	`, accountID, calendarID)
 	err = row.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
 		&channel.ResourceID, &expiry, &channel.NextSyncToken)
-	if err == sql.ErrNoRows {
+	switch err {
+	case sql.ErrNoRows:
 		return nil, nil
-	} else if err != nil {
-		return nil, err
-	} else {
+	case nil:
 		channel.Expiry = time.Unix(expiry, 0)
 		return channel, nil
+	default:
+		return nil, err
 	}
 }
 
@@ -171,13 +171,14 @@ func (d *DB) GetChannelByChannelID(channelID string) (channel *Channel, err erro
 	`, channelID)
 	err = row.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
 		&channel.ResourceID, &expiry, &channel.NextSyncToken)
-	if err == sql.ErrNoRows {
+	switch err {
+	case sql.ErrNoRows:
 		return nil, nil
-	} else if err != nil {
-		return nil, err
-	} else {
+	case nil:
 		channel.Expiry = time.Unix(expiry, 0)
 		return channel, nil
+	default:
+		return nil, err
 	}
 }
 
@@ -186,9 +187,7 @@ func (d *DB) GetChannelListByAccountID(accountID string) (channels []*Channel, e
 		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
 		WHERE account_id = ?
 	`, accountID)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
@@ -248,7 +247,7 @@ type Subscription struct {
 	Type       SubscriptionType
 }
 
-func (d *DB) InsertSubscription(subscription *Subscription) error {
+func (d *DB) InsertSubscription(subscription Subscription) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT into subscription
@@ -259,7 +258,7 @@ func (d *DB) InsertSubscription(subscription *Subscription) error {
 	})
 }
 
-func (d *DB) ExistsSubscription(subscription *Subscription) (exists bool, err error) {
+func (d *DB) ExistsSubscription(subscription Subscription) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(
 		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND type = ?
@@ -276,7 +275,7 @@ func (d *DB) CountSubscriptionsByAccountAndCalID(accountID, calendarID string) (
 	return count, err
 }
 
-func (d *DB) DeleteSubscription(subscription *Subscription) (exists bool, err error) {
+func (d *DB) DeleteSubscription(subscription Subscription) (exists bool, err error) {
 	err = d.RunTxn(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`
 			DELETE from subscription
@@ -305,7 +304,7 @@ type Invite struct {
 	MessageID       uint
 }
 
-func (d *DB) InsertInvite(invite *Invite) error {
+func (d *DB) InsertInvite(invite Invite) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO invite
@@ -333,11 +332,12 @@ func (d *DB) GetInviteEventByUserMessage(keybaseUsername string, messageID uint)
 			WHERE keybase_username = ? and message_id = ?
 	`, keybaseUsername, messageID)
 	err = row.Scan(&invite.AccountID, &invite.CalendarID, &invite.EventID, &invite.KeybaseUsername, &invite.MessageID)
-	if err == sql.ErrNoRows {
+	switch err {
+	case sql.ErrNoRows:
 		return nil, nil
-	} else if err != nil {
-		return nil, err
-	} else {
+	case nil:
 		return invite, nil
+	default:
+		return nil, err
 	}
 }

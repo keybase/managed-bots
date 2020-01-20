@@ -32,7 +32,7 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error)
 	}
 	accountNickname := strings.TrimPrefix(accountID, keybaseUsername+":")
 
-	err = h.db.InsertAccount(&Account{
+	err = h.db.InsertAccount(Account{
 		KeybaseUsername: keybaseUsername,
 		AccountNickname: accountNickname,
 		AccountID:       accountID,

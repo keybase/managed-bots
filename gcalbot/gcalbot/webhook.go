@@ -148,7 +148,7 @@ func (h *Handler) createEventChannel(
 		return err
 	}
 
-	err = h.db.InsertChannel(&Channel{
+	err = h.db.InsertChannel(Channel{
 		ChannelID:     channelID,
 		AccountID:     accountID,
 		CalendarID:    calendarID,
