@@ -106,7 +106,6 @@ func (s *BotServer) Go() (err error) {
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
 		s.Debug("failed to announce self: %s", err)
-		return err
 	}
 
 	requests := &base.OAuthRequests{}
@@ -133,6 +132,7 @@ func mainInner() int {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
 	if err := opts.Parse(fs, os.Args); err != nil {
+		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
 	}
 	if len(opts.DSN) == 0 {

@@ -146,11 +146,11 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		h.Debug("skipping non-text message")
 		return nil
 	}
-	cmd := strings.ToLower(strings.TrimSpace(msg.Content.Text.Body))
+	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
 		return h.handlePoll(cmd, msg.ConvID, msg.Id)
-	case cmd == "login":
+	case strings.ToLower(cmd) == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	}
 	return nil

@@ -100,22 +100,19 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 			s.Debug("announcement success")
 		}
 	}()
-	if _, err := s.kbc.SendMessageByConvID(chat1.ConvIDStr(announcement), running); err != nil {
-		s.Debug("failed to announce self as conv ID: %s", err)
-	} else {
+	if _, err := s.kbc.SendMessageByConvID(chat1.ConvIDStr(announcement), running); err == nil {
 		return nil
 	}
-	if _, err := s.kbc.SendMessageByTlfName(announcement, running); err != nil {
-		s.Debug("failed to announce self as user: %s", err)
-	} else {
+	s.Debug("failed to announce self as conv ID: %s", err)
+	if _, err := s.kbc.SendMessageByTlfName(announcement, running); err == nil {
 		return nil
 	}
+	s.Debug("failed to announce self as user: %s", err)
 	if _, err := s.kbc.SendMessageByTeamName(announcement, nil, running); err != nil {
 		s.Debug("failed to announce self as team: %s", err)
 		return err
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (s *Server) Listen(handler Handler) error {
