@@ -1,14 +1,14 @@
-# GitHub Bot
+# GitLab Bot
 
-A Keybase chat bot that notifies a channel when an event happens on a GitHub repository (issues, pull requests, commits, etc.).
+A Keybase chat bot that notifies a channel when an event happens on a GitLab project (issues, pull requests, commits, etc.).
 
 ## Prerequisites
 
-In order to run the GitHub bot, you will need
+In order to run the GitLab bot, you will need
 
-- a running MySQL database in order to store GitHub OAuth tokens, user preferences, and channel subscriptions
-- the client ID and client secret from a [GitHub OAuth application](https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/)
-- an arbitrary secret, used to authenticate webhooks from GitHub (this can be any string)
+- A running MySQL database in order to store GitLab OAuth tokens, user preferences, and channel subscriptions
+- The client ID and client secret from a [GitLab OAuth application](https://docs.gitlab.com/ee/integration/oauth_provider.html)
+- An arbitrary secret, used to authenticate webhooks from GitLab (this can be any string)
 
 ## Running
 
@@ -17,24 +17,25 @@ In order to run the GitHub bot, you will need
    ```
    go install .
    ```
-3. The GitHub bot sets itself up to serve HTTP requests on `/githubbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback url for your GitHub app is set to `http://<your web server>/githubbot/oauth`.
-4. To start the GitHub bot, run a command like this:
+3. The GitLab bot sets itself up to serve HTTP requests on `/gitlabbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback url for your GitLab app is set to `http://<your web server>/gitlabbot/oauth`.
+4. To start the GitLab bot, run a command like this:
    ```
-   $GOPATH/bin/githubbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/githubbot' --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>'
+   $GOPATH/bin/gitlabbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/gitlabbot' --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>'
    ```
-5. Run `githubbot --help` for more options.
+5. Run `gitlabbot --help` for more options.
 
 ### Helpful Tips
 
+- [ngrok](https://ngrok.com) provides temporary web urls that can serve from localhost, which means you can use ngrok to test locally. You will need to add your ngrok generated url to the Callback URL section of your GitLab OAuth app. As well as use that as the `http-prefix` flag when running the bot.
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
   keybase chat api -m '{"method": "clearcommands"}'
   ```
-- You can optionally save your GitHub OAuth ID and secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitHubBot>` (or the equivalent KBFS path on your system) that matches the following format:
+- You can optionally save your GitLab OAuth ID and secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitLabBot>` (or the equivalent KBFS path on your system) that matches the following format:
   ```json
   {
-    "client_id": "your GitHub OAuth client ID here",
-    "client_secret": "your GitHub OAuth client secret here"
+    "client_id": "your GitLab OAuth client ID here",
+    "client_secret": "your GitLab OAuth client secret here"
   }
   ```
   If you have KBFS running, you can now run the bot without providing the `--client-id` and `--client-secret` command line options.
