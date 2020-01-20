@@ -154,10 +154,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 				default:
 					return fmt.Errorf("error: %s", err)
 				}
-				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
-				return nil
 			}
-
 			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, int64(hook.ID), base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
