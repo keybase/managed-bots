@@ -20,15 +20,16 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64) error {
-	// TODO: ignore dupes with feedback?
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64, oauthIdentifier string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT IGNORE INTO subscriptions
-			(conv_id, repo, branch, hook_id)
+			INSERT INTO subscriptions
+			(conv_id, repo, branch, hook_id, oauth_identifier)
 			VALUES
-			(?, ?, ?, ?)
-		`, convID, repo, branch, hookID)
+			(?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			hook_id=VALUES(hook_id)
+		`, convID, repo, branch, hookID, oauthIdentifier)
 		return err
 	})
 }

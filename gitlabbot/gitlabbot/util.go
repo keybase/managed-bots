@@ -149,7 +149,7 @@ func (u username) String() string {
 		return "@" + *u.keybaseUsername
 	}
 
-	return u.gitlabUsername
+	return fmt.Sprintf("*%s*", u.gitlabUsername)
 }
 
 type keybaseID struct {

@@ -127,10 +127,10 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 				return fmt.Errorf("error getting gitlab project: %s", err)
 			}
 
-			var webhookURL = h.httpPrefix + "/gitlabbot/webhook"
-			var eventsFlag = true
-			var token = makeSecret(args[0], msg.ConvID, h.secret)
-			var defaultBranch = project.DefaultBranch
+			webhookURL := h.httpPrefix + "/gitlabbot/webhook"
+			eventsFlag := true
+			token := makeSecret(args[0], msg.ConvID, h.secret)
+			defaultBranch := project.DefaultBranch
 
 			hook, res, err := client.Projects.AddProjectHook(args[0], &gitlab.AddProjectHookOptions{
 				URL:                      &webhookURL,
@@ -144,14 +144,21 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			})
 
 			if err != nil {
-				if res.StatusCode != http.StatusNotFound {
+				switch res.StatusCode {
+				case http.StatusNotFound:
+					message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
+					return nil
+				case http.StatusUnprocessableEntity:
+					message = "I couldn't create a webhook on %s, try deleting Keybase webhooks in your project's settings and try again."
+					return nil
+				default:
 					return fmt.Errorf("error: %s", err)
 				}
 				message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
 				return nil
 			}
 
-			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, int64(hook.ID))
+			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, int64(hook.ID), base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
@@ -235,7 +242,7 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 			return fmt.Errorf("error getting hook ID for subscription: %s", err)
 		}
 
-		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], hookID)
+		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], hookID, base.IdentifierFromMsg(msg))
 		if err != nil {
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
