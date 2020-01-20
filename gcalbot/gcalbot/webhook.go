@@ -17,20 +17,23 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	var err error
 	defer func() {
 		if err != nil {
-			h.Debug("error in event update webhook: ", err)
+			h.Debug("error in event update webhook: %s", err)
 		}
 	}()
 
 	state := r.Header.Get("X-Goog-Resource-State")
 	if state == "sync" {
-		// Sync or deleted header, safe to ignore
+		// sync header, safe to ignore
 		return
 	}
 
 	channelID := r.Header.Get("X-Goog-Channel-ID")
 	resourceID := r.Header.Get("X-Goog-Resource-ID")
 	channel, err := h.db.GetChannelByChannelID(channelID)
-	if err != nil || channel == nil {
+	if err != nil {
+		return
+	} else if channel == nil {
+		h.Debug("channel not found: %s", channelID)
 		return
 	}
 
@@ -62,17 +65,17 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			events = append(events, page.Items...)
 			return nil
 		})
-	if err != nil {
-		switch err := err.(type) {
-		case *googleapi.Error:
-			if err.Code == 410 {
-				// TODO(marcel): next sync token has expired, need to do a "full refresh"
-				// could lead to really old events not in db having invites sent out
-				return
-			}
+	switch typedErr := err.(type) {
+	case nil:
+	case *googleapi.Error:
+		if typedErr.Code == 410 {
+			// TODO(marcel): next sync token has expired, need to do a "full refresh"
+			// could lead to really old events not in db having invites sent out
+			return
 		}
+	default:
 		err = fmt.Errorf("error updating events for account ID '%s', cal '%s': %s",
-			channel.AccountID, channel.CalendarID, err)
+			channel.AccountID, channel.CalendarID, typedErr)
 		return
 	}
 

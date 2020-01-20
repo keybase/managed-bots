@@ -177,14 +177,14 @@ func (h *Handler) deleteAccount(accountID string) error {
 			Id:         channel.ChannelID,
 			ResourceId: channel.ResourceID,
 		}).Do()
-		if err != nil {
-			switch err := err.(type) {
-			case *googleapi.Error:
-				if err.Code == 404 {
-					// channel not found, so don't worry about stopping it
-					continue
-				}
+		switch err := err.(type) {
+		case nil:
+		case *googleapi.Error:
+			if err.Code == 404 {
+				// channel not found, so don't worry about stopping it
+				continue
 			}
+		default:
 			return err
 		}
 	}

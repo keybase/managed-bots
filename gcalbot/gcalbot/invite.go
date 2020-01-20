@@ -166,15 +166,14 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 				Id:         channel.ChannelID,
 				ResourceId: channel.ResourceID,
 			}).Do()
-			if err != nil {
-				switch err := err.(type) {
-				case *googleapi.Error:
-					if err.Code != 404 {
-						return err
-					}
-				default:
+			switch err := err.(type) {
+			case nil:
+			case *googleapi.Error:
+				if err.Code != 404 {
 					return err
 				}
+			default:
+				return err
 			}
 
 			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
