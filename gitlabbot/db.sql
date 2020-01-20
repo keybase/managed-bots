@@ -13,9 +13,3 @@ CREATE TABLE `subscriptions` (
   `branch` varchar(128) NOT NULL,
   `hook_id` bigint(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE `user_prefs` (
-  `username` varchar(128) NOT NULL,
-  `mention` tinyint(1) NOT NULL,
-  PRIMARY KEY (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;

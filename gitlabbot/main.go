@@ -68,13 +68,6 @@ Unsubscribe from a specific branch:%s
 !gitlab unsubscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
-	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitLab events that involve your proven GitLab username. 
-
-Examples:%s
-!gitlab mentions disable
-!gitlab mentions enable%s
-	`, backs, backs)
-
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "gitlab subscribe",
@@ -92,15 +85,6 @@ Examples:%s
 				Title:       `*!gitlab unsubscribe* <username/project> [branch]`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
-			},
-		},
-		{
-			Name:        "gitlab mentions",
-			Description: "Enable or disable mentions in GitLab events for your username.",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab mentions* <disable/enable>`,
-				DesktopBody: mentionsExtended,
-				MobileBody:  mentionsExtended,
 			},
 		},
 	}

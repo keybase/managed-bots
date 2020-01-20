@@ -58,16 +58,16 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		message = formatIssueMsg(event, author.String())
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
 		var author username
 		if event.ObjectAttributes.State == "merged" {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
+			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		}
 		message = formatMRMsg(event, author.String())
 		repo = strings.ToLower(event.Project.PathWithNamespace)
@@ -80,7 +80,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = refToName(event.Ref)
 	case *gitlab.PipelineEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.User.Username)
+		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		if event.MergeRequest.IID == 0 {
 			branch = event.ObjectAttributes.Ref

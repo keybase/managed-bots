@@ -59,11 +59,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	if strings.HasPrefix(cmd, "!gitlab mentions") {
-		// handle user preferences without needing oauth
-		return h.handleMentionPref(cmd, msg)
-	}
-
 	identifier := base.IdentifierFromMsg(msg)
 	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
 		base.GetOAuthOpts{
@@ -255,42 +250,4 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 
 	message = "Okay, you won't receive notifications for commits in %s/%s."
 	return nil
-}
-
-// user preferences
-func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error) {
-//	var message string
-//	defer func() {
-//		if message != "" {
-//			_, err = h.kbc.SendMessageByConvID(msg.ConvID, message)
-//			if err != nil {
-//				err = fmt.Errorf("error sending message: %s", err)
-//			}
-//		}
-//	}()
-//
-//	toks, err := shellquote.Split(cmd)
-//	if err != nil {
-//		return fmt.Errorf(msg.ConvID, "error splitting command: %s", err)
-//	}
-//	args := toks[2:]
-//	if len(args) != 1 || (args[0] != "disable" && args[0] != "enable") {
-//		message = "I don't understand! Try `!gitlab mentions disable` or `!gitlab mentions enable`."
-//		return nil
-//	}
-//
-//	allowMentions := args[0] == "enable"
-//	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: allowMentions})
-//	if err != nil {
-//		return fmt.Errorf("error setting user preference: %s", err)
-//	}
-//
-//	if allowMentions {
-//		message = "Okay, you'll be mentioned in GitLab events involving your linked GitLab account."
-//	} else {
-//		message = "Okay, you won't be mentioned in future GitLab events."
-//	}
-
-	return
-
 }

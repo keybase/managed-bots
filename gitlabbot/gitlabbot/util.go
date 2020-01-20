@@ -156,7 +156,9 @@ type keybaseID struct {
 	Username string `json:"username"`
 }
 
-func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, gitlabUsername string) (u username) {
+// Most of the logic here is useless until there is a Keybase GitLab proof
+// but keeping it here for abstraction reasons still
+func getPossibleKBUser(kbc *kbchat.API, debug *base.DebugOutput, gitlabUsername string) (u username) {
 	u = username{gitlabUsername: gitlabUsername}
 	id := kbc.Command("id", "-j", fmt.Sprintf("%s@gitlab", gitlabUsername))
 	output, err := id.Output()
@@ -170,16 +172,6 @@ func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, gitlabUs
 	if err != nil {
 		debug.Debug("getPossibleKBUser: couldn't parse keybase id: %s", err)
 		return u
-	}
-
-	prefs, err := d.GetUserPreferences(i.Username)
-	if err != nil {
-		debug.Debug("getPossibleKBUser: couldn't get user preferences: %s", err)
-		return u
-	}
-
-	if prefs.Mention {
-		u.keybaseUsername = &i.Username
 	}
 
 	return u
