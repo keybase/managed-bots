@@ -203,6 +203,7 @@ func mainInner() int {
 	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err)
+		return 3
 	}
 	return 0
 }
