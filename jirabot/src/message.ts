@@ -20,6 +20,7 @@ export type MessageContext = Readonly<{
   senderUsername: string
   teamName: string
   channelName: string
+  conversationId: ChatTypes.ConvIDStr
 }>
 
 type UnknownMessage = Readonly<{
@@ -209,6 +210,7 @@ const msgSummaryToMessageContext = (
   senderUsername: kbMessage.sender.username,
   teamName: kbMessage.channel.name,
   channelName: kbMessage.channel.topicName ?? '',
+  conversationId: kbMessage.conversationId,
 })
 
 const shouldProcessMessageContext = (

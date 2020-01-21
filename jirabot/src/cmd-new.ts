@@ -1,6 +1,7 @@
 import {CreateMessage} from './message'
 import {Context} from './context'
 import * as Errors from './errors'
+import * as Utils from './utils'
 
 export default async (
   context: Context,
@@ -30,12 +31,13 @@ export default async (
       issueType:
         parsedMessage.issueType || context.botConfig.jira.issueTypes[0],
     })
-    await context.bot.chat.send(parsedMessage.context.chatChannel, {
-      body:
-        'Ticket created' +
+    await Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      'Ticket created' +
         (parsedMessage.assignee ? ` for @${parsedMessage.assignee}` : '') +
-        `: ${url}`,
-    })
+        `: ${url}`
+    )
     return Errors.makeResult(undefined)
   } catch (err) {
     Errors.reportErrorAndReplyChat(

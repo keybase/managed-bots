@@ -1,6 +1,7 @@
 import * as Message from './message'
 import {Context} from './context'
 import logger from './logger'
+import * as Utils from './utils'
 
 export enum ReturnType {
   Ok = 'ok',
@@ -135,47 +136,61 @@ export const reportErrorAndReplyChat = (
   switch (error.type) {
     case ErrorType.Unknown:
       logger.warn({msg: 'unknown error', error, messageContext})
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body: 'Whoops. Something happened and your command has failed.',
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        'Whoops. Something happened and your command has failed.'
+      )
     case ErrorType.UnknownParam:
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body: `unknown param ${error.paramName}`,
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        `unknown param ${error.paramName}`
+      )
     case ErrorType.DisabledProject:
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body: `project "${error.projectName}" is disabled in this channel`,
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        `project "${error.projectName}" is disabled in this channel`
+      )
     case ErrorType.MissingProject:
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body:
-          'You need to specify a prject name for this command. You can also `!jira config channel defaultNewIssueProject <default-project> to set a default one for this channel.',
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        'You need to specify a prject name for this command. You can also `!jira config channel defaultNewIssueProject <default-project> to set a default one for this channel.'
+      )
     case ErrorType.ChannelNotConfigured:
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body:
-          'Jira is not configured for this channel. See `!jira config channel`',
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        'Jira is not configured for this channel. See `!jira config channel`'
+      )
     case ErrorType.Timeout:
-      return context.bot.chat.send(messageContext.chatChannel, {
-        body: `An operation has timed out: ${error.description}`,
-      })
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        `An operation has timed out: ${error.description}`
+      )
     case ErrorType.JirabotNotEnabled:
       switch (error.notEnabledType) {
         case 'team':
-          return context.bot.chat.send(messageContext.chatChannel, {
-            body:
-              'This team has not been configured for jirabot. Use `!jirabot config team jiraHost <domain>` to enable jirabot for this team.',
-          })
+          return Utils.replyToMessageContext(
+            context,
+            messageContext,
+            'This team has not been configured for jirabot. Use `!jirabot config team jiraHost <domain>` to enable jirabot for this team.'
+          )
         case 'channel':
-          return context.bot.chat.send(messageContext.chatChannel, {
-            body: `This channel has not been configured for Jirabot. In order to use Jirabot, you need to set at least \`enabledProjects\`.`,
-          })
+          return Utils.replyToMessageContext(
+            context,
+            messageContext,
+            `This channel has not been configured for Jirabot. In order to use Jirabot, you need to set at least \`enabledProjects\`.`
+          )
         case 'user':
-          return context.bot.chat.send(messageContext.chatChannel, {
-            body:
-              'You have not given Jirabot permission to access your Jira account. In order to use Jirabot, connect with `!jira auth`.',
-          })
+          return Utils.replyToMessageContext(
+            context,
+            messageContext,
+            'You have not given Jirabot permission to access your Jira account. In order to use Jirabot, connect with `!jira auth`.'
+          )
         default:
           let _: never = error.notEnabledType
       }

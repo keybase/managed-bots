@@ -4,6 +4,7 @@ import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
 import * as Jira from './jira'
+import * as Utils from './utils'
 
 const replyInPrivate = async (
   context: Context,
@@ -32,9 +33,11 @@ const replyInTeamConvo = async (
   body: string
 ): Promise<any> => {
   try {
-    return context.bot.chat.send(parsedMessage.context.chatChannel, {
-      body,
-    })
+    return await Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      body
+    )
   } catch {
     return
   }

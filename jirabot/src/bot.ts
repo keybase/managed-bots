@@ -9,32 +9,39 @@ import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
 import {Context} from './context'
 import logger from './logger'
+import * as Utils from './utils'
 
 const reportError = (context: Context, parsedMessage: Message.Message) =>
-  context.bot.chat.send(parsedMessage.context.chatChannel, {
-    body:
-      parsedMessage.type === 'unknown'
-        ? `Invalid command: ${parsedMessage.error}`
-        : 'Unknown command',
-  })
+  Utils.replyToMessageContext(
+    context,
+    parsedMessage.context,
+    parsedMessage.type === 'unknown'
+      ? `Invalid command: ${parsedMessage.error}`
+      : 'Unknown command'
+  )
 
 const reactAck = (
   context: Context,
-  channel: ChatTypes.ChatChannel,
+  messageContext: Message.MessageContext,
   id: number
-) => context.bot.chat.react(channel, id, ':eyes:')
+) => context.bot.chat.react(messageContext.conversationId, id, ':eyes:')
 
 const reactDone = (
   context: Context,
-  channel: ChatTypes.ChatChannel,
+  messageContext: Message.MessageContext,
   id: number
-) => context.bot.chat.react(channel, id, ':white_check_mark:')
+) =>
+  context.bot.chat.react(
+    messageContext.conversationId,
+    id,
+    ':white_check_mark:'
+  )
 
 const reactFail = (
   context: Context,
-  channel: ChatTypes.ChatChannel,
+  messageContext: Message.MessageContext,
   id: number
-) => context.bot.chat.react(channel, id, ':x:')
+) => context.bot.chat.react(messageContext.conversationId, id, ':x:')
 
 const onMessage = async (
   context: Context,
@@ -52,46 +59,46 @@ const onMessage = async (
         reportError(context, parsedMessage)
         return
       case Message.BotMessageType.Search: {
-        reactAck(context, kbMessage.channel, kbMessage.id)
+        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdSearch(context, parsedMessage)
         type === Errors.ReturnType.Ok
-          ? reactDone(context, kbMessage.channel, kbMessage.id)
-          : reactFail(context, kbMessage.channel, kbMessage.id)
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Comment: {
-        reactAck(context, kbMessage.channel, kbMessage.id)
+        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdComment(context, parsedMessage)
         type === Errors.ReturnType.Ok
-          ? reactDone(context, kbMessage.channel, kbMessage.id)
-          : reactFail(context, kbMessage.channel, kbMessage.id)
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Reacji:
         reacji(context, parsedMessage)
         return
       case Message.BotMessageType.Create: {
-        reactAck(context, kbMessage.channel, kbMessage.id)
+        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdNew(context, parsedMessage)
         type === Errors.ReturnType.Ok
-          ? reactDone(context, kbMessage.channel, kbMessage.id)
-          : reactFail(context, kbMessage.channel, kbMessage.id)
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Config: {
-        reactAck(context, kbMessage.channel, kbMessage.id)
+        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdConfig(context, parsedMessage)
         type === Errors.ReturnType.Ok
-          ? reactDone(context, kbMessage.channel, kbMessage.id)
-          : reactFail(context, kbMessage.channel, kbMessage.id)
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Auth: {
-        reactAck(context, kbMessage.channel, kbMessage.id)
+        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdAuth(context, parsedMessage)
         type === Errors.ReturnType.Ok
-          ? reactDone(context, kbMessage.channel, kbMessage.id)
-          : reactFail(context, kbMessage.channel, kbMessage.id)
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       default:

@@ -3,6 +3,7 @@ import {Context} from './context'
 import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
+import * as Utils from './utils'
 
 const makeNewTeamChannelConfig = (
   oldConfig: Configs.TeamChannelConfig,
@@ -49,9 +50,7 @@ const replyChat = async (
   body: string
 ): Promise<any> => {
   try {
-    return context.bot.chat.send(parsedMessage.context.chatChannel, {
-      body,
-    })
+    return Utils.replyToMessageContext(context, parsedMessage.context, body)
   } catch {
     return
   }
