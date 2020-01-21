@@ -45,3 +45,5 @@ func FormatTimeRange(start, end time.Time) string {
 			startTimezone)
 	}
 }
+
+// TODO(marcel): sanitize method for kb messages

@@ -191,25 +191,21 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	return nil
 }
 
-func (h *Handler) sendEventInvite(accountID, calendarID string, event *calendar.Event) error {
-	// TODO(marcel): display which calendar and nickname this is for
-	// TODO(marcel): better date formatting
-	// TODO(marcel): possibly sanitize titles/info
-	var location string
-	if event.Location != "" {
-		location = fmt.Sprintf("Where: %s\n", event.Location)
-	}
-	message := `
-You've been invited to an event: %s
-What: *%s*
-When: %s
-` + location +
-		`Awaiting your response. *Are you going?*`
+func (h *Handler) sendEventInvite(accountID string, invitedCalendar *calendar.Calendar, event *calendar.Event) error {
+	message := `You've been invited to an event: %s
+> What: *%s*
+> When: %s%s%s
+> Calendar: %s
+Awaiting your response. *Are you going?*`
 
 	account, err := h.db.GetAccountByAccountID(accountID)
 	if err != nil {
 		return err
 	}
+
+	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
+
+	what := event.Summary
 
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
@@ -222,17 +218,32 @@ When: %s
 	if err != nil {
 		return err
 	}
-	timeRange := FormatTimeRange(startTime, endTime)
+	when := FormatTimeRange(startTime, endTime)
+
+	var where string
+	if event.Location != "" {
+		where = fmt.Sprintf("\n> Where: %s", event.Location)
+	}
+
+	var organizer string
+	if event.Organizer.DisplayName != "" && event.Organizer.Email != "" {
+		organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
+	} else if event.Organizer.DisplayName != "" {
+		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
+		organizer = event.Organizer.DisplayName
+	} else if event.Organizer.Email != "" {
+		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
+	}
 
 	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		url, event.Summary, timeRange)
+		url, what, when, where, organizer, accountCalendar)
 	if err != nil {
 		return err
 	}
 
 	err = h.db.InsertInvite(Invite{
 		AccountID:       accountID,
-		CalendarID:      calendarID,
+		CalendarID:      invitedCalendar.Id,
 		EventID:         event.Id,
 		KeybaseUsername: account.KeybaseUsername,
 		MessageID:       uint(*sendRes.Result.MessageID),

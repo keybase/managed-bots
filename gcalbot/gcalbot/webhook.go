@@ -98,7 +98,11 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 				if !exists {
 					// user was recently invited to the event
 					// TODO(marcel): deal with recurring events
-					err = h.handler.sendEventInvite(channel.AccountID, channel.CalendarID, event)
+					invitedCalendar, err := srv.Calendars.Get(channel.CalendarID).Do()
+					if err != nil {
+						return
+					}
+					err = h.handler.sendEventInvite(channel.AccountID, invitedCalendar, event)
 					if err != nil {
 						return
 					}
