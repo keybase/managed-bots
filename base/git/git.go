@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 /*
+This package contains formatting methods for common Git-hosting webhook events.
+Currently supports:
+- GitHub
+- GitLab
+
+ */
+
+/*
 Push Events
 
 GitHub: https://developer.github.com/v3/activity/events/types/#pushevent
