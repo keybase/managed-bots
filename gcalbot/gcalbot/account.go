@@ -180,10 +180,11 @@ func (h *Handler) deleteAccount(accountID string) error {
 		switch err := err.(type) {
 		case nil:
 		case *googleapi.Error:
-			if err.Code == 404 {
-				// channel not found, so don't worry about stopping it
-				continue
+			// if the channel didn't exist, don't error
+			if err.Code != 404 {
+				return err
 			}
+			return err
 		default:
 			return err
 		}

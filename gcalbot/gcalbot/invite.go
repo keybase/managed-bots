@@ -168,6 +168,7 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 			switch err := err.(type) {
 			case nil:
 			case *googleapi.Error:
+				// if the channel didn't exist, don't error
 				if err.Code != 404 {
 					return err
 				}

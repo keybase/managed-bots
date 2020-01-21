@@ -31,7 +31,7 @@ func NewHandler(
 	config *oauth2.Config,
 	httpPrefix string,
 ) *Handler {
-	return &Handler{
+	handler := &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
@@ -39,6 +39,9 @@ func NewHandler(
 		config:      config,
 		httpPrefix:  httpPrefix,
 	}
+	// begin renewing old channels every hour
+	go handler.runRenewChannelScheduler()
+	return handler
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {

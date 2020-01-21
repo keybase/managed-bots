@@ -164,3 +164,70 @@ func (h *Handler) createEventChannel(
 
 	return err
 }
+
+func (h *Handler) runRenewChannelScheduler() {
+	ticker := time.NewTicker(time.Hour)
+	for range ticker.C {
+		channels, err := h.db.GetExpiringChannelList()
+		if err != nil {
+			h.Debug("error getting expiring channels: %s", "TODO", err)
+		}
+		for _, channel := range channels {
+			err = h.renewChannel(channel)
+			if err != nil {
+				h.Debug("error renewing channel '%s': %s", "TODO", err)
+			}
+		}
+	}
+}
+
+func (h *Handler) renewChannel(channel *Channel) error {
+	token, err := h.db.GetToken(channel.AccountID)
+	if err != nil {
+		return err
+	}
+
+	client := h.config.Client(context.Background(), token)
+	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	if err != nil {
+		return err
+	}
+
+	newChannelID, err := base.MakeRequestID()
+	if err != nil {
+		return err
+	}
+
+	// open new channel
+	res, err := srv.Events.Watch(channel.CalendarID, &calendar.Channel{
+		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.baseURL),
+		Id:      newChannelID,
+		Type:    "web_hook",
+	}).Do()
+	if err != nil {
+		return err
+	}
+
+	err = h.db.UpdateChannel(channel.ChannelID, newChannelID, time.Unix(res.Expiration/1e3, 0))
+	if err != nil {
+		return err
+	}
+
+	// close old channel
+	err = srv.Channels.Stop(&calendar.Channel{
+		Id:         channel.ChannelID,
+		ResourceId: channel.ResourceID,
+	}).Do()
+	switch err := err.(type) {
+	case nil:
+	case *googleapi.Error:
+		// if the channel didn't exist, don't error
+		if err.Code != 404 {
+			return err
+		}
+	default:
+		return err
+	}
+
+	return nil
+}
