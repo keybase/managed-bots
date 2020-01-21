@@ -200,7 +200,7 @@ func (h *Handler) renewChannel(channel *Channel) error {
 
 	// open new channel
 	res, err := srv.Events.Watch(channel.CalendarID, &calendar.Channel{
-		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.baseURL),
+		Address: fmt.Sprintf("%s/gcalbot/events/webhook", h.httpPrefix),
 		Id:      newChannelID,
 		Type:    "web_hook",
 	}).Do()
