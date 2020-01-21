@@ -22,8 +22,8 @@ import (
 
 type Options struct {
 	*base.Options
-	KBFSRoot string
-	BaseURL  string
+	KBFSRoot   string
+	HTTPPrefix string
 }
 
 func NewOptions() *Options {
@@ -210,7 +210,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.BaseURL)
+	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
@@ -232,7 +232,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
-	fs.StringVar(&opts.BaseURL, "base-url", os.Getenv("BOT_BASE_URL"), "base url of the bot's web server")
+	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of the bot's web server")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3

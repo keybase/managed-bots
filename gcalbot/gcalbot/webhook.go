@@ -145,7 +145,7 @@ func (h *Handler) createEventChannel(
 
 	// open channel
 	res, err := srv.Events.Watch(calendarID, &calendar.Channel{
-		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.baseURL),
+		Address: fmt.Sprintf("https://%s/gcalbot/events/webhook", h.httpPrefix),
 		Id:      channelID,
 		Type:    "web_hook",
 	}).Do()

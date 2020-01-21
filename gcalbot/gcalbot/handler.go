@@ -15,11 +15,11 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	kbc      *kbchat.API
-	db       *DB
-	requests *base.OAuthRequests
-	config   *oauth2.Config
-	baseURL  string
+	kbc        *kbchat.API
+	db         *DB
+	requests   *base.OAuthRequests
+	config     *oauth2.Config
+	httpPrefix string
 }
 
 var _ base.Handler = (*Handler)(nil)
@@ -29,7 +29,7 @@ func NewHandler(
 	db *DB,
 	requests *base.OAuthRequests,
 	config *oauth2.Config,
-	baseURL string,
+	httpPrefix string,
 ) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
@@ -37,7 +37,7 @@ func NewHandler(
 		db:          db,
 		requests:    requests,
 		config:      config,
-		baseURL:     baseURL,
+		httpPrefix:  httpPrefix,
 	}
 }
 
