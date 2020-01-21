@@ -2,10 +2,11 @@ package gitlabbot
 
 import (
 	"fmt"
-	"github.com/kballard/go-shellquote"
-	"github.com/xanzy/go-gitlab"
 	"net/http"
 	"strings"
+
+	"github.com/kballard/go-shellquote"
+	"github.com/xanzy/go-gitlab"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -55,7 +56,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	cmd := strings.ToLower(strings.TrimSpace(msg.Content.Text.Body))
 	if !strings.HasPrefix(cmd, "!gitlab") {
-		h.Debug("ignoring non-command message")
 		return nil
 	}
 
@@ -99,7 +99,6 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if len(toks) == 4 {
 		return h.handleSubscribeToBranch(cmd, msg, create, client)
 	}
-
 
 	var message string
 	defer func() {
