@@ -3,6 +3,7 @@ package githubbot
 import (
 	"context"
 	"fmt"
+	"github.com/keybase/managed-bots/base/git"
 	"io/ioutil"
 	"net/http"
 
@@ -120,7 +121,14 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 	switch event := event.(type) {
 	case *github.IssuesEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		message = formatIssueMsg(event, author.String())
+		message = git.FormatIssueMsg(
+			*event.Action,
+			author.String(),
+			event.GetRepo().GetName(),
+			event.GetIssue().GetNumber(),
+			event.GetIssue().GetTitle(),
+			event.GetIssue().GetHTMLURL(),
+			)
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
@@ -136,7 +144,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 
 		commitMsgs := getCommitMessages(event)
 
-		message = base.FormatPushMsg(
+		message = git.FormatPushMsg(
 			event.GetSender().GetLogin(),
 			event.GetRepo().GetName(),
 			refToName(event.GetRef()),

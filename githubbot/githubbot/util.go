@@ -33,21 +33,6 @@ func getCommitMessages(event *github.PushEvent) []string {
 
 // formatters
 
-func formatIssueMsg(evt *github.IssuesEvent, username string) (res string) {
-	action := evt.Action
-	if action != nil {
-		switch *action {
-		case "opened":
-			res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", username, evt.GetIssue().GetNumber(), evt.GetRepo().GetName(), evt.GetIssue().GetTitle())
-			res += evt.GetIssue().GetHTMLURL()
-		case "closed":
-			res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, evt.GetIssue().GetNumber(), evt.GetRepo().GetName())
-			res += evt.GetIssue().GetHTMLURL()
-		}
-	}
-	return res
-}
-
 func formatPRMsg(evt *github.PullRequestEvent, username string) (res string) {
 	action := evt.Action
 	if action != nil {

@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"fmt"
+	"github.com/keybase/managed-bots/base/git"
 	"github.com/xanzy/go-gitlab"
 	"io/ioutil"
 	"net/http"
@@ -59,7 +60,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
 		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
-		message = formatIssueMsg(event, author.String())
+		message = git.FormatIssueMsg(
+			event.ObjectAttributes.Action,
+			author.String(),
+			event.Project.Name,
+			event.ObjectAttributes.IID,
+			event.ObjectAttributes.Title,
+			event.ObjectAttributes.URL,
+			)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
@@ -80,7 +88,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		commitMsgs := getCommitMessages(event)
 		lastCommitDiffURL := event.Commits[len(event.Commits) - 1].URL
 
-		message = base.FormatPushMsg(
+		message = git.FormatPushMsg(
 			event.UserUsername,
 			event.Project.Name,
 			refToName(event.Ref),
