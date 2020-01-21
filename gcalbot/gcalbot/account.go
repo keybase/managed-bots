@@ -1,18 +1,23 @@
 package gcalbot
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
 
-func GetAccountIdentifier(username string, accountNickname string) string {
-	return fmt.Sprintf("%s:%s", username, accountNickname)
+func GetAccountID(keybaseUsername string, accountNickname string) string {
+	return fmt.Sprintf("%s:%s", keybaseUsername, accountNickname)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, identifier string) (err error) {
+func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error) {
 	defer func() {
 		if err != nil {
 			if _, err := h.kbc.SendMessageByConvID(msg.ConvID, "Something went wrong!"); err != nil {
@@ -21,13 +26,17 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, identifier string) (err error
 		}
 	}()
 
-	username := msg.Sender.Username
-	if !strings.HasPrefix(identifier, username+":") {
-		return fmt.Errorf("wrong identifier '%s' for username '%s'", identifier, username)
+	keybaseUsername := msg.Sender.Username
+	if !strings.HasPrefix(accountID, keybaseUsername+":") {
+		return fmt.Errorf("wrong account ID '%s' for username '%s'", accountID, keybaseUsername)
 	}
-	accountNickname := strings.TrimPrefix(identifier, username+":")
+	accountNickname := strings.TrimPrefix(accountID, keybaseUsername+":")
 
-	err = h.db.InsertAccountForUser(username, accountNickname)
+	err = h.db.InsertAccount(Account{
+		KeybaseUsername: keybaseUsername,
+		AccountNickname: accountNickname,
+		AccountID:       accountID,
+	})
 	if err != nil {
 		return fmt.Errorf("error connecting account '%s': %s", accountNickname, err)
 	}
@@ -49,12 +58,12 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, identifier string) (err error
 
 func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
-	accounts, err := h.db.GetAccountsForUser(username)
+	accounts, err := h.db.GetAccountNicknameListForUsername(username)
 	if err != nil {
 		return fmt.Errorf("error fetching accounts from database %q", err)
 	}
 
-	if len(accounts) == 0 {
+	if accounts == nil {
 		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have no connected accounts.")
 		if err != nil {
 			return fmt.Errorf("error sending message: %s", err)
@@ -84,10 +93,11 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
+	accountIdentifier := GetAccountID(keybaseUsername, accountNickname)
 
-	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	exists, err := h.db.ExistsAccountForUsernameAndNickname(keybaseUsername, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
 	} else if exists {
@@ -95,14 +105,12 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	identifier := GetAccountIdentifier(username, accountNickname)
-
 	authURLCallback := func(authURL string) error {
-		_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username,
+		_, err = h.kbc.SendMessageByTlfName(keybaseUsername,
 			"Visit %s to connect a Google account as '%s'.", authURL, accountNickname)
 		return err
 	}
-	_, err = base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+	_, err = base.GetOAuthClient(accountIdentifier, msg, h.kbc, h.requests, h.config, h.db,
 		base.GetOAuthOpts{
 			AllowNonAdminForTeamAuth: true,
 			OAuthOfflineAccessType:   true,
@@ -123,10 +131,11 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
+	accountID := GetAccountID(keybaseUsername, accountNickname)
 
-	exists, err := h.db.ExistsAccountForUser(username, accountNickname)
+	exists, err := h.db.ExistsAccountForUsernameAndNickname(keybaseUsername, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
 	} else if !exists {
@@ -134,7 +143,7 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 		return nil
 	}
 
-	err = h.db.DeleteAccountForUser(username, accountNickname)
+	err = h.deleteAccount(accountID)
 	if err != nil {
 		return err
 	}
@@ -144,6 +153,46 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 		return fmt.Errorf("error sending message: %s", err)
 	}
 	return nil
+}
+
+func (h *Handler) deleteAccount(accountID string) error {
+	token, err := h.db.GetToken(accountID)
+	if err != nil || token == nil {
+		return fmt.Errorf("error getting token: %s", err)
+	}
+
+	client := h.config.Client(context.Background(), token)
+	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	if err != nil {
+		return err
+	}
+
+	channels, err := h.db.GetChannelListByAccountID(accountID)
+	if err != nil {
+		return err
+	}
+
+	for _, channel := range channels {
+		err := srv.Channels.Stop(&calendar.Channel{
+			Id:         channel.ChannelID,
+			ResourceId: channel.ResourceID,
+		}).Do()
+		switch err := err.(type) {
+		case nil:
+		case *googleapi.Error:
+			if err.Code == 404 {
+				// channel not found, so don't worry about stopping it
+				continue
+			}
+		default:
+			return err
+		}
+	}
+
+	// cascading delete of account, oauth, subscriptions, channels and invites
+	err = h.db.DeleteAccountByAccountID(accountID)
+
+	return err
 }
 
 func (h *Handler) getAccountOAuthOpts(msg chat1.MsgSummary, accountNickname string) base.GetOAuthOpts {

@@ -23,6 +23,7 @@ import (
 type Options struct {
 	*base.Options
 	KBFSRoot string
+	BaseURL  string
 }
 
 func NewOptions() *Options {
@@ -74,6 +75,22 @@ Examples:%s
 !gcal list-calendars work%s`,
 		back, back, backs, backs)
 
+	subscribeInvitesDesc := fmt.Sprintf(`Subscribes to invites for the primary calendar of a Google account given the account connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+
+Examples:%s
+!gcal subscribe invites personal
+!gcal subscribe invites work%s`,
+		back, back, backs, backs)
+
+	unsubscribeInvitesDesc := fmt.Sprintf(`Unsubscribes from invites for the primary calendar of a Google account given the account connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+
+Examples:%s
+!gcal unsubscribe invites personal
+!gcal unsubscribe invites work%s`,
+		back, back, backs, backs)
+
 	commands := []chat1.UserBotCommandInput{
 		{
 			Name:        "gcal accounts list",
@@ -110,6 +127,27 @@ Examples:%s
 				MobileBody:  listCalendarsDesc,
 			},
 		},
+
+		{
+			Name:        "gcal subscribe invites",
+			Description: "Subscribe to event invites for your primary calendar.",
+			Usage:       "<account nickname>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal subscribe invites* <account nickname>",
+				DesktopBody: subscribeInvitesDesc,
+				MobileBody:  subscribeInvitesDesc,
+			},
+		},
+		{
+			Name:        "gcal unsubscribe invites",
+			Description: "Unsubscribe from event invites for your primary calendar.",
+			Usage:       "<account nickname>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal unsubscribe invites* <account nickname>",
+				DesktopBody: unsubscribeInvitesDesc,
+				MobileBody:  unsubscribeInvitesDesc,
+			},
+		},
 	}
 
 	return kbchat.Advertisement{
@@ -137,7 +175,9 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope)
+	// Need CalendarReadonlyScope to list calendars and get primary calendar
+	// Need CalendarEventsScope to set a response status for events that a user is invited to
+	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope, calendar.CalendarEventsScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
@@ -170,7 +210,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := gcalbot.NewHandler(s.kbc, db, requests, config)
+	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.BaseURL)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
@@ -192,6 +232,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
+	fs.StringVar(&opts.BaseURL, "base-url", os.Getenv("BOT_BASE_URL"), "base url of the bot's web server")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
@@ -201,6 +242,7 @@ func mainInner() int {
 		return 3
 	}
 	bs := NewBotServer(*opts)
+
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %s\n", err)
 		return 3

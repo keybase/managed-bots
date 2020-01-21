@@ -24,7 +24,7 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 	username := msg.Sender.Username
 	accountNickname := args[0]
 
-	identifier := GetAccountIdentifier(username, accountNickname)
+	identifier := GetAccountID(username, accountNickname)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
 	if err != nil || client == nil {
@@ -36,12 +36,12 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 		return err
 	}
 
-	calendarList, err := srv.CalendarList.List().Do()
+	calendarList, err := getCalendarList(srv)
 	if err != nil {
 		return err
 	}
 
-	if len(calendarList.Items) == 0 {
+	if len(calendarList) == 0 {
 		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
 			"There are no calendars associated with the account '%s'.", accountNickname)
 		if err != nil {
@@ -51,7 +51,7 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 	}
 
 	data := []interface{}{accountNickname}
-	for _, calendarItem := range calendarList.Items {
+	for _, calendarItem := range calendarList {
 		if calendarItem.SummaryOverride != "" {
 			data = append(data, calendarItem.SummaryOverride)
 		} else {
@@ -59,10 +59,25 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 		}
 	}
 
-	calendarListMessage := "Here are the calendars associated with the account '%s':" + strings.Repeat("\n• %s", len(calendarList.Items))
+	calendarListMessage := "Here are the calendars associated with the account '%s':" + strings.Repeat("\n• %s", len(calendarList))
 	_, err = h.kbc.SendMessageByConvID(msg.ConvID, calendarListMessage, data...)
 	if err != nil {
 		return fmt.Errorf("error sending message: %s", err)
 	}
 	return nil
+}
+
+func getCalendarList(srv *calendar.Service) (list []*calendar.CalendarListEntry, err error) {
+	err = srv.CalendarList.List().Pages(context.Background(), func(page *calendar.CalendarList) error {
+		list = append(list, page.Items...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func getPrimaryCalendar(srv *calendar.Service) (*calendar.Calendar, error) {
+	return srv.Calendars.Get("primary").Do()
 }

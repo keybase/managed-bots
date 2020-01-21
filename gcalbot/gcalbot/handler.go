@@ -19,17 +19,25 @@ type Handler struct {
 	db       *DB
 	requests *base.OAuthRequests
 	config   *oauth2.Config
+	baseURL  string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+func NewHandler(
+	kbc *kbchat.API,
+	db *DB,
+	requests *base.OAuthRequests,
+	config *oauth2.Config,
+	baseURL string,
+) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
 		requests:    requests,
 		config:      config,
+		baseURL:     baseURL,
 	}
 }
 
@@ -39,6 +47,10 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
+		return h.handleReaction(msg)
+	}
+
 	if msg.Content.Text == nil {
 		h.Debug("skipping non-text message")
 		return nil
@@ -65,6 +77,30 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.accountsDisconnectHandler(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal list-calendars"):
 		return h.handleListCalendars(msg, tokens[2:])
+	case strings.HasPrefix(cmd, "!gcal subscribe invites"):
+		return h.handleSubscribeInvites(msg, tokens[3:])
+	case strings.HasPrefix(cmd, "!gcal unsubscribe invites"):
+		return h.handleUnsubscribeInvites(msg, tokens[3:])
+	default:
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Unknown command.")
+		if err != nil {
+			h.Debug("error sending message: %s", err)
+		}
+		return nil
 	}
+}
+
+func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
+	username := msg.Sender.Username
+	messageID := uint(msg.Content.Reaction.MessageID)
+	reaction := msg.Content.Reaction.Body
+
+	invite, err := h.db.GetInviteEventByUserMessage(username, messageID)
+	if err != nil {
+		return err
+	} else if invite != nil {
+		return h.updateEventResponseStatus(invite, InviteReaction(reaction))
+	}
+
 	return nil
 }
