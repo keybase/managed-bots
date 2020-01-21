@@ -86,6 +86,9 @@ Pull Request / Merge Request Event
 
 GitHub: https://developer.github.com/v3/activity/events/types/#pullrequestevent
 Namespace: "opened", "reopened", closed"
+> Note: Action is set to "merged" when `event.GetPullRequest().GetMerged()` is true. "merged" doesn't actually exist
+as an action in GitHub.
+
 
 GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#merge-request-events
 Namespace: "open", "reopen", "close", "merge"
