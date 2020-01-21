@@ -221,10 +221,10 @@ func (h *Handler) renewChannel(channel *Channel) error {
 	switch err := err.(type) {
 	case nil:
 	case *googleapi.Error:
-		// if the channel didn't exist, don't error
 		if err.Code != 404 {
 			return err
 		}
+		// if the channel wasn't found, don't return an error
 	default:
 		return err
 	}
