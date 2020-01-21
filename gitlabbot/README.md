@@ -2,6 +2,15 @@
 
 A Keybase chat bot that notifies a channel when an event happens on a GitLab project (issues, pull requests, commits, etc.).
 
+## GitLab API
+
+The one scope needed for GitLab bot is: `api`. For more information on GitLab scopes visit the GitLab
+[docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#limiting-scopes-of-a-personal-access-token). 
+
+In GitLab's OAuth Application dashboard specify the Callback URL: `https://<YOUR_DOMAIN>/gitlabbot/oauth`
+which is needed for the redirect in the OAuth flow.
+
+
 ## Prerequisites
 
 In order to run the GitLab bot, you will need
