@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -23,6 +26,8 @@ type Options struct {
 	*base.Options
 	HTTPPrefix        string
 	Secret            string
+	PrivateKeyPath    string
+	AppID             int64
 	OAuthClientID     string
 	OAuthClientSecret string
 }
@@ -134,9 +139,36 @@ func (s *BotServer) getSecret() (string, error) {
 	return out.String(), nil
 }
 
-func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err error) {
-	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
-		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+func (s *BotServer) getAppKey() ([]byte, error) {
+	if s.opts.PrivateKeyPath != "" {
+		keyFile, err := os.Open(s.opts.PrivateKeyPath)
+		if err != nil {
+			return []byte{}, err
+		}
+		defer keyFile.Close()
+
+		b, err := ioutil.ReadAll(keyFile)
+		if err != nil {
+			return []byte{}, err
+		}
+
+		return b, nil
+	}
+
+	path := fmt.Sprintf("/keybase/private/%s/bot.private-key.pem", s.kbc.GetUsername())
+	cmd := s.opts.Command("fs", "read", path)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
+	if err := cmd.Run(); err != nil {
+		return []byte{}, err
+	}
+	return out.Bytes(), nil
+}
+
+func (s *BotServer) getConfig() (appID int64, clientID string, clientSecret string, err error) {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppID != -1 {
+		return s.opts.AppID, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
 	cmd := s.opts.Command("fs", "read", path)
@@ -144,19 +176,20 @@ func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err 
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
-		return "", "", err
+		return -1, "", "", err
 	}
 
 	var j struct {
+		AppID        int64  `json:"app_id"`
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
 	}
 
 	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
-		return "", "", err
+		return -1, "", "", err
 	}
 
-	return j.ClientID, j.ClientSecret, nil
+	return j.AppID, j.ClientID, j.ClientSecret, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -170,10 +203,15 @@ func (s *BotServer) Go() (err error) {
 		return
 	}
 
-	clientID, clientSecret, err := s.getOAuthConfig()
+	appID, clientID, clientSecret, err := s.getConfig()
 	if err != nil {
 		s.Debug("failed to get oauth credentials: %s", err)
 		return
+	}
+
+	appKey, err := s.getAppKey()
+	if err != nil {
+		s.Debug("failed to get private key: %s", err)
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
@@ -194,14 +232,21 @@ func (s *BotServer) Go() (err error) {
 	config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       []string{"repo"},
+		Scopes:       []string{},
 		Endpoint:     oauth2github.Endpoint,
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := githubbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
+
+	tr := http.DefaultTransport
+	atr, err := ghinstallation.NewAppsTransport(tr, appID, appKey)
+	if err != nil {
+		s.Debug("failed to make github apps transport: %s", err)
+		return err
+	}
+	handler := githubbot.NewHandler(s.kbc, db, requests, config, atr, s.opts.HTTPPrefix, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, atr, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -225,6 +270,8 @@ func mainInner() int {
 	fs.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
+	fs.StringVar(&opts.PrivateKeyPath, "private-key-path", "", "Path to GitHub app private key file")
+	fs.Int64Var(&opts.AppID, "app-id", -1, "GitHub App ID")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3

@@ -20,21 +20,43 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64, oauthIdentifier string) error {
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, installationID int64) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO subscriptions
-			(conv_id, repo, branch, hook_id, oauth_identifier)
+			(conv_id, repo, installation_id)
 			VALUES
-			(?, ?, ?, ?, ?)
+			(?, ?, ?)
 			ON DUPLICATE KEY UPDATE
-			hook_id=VALUES(hook_id)
-		`, convID, repo, branch, hookID, oauthIdentifier)
+			installation_id=VALUES(installation_id)
+		`, convID, repo, installationID)
 		return err
 	})
 }
 
-func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string, branch string) error {
+func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM subscriptions
+			WHERE (conv_id = ? AND repo = ?)
+		`, convID, repo)
+		return err
+	})
+}
+
+func (d *DB) WatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT IGNORE INTO branches 
+			(conv_id, repo, branch)
+			VALUES
+			(?, ?, ?)
+		`, convID, repo, branch)
+		return err
+	})
+}
+
+func (d *DB) UnwatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
@@ -54,13 +76,23 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) err
 	})
 }
 
-func (d *DB) GetConvIDsFromRepo(repo string) (res []chat1.ConvIDStr, err error) {
+func (d *DB) DeleteBranchesForRepo(convID chat1.ConvIDStr, repo string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM subscriptions
+			WHERE (conv_id = ? AND repo = ?)
+		`, convID, repo)
+		return err
+	})
+}
+
+func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
-		WHERE repo = ?
+		WHERE (repo = ? AND installation_id = ?)
 		GROUP BY conv_id
-	`, repo)
+	`, repo, installationID)
 	if err != nil {
 		return res, err
 	}
@@ -74,10 +106,10 @@ func (d *DB) GetConvIDsFromRepo(repo string) (res []chat1.ConvIDStr, err error) 
 	return res, nil
 }
 
-func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
-	FROM subscriptions
+	FROM branches
 	WHERE (conv_id = ? AND repo = ? AND branch = ?)
 	GROUP BY conv_id
 	`, convID, repo, branch)
@@ -111,40 +143,65 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
-func (d *DB) GetHookIDForRepo(convID chat1.ConvIDStr, repo string) (hookID int64, err error) {
-	row := d.DB.QueryRow(`
-	SELECT hook_id
-	FROM subscriptions
-	WHERE (conv_id = ? AND repo = ?)
-	`, convID, repo)
-	err = row.Scan(&hookID)
-	if err != nil {
-		return -1, err
-	}
+// subscription preferences
 
-	return hookID, nil
+type Features struct {
+	Issues       bool
+	PullRequests bool
+	Commits      bool
+	Statuses     bool
 }
 
-// OAuth2 token methods
+func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO features 
+			(conv_id, repo, issues, pull_requests, commits, statuses)
+			VALUES
+			(?, ?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			issues=VALUES(issues),
+			pull_requests=VALUES(pull_requests),
+			commits=VALUES(commits),
+			statuses=VALUES(statuses)
+		`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses)
+		return err
+	})
+}
 
-func (d *DB) GetTokenFromConvID(convID chat1.ConvIDStr) (*oauth2.Token, error) {
-	var token oauth2.Token
-	row := d.DB.QueryRow(`
-	SELECT access_token, token_type
-	FROM subscriptions
-	INNER JOIN oauth ON subscriptions.oauth_identifier = oauth.identifier
-	WHERE conv_id = ?
-	`, convID)
-	err := row.Scan(&token.AccessToken, &token.TokenType)
+func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error) {
+	row := d.DB.QueryRow(`SELECT issues, pull_requests, commits, statuses
+		FROM features
+		WHERE (conv_id = ? AND repo = ?)`, convID, repo)
+	features := &Features{}
+	err := row.Scan(&features.Issues, &features.PullRequests, &features.Commits, &features.Statuses)
 	switch err {
 	case nil:
-		return &token, nil
+		return features, nil
 	case sql.ErrNoRows:
-		return nil, nil
+		// if we don't have features saved for a user, return default feature set
+		return &Features{
+			Issues:       true,
+			PullRequests: true,
+			Commits:      true,
+			Statuses:     true,
+		}, nil
 	default:
 		return nil, err
 	}
 }
+
+func (d *DB) DeleteFeaturesForRepo(convID chat1.ConvIDStr, repo string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM features
+			WHERE (conv_id = ? AND repo = ?)
+		`, convID, repo)
+		return err
+	})
+}
+
+// OAuth2 token methods
 
 func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token

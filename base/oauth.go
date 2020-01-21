@@ -170,7 +170,7 @@ func GetOAuthClient(
 				return nil, err
 			}
 			if !isAdmin {
-				_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You have must be an admin to authorize me for a team!")
+				_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You must be an admin to authorize me for a team!")
 				return nil, err
 			}
 		}

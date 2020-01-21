@@ -3,9 +3,12 @@ package githubbot
 import (
 	"context"
 	"fmt"
-	"github.com/keybase/managed-bots/base/git"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/keybase/managed-bots/base/git"
+
+	"github.com/bradleyfalzon/ghinstallation"
 
 	"github.com/google/go-github/v28/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -16,18 +19,19 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	config  *oauth2.Config
 	kbc     *kbchat.API
 	db      *DB
 	handler *Handler
+	atr     *ghinstallation.AppsTransport
 	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
+		atr:     atr,
 		secret:  secret,
 	}
 	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
@@ -57,67 +61,90 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	type genericPayload interface {
 		GetRepo() *github.Repository
+		GetInstallation() *github.Installation
 	}
 	var repo string
+	var installationID int64
 	switch event := event.(type) {
 	case *github.PushEvent:
 		// PushEvent.GetRepo() returns *github.PushEventRepository instead of *github.Repository, so we handle it separately
 		repo = event.GetRepo().GetFullName()
+		installationID = event.GetInstallation().GetID()
 	default:
 		if evt, ok := event.(genericPayload); ok {
 			repo = evt.GetRepo().GetFullName()
+			installationID = evt.GetInstallation().GetID()
 		} else {
-			h.Debug("could not get repo from webhook, webhook type: %s\n", github.WebHookType(r))
+			h.Debug("could not get information from webhook, webhook type: %s\n", github.WebHookType(r))
 			return
 		}
 	}
 
+	itr := ghinstallation.NewFromAppsTransport(h.atr, installationID)
+	client := github.NewClient(&http.Client{Transport: itr})
+
 	if repo != "" {
 		signature := r.Header.Get("X-Hub-Signature")
-		convs, err := h.db.GetConvIDsFromRepo(repo)
+		if err = github.ValidateSignature(signature, payload, []byte(h.secret)); err != nil {
+			// if there's an error validating the signature for a conversation, don't send the message to that convo
+			h.Debug("Error validating payload signature: %s", err)
+			return
+		}
+
+		defaultBranch, err := getDefaultBranch(repo, client)
+		if err != nil {
+			h.Debug("Error getting default branch: %s", err)
+		}
+
+		convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
 		if err != nil {
 			h.Debug("Error getting subscriptions for repo: %s", err)
 			return
 		}
 
 		for _, convID := range convs {
-			if err = github.ValidateSignature(signature, payload, []byte(base.MakeSecret(repo, convID, h.secret))); err != nil {
-				// if there's an error validating the signature for a conversation, don't send the message to that convo
-				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
-				continue
-			}
-			token, err := h.db.GetTokenFromConvID(convID)
+			features, err := h.db.GetFeatures(convID, repo)
 			if err != nil {
-				h.Debug("could not get token for convID: %s\n", err)
+				h.Debug("Error getting features for repo and convID: %s", err)
 				return
 			}
-			client := github.NewClient(h.config.Client(context.TODO(), token))
-			message, branch := h.formatMessage(event, repo, client)
-			if message != "" {
-				subscriptionExists, err := h.db.GetSubscriptionExists(convID, repo, branch)
+
+			if !shouldParseEvent(event, features) {
+				// If a conversation is not subscribed to the feature an event is part of, bail
+				continue
+			}
+
+			message, branch := h.formatMessage(event, repo, defaultBranch, client)
+			if message == "" {
+				// if we don't have a message to send, bail
+				continue
+			}
+
+			if branch != defaultBranch {
+				// if the event is not on the default branch, check if we're subscribed to that branch
+				subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
 				if err != nil {
 					h.Debug("could not get subscription: %s\n", err)
 					return
 				}
 
-				if subscriptionExists {
-					_, err = h.kbc.SendMessageByConvID(convID, message)
-					if err != nil {
-						h.Debug("Error sending message: %s", err)
-						return
-					}
+				if !subscriptionExists {
+					continue
 				}
 			}
+
+			_, err = h.kbc.SendMessageByConvID(convID, message)
+			if err != nil {
+				h.Debug("Error sending message: %s", err)
+				return
+			}
+
 		}
 	}
 }
 
-func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.Client) (message string, branch string) {
-	branch, err := getDefaultBranch(repo, client)
-	if err != nil {
-		h.Debug("formatMessage: error getting default branch: %s", err)
-		return "", ""
-	}
+func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch string, client *github.Client) (message string, branch string) {
+	branch = defaultBranch
 	switch event := event.(type) {
 	case *github.IssuesEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
@@ -128,7 +155,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 			event.GetIssue().GetNumber(),
 			event.GetIssue().GetTitle(),
 			event.GetIssue().GetHTMLURL(),
-			)
+		)
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
@@ -151,7 +178,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 			event.GetPullRequest().GetTitle(),
 			event.GetPullRequest().GetHTMLURL(),
 			event.GetRepo().GetName(),
-			)
+		)
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
 			break
@@ -167,7 +194,6 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 			len(event.Commits),
 			commitMsgs,
 			event.GetCompare())
-
 
 	case *github.CheckRunEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())

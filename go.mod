@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.28.1
+	github.com/bradleyfalzon/ghinstallation v1.1.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/google/go-github/v28 v28.1.1
