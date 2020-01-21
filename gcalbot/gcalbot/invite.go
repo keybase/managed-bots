@@ -210,6 +210,8 @@ Awaiting your response. *Are you going?*`
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
 
+	// TODO(marcel): support all day events
+	// TODO(marcel): better date formatting for recurring events
 	startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
 	if err != nil {
 		return err
@@ -230,7 +232,6 @@ Awaiting your response. *Are you going?*`
 		organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
 	} else if event.Organizer.DisplayName != "" {
 		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
-		organizer = event.Organizer.DisplayName
 	} else if event.Organizer.Email != "" {
 		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
 	}
@@ -322,9 +323,18 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 		return err
 	}
 
-	// TODO(marcel): specify which account this is for
-	_, err = h.kbc.SendMessageByTlfName(invite.KeybaseUsername, "I've set your status as '%s' for event '%s'.",
-		confirmationMessageStatus, event.Summary)
+	account, err := h.db.GetAccountByAccountID(invite.AccountID)
+	if err != nil {
+		return err
+	}
+	invitedCalendar, err := srv.Calendars.Get(invite.CalendarID).Do()
+	if err != nil {
+		return err
+	}
+	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
+
+	_, err = h.kbc.SendMessageByTlfName(invite.KeybaseUsername, "I've set your status as *%s* for event *%s* on calendar %s.",
+		confirmationMessageStatus, event.Summary, accountCalendar)
 	if err != nil {
 		return err
 	}

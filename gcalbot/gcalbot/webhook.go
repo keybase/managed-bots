@@ -91,14 +91,15 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		for _, attendee := range event.Attendees {
 			if attendee.Self && !attendee.Organizer &&
 				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
-				exists, err := h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
+				var exists bool
+				exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
 				if err != nil {
 					return
 				}
 				if !exists {
 					// user was recently invited to the event
-					// TODO(marcel): deal with recurring events
-					invitedCalendar, err := srv.Calendars.Get(channel.CalendarID).Do()
+					var invitedCalendar *calendar.Calendar
+					invitedCalendar, err = srv.Calendars.Get(channel.CalendarID).Do()
 					if err != nil {
 						return
 					}
