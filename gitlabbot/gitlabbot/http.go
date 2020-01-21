@@ -100,7 +100,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			var secretToken = makeSecret(repo, convID, h.secret)
+			var secretToken = base.MakeSecret(repo, convID, h.secret)
 			if signature != secretToken {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
