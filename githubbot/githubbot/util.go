@@ -33,28 +33,6 @@ func getCommitMessages(event *github.PushEvent) []string {
 
 // formatters
 
-func formatPRMsg(evt *github.PullRequestEvent, username string) (res string) {
-	action := evt.Action
-	if action != nil {
-		switch *action {
-		case "opened":
-			res = fmt.Sprintf("%s opened pull request #%d on %s: “%s”\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetTitle())
-			res += evt.GetPullRequest().GetHTMLURL()
-		case "closed":
-			if evt.GetPullRequest().GetMerged() {
-				// PR was merged
-				res = fmt.Sprintf("%s merged pull request #%d into %s/%s.\n", username, evt.GetNumber(), evt.GetRepo().GetName(), evt.GetPullRequest().GetBase().GetRef())
-				res += evt.GetPullRequest().GetHTMLURL()
-			} else {
-				// PR was closed without merging
-				res = fmt.Sprintf("%s closed pull request #%d on %s.\n", username, evt.GetNumber(), evt.GetRepo().GetName())
-				res += evt.GetPullRequest().GetHTMLURL()
-			}
-		}
-	}
-	return res
-}
-
 func formatCheckRunMessage(evt *github.CheckRunEvent, username string) (res string) {
 	action := evt.Action
 	if *action == "completed" {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 )
+
 /*
 This package contains formatting methods for common Git-hosting webhook events.
 Currently supports:
@@ -11,6 +12,13 @@ Currently supports:
 - GitLab
 
  */
+
+const (
+	GITHUB = iota
+	GITLAB = iota
+	BITBUCKET = iota
+)
+
 
 /*
 Push Events
@@ -70,5 +78,42 @@ func FormatIssueMsg(action string, username string, repo string, repoNum int, is
 		res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, repoNum, repo)
 		res += issueURL
 	}
+	return res
+}
+
+/*
+Pull Request / Merge Request Event
+
+GitHub: https://developer.github.com/v3/activity/events/types/#pullrequestevent
+Namespace: "opened", "reopened", closed"
+
+GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#merge-request-events
+Namespace: "open", "reopen", "close", "merge"
+
+ */
+
+func FormatPullRequestMsg(provider int, action string, username string, repo string, repoNum int, issueTitle string, prURL string, targetBranch string) (res string) {
+	var requestName string
+	if provider == GITLAB {
+		requestName = "merge"
+	} else {
+		requestName = "pull"
+	}
+
+	switch action {
+	case "open", "opened":
+		res = fmt.Sprintf("%s opened %s request #%d on %s: “%s”\n", username, requestName, repoNum, repo, issueTitle)
+		res += prURL
+	case "reopen", "reopened":
+		res = fmt.Sprintf("%s reopened %s request #%d on %s: “%s”\n", username, requestName, repoNum, repo, issueTitle)
+		res += prURL
+	case "close", "closed":
+		res = fmt.Sprintf("%s closed %s request #%d on %s.\n", username, requestName, repoNum, repo)
+		res += prURL
+	case "merge", "merged":
+		res = fmt.Sprintf("%s merged %s request #%d into %s/%s.\n", username, requestName, repoNum, repo, targetBranch)
+		res += prURL
+	}
+
 	return res
 }

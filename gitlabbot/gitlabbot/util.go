@@ -31,25 +31,6 @@ func getCommitMessages(event *gitlab.PushEvent) []string {
 
 // formatters
 
-func formatMRMsg(evt *gitlab.MergeEvent, username string) (res string) {
-	action := evt.ObjectAttributes.Action
-	switch action {
-	case "open":
-		res = fmt.Sprintf("%s opened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "reopen":
-		res = fmt.Sprintf("%s reopened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "close":
-		res = fmt.Sprintf("%s closed merge request #%d on %s.\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace)
-		res += evt.ObjectAttributes.URL
-	case "merge":
-		res = fmt.Sprintf("%s merged merge request #%d into %s/%s.\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.TargetBranch)
-		res += evt.ObjectAttributes.URL
-	}
-	return res
-}
-
 func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) {
 	action := evt.ObjectAttributes.Status
 	suite := evt.ObjectAttributes

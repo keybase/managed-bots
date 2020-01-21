@@ -77,7 +77,18 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		} else {
 			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		}
-		message = formatMRMsg(event, author.String())
+
+		message = git.FormatPullRequestMsg(
+			git.GITLAB,
+			event.ObjectAttributes.Action,
+			author.String(),
+			event.Project.PathWithNamespace,
+			event.ObjectAttributes.IID,
+			event.ObjectAttributes.Title,
+			event.ObjectAttributes.URL,
+			event.ObjectAttributes.TargetBranch,
+			)
+
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.PushEvent:

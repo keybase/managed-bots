@@ -136,7 +136,22 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 		} else {
 			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		}
-		message = formatPRMsg(event, author.String())
+
+		action := *event.Action
+		if event.GetPullRequest().GetMerged() {
+			action = "merged"
+		}
+
+		message = git.FormatPullRequestMsg(
+			git.GITHUB,
+			action,
+			author.String(),
+			event.GetRepo().GetName(),
+			event.GetNumber(),
+			event.GetPullRequest().GetTitle(),
+			event.GetPullRequest().GetHTMLURL(),
+			event.GetRepo().GetName(),
+			)
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
 			break
