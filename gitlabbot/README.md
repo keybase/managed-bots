@@ -2,6 +2,16 @@
 
 A Keybase chat bot that notifies a channel when an event happens on a GitLab project (issues, pull requests, commits, etc.).
 
+## GitLab API
+
+The one scope needed for GitLab bot is: `api`. For more information on GitLab scopes visit the GitLab
+[docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#limiting-scopes-of-a-personal-access-token). 
+
+In GitLab's OAuth Application dashboard specify the Callback URL: `https://<YOUR_DOMAIN>/gitlabbot/oauth`
+which is needed for the redirect in the OAuth flow.
+
+> Note `<YOUR_DOMAIN>` should reflect where GitLab bot is running (same as `http-prefix` flag under **Running**)
+
 ## Prerequisites
 
 In order to run the GitLab bot, you will need
@@ -20,7 +30,7 @@ In order to run the GitLab bot, you will need
 3. The GitLab bot sets itself up to serve HTTP requests on `/gitlabbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback url for your GitLab app is set to `http://<your web server>/gitlabbot/oauth`.
 4. To start the GitLab bot, run a command like this:
    ```
-   $GOPATH/bin/gitlabbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/gitlabbot' --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>'
+   $GOPATH/bin/gitlabbot --http-prefix 'http://<YOUR_DOMAIN>:8080' --dsn 'root@/gitlabbot' --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>'
    ```
 5. Run `gitlabbot --help` for more options.
 

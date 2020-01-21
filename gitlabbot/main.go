@@ -173,7 +173,7 @@ func (s *BotServer) Go() (err error) {
 	config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		Scopes:       []string{"api","read_user"},
+		Scopes:       []string{"api"},
 		Endpoint:     oauth2gitlab.Endpoint,
 		RedirectURL:  s.opts.HTTPPrefix + "/gitlabbot/oauth",
 	}
