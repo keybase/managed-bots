@@ -21,32 +21,15 @@ func refToName(ref string) (branch string) {
 	return branch
 }
 
+func getCommitMessages(event *gitlab.PushEvent) []string {
+	var commitMsgs = make([]string, 0)
+	for _, commit := range event.Commits {
+		commitMsgs = append(commitMsgs, commit.Message)
+	}
+	return commitMsgs
+}
+
 // formatters
-
-func formatPushMsg(evt *gitlab.PushEvent, username string) (res string) {
-	branch := refToName(evt.Ref)
-
-	res = fmt.Sprintf("%s pushed %d commit", username, len(evt.Commits))
-	if len(evt.Commits) != 1 {
-		res += "s"
-	}
-	res += fmt.Sprintf(" to %s/%s:\n", evt.Project.Name, branch)
-	for _, commit := range evt.Commits {
-		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.Message, 50))
-	}
-
-	var lastCommitDiffURL = evt.Commits[len(evt.Commits) - 1].URL
-	res += fmt.Sprintf("\n%s", lastCommitDiffURL)
-	return res
-}
-
-func formatCommitString(commit string, maxLen int) string {
-	firstLine := strings.Split(commit, "\n")[0]
-	if len(firstLine) > maxLen {
-		firstLine = strings.TrimSpace(firstLine[:maxLen]) + "..."
-	}
-	return firstLine
-}
 
 func formatIssueMsg(evt *gitlab.IssueEvent, username string) (res string) {
 	action := evt.ObjectAttributes.Action

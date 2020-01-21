@@ -76,7 +76,18 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		if len(event.Commits) == 0 {
 			break
 		}
-		message = formatPushMsg(event, event.UserUsername)
+
+		commitMsgs := getCommitMessages(event)
+		lastCommitDiffURL := event.Commits[len(event.Commits) - 1].URL
+
+		message = base.FormatPushMsg(
+			event.UserUsername,
+			event.Project.Name,
+			refToName(event.Ref),
+			len(event.Commits),
+			commitMsgs,
+			lastCommitDiffURL)
+
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = refToName(event.Ref)
 	case *gitlab.PipelineEvent:

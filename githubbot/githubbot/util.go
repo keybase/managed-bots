@@ -23,36 +23,15 @@ func refToName(ref string) (branch string) {
 	return branch
 }
 
+func getCommitMessages(event *github.PushEvent) []string {
+	var commitMsgs = make([]string, 0)
+	for _, commit := range event.Commits {
+		commitMsgs = append(commitMsgs, commit.GetMessage())
+	}
+	return commitMsgs
+}
+
 // formatters
-
-func formatPushMsg(evt *github.PushEvent, username string) (res string) {
-	branch := refToName(evt.GetRef())
-
-	res = fmt.Sprintf("%s pushed %d commit", username, len(evt.Commits))
-	if len(evt.Commits) != 1 {
-		res += "s"
-	}
-	res += fmt.Sprintf(" to %s/%s:\n", evt.GetRepo().GetName(), branch)
-	for _, commit := range evt.Commits {
-		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.GetMessage(), 50))
-	}
-
-	urlSplit := strings.Split(evt.GetCompare(), "://")
-	if len(urlSplit) != 2 {
-		// if the compare URL isn't formatted as expected, just skip it
-		return res
-	}
-	res += fmt.Sprintf("\n%s", urlSplit[1])
-	return res
-}
-
-func formatCommitString(commit string, maxLen int) string {
-	firstLine := strings.Split(commit, "\n")[0]
-	if len(firstLine) > maxLen {
-		firstLine = strings.TrimSpace(firstLine[:maxLen]) + "..."
-	}
-	return firstLine
-}
 
 func formatIssueMsg(evt *github.IssuesEvent, username string) (res string) {
 	action := evt.Action
