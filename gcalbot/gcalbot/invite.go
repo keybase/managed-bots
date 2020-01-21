@@ -202,7 +202,7 @@ func (h *Handler) sendEventInvite(accountID, calendarID string, event *calendar.
 	message := `
 You've been invited to an event: %s
 What: *%s*
-When: %s - %s
+When: %s
 ` + location +
 		`Awaiting your response. *Are you going?*`
 
@@ -218,15 +218,14 @@ When: %s - %s
 	if err != nil {
 		return err
 	}
-	startTimeFormatted := startTime.Format(time.RFC1123)
 	endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
 	if err != nil {
 		return err
 	}
-	endTimeFormatted := endTime.Format(time.RFC1123)
+	timeRange := FormatTimeRange(startTime, endTime)
 
 	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		url, event.Summary, startTimeFormatted, endTimeFormatted)
+		url, event.Summary, timeRange)
 	if err != nil {
 		return err
 	}
