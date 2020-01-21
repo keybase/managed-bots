@@ -157,17 +157,18 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 			break
 		}
 
+		branch = git.RefToName(event.GetRef())
 		commitMsgs := getCommitMessages(event)
 
 		message = git.FormatPushMsg(
 			event.GetSender().GetLogin(),
 			event.GetRepo().GetName(),
-			refToName(event.GetRef()),
+			branch,
 			len(event.Commits),
 			commitMsgs,
 			event.GetCompare())
 
-		branch = refToName(event.GetRef())
+
 	case *github.CheckRunEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		if len(event.GetCheckRun().PullRequests) == 0 {

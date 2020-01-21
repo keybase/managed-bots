@@ -96,19 +96,20 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		branch = git.RefToName(event.Ref)
 		commitMsgs := getCommitMessages(event)
 		lastCommitDiffURL := event.Commits[len(event.Commits) - 1].URL
 
 		message = git.FormatPushMsg(
 			event.UserUsername,
 			event.Project.Name,
-			refToName(event.Ref),
+			branch,
 			len(event.Commits),
 			commitMsgs,
 			lastCommitDiffURL)
 
 		repo = strings.ToLower(event.Project.PathWithNamespace)
-		branch = refToName(event.Ref)
+
 	case *gitlab.PipelineEvent:
 		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		repo = strings.ToLower(event.Project.PathWithNamespace)

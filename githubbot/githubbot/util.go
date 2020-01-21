@@ -13,16 +13,6 @@ import (
 	"github.com/google/go-github/v28/github"
 )
 
-func refToName(ref string) (branch string) {
-	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
-	branch = strings.Split(ref, "refs/")[1]
-	if strings.HasPrefix(branch, "heads/") {
-		branch = strings.Split(branch, "heads/")[1]
-	}
-	// if we got a tag ref, just leave it as "tags/{tag name}"
-	return branch
-}
-
 func getCommitMessages(event *github.PushEvent) []string {
 	var commitMsgs = make([]string, 0)
 	for _, commit := range event.Commits {

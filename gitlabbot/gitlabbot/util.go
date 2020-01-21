@@ -11,16 +11,6 @@ import (
 	"github.com/keybase/managed-bots/base"
 )
 
-func refToName(ref string) (branch string) {
-	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
-	branch = strings.Split(ref, "refs/")[1]
-	if strings.HasPrefix(branch, "heads/") {
-		branch = strings.Split(branch, "heads/")[1]
-	}
-	// if we got a tag ref, just leave it as "tags/{tag name}"
-	return branch
-}
-
 func getCommitMessages(event *gitlab.PushEvent) []string {
 	var commitMsgs = make([]string, 0)
 	for _, commit := range event.Commits {
