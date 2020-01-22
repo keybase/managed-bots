@@ -24,9 +24,8 @@ const handleElbHealthCheck = () =>
             typeof oauth_token !== 'string' ||
             typeof oauth_verifier !== 'string'
           ) {
-            res.write('unexpected callback data')
             res.writeHead(400)
-            res.end()
+            res.end('unexpected callback data')
             return
           }
           onJiraCallback(oauth_token, oauth_verifier)

@@ -4,6 +4,7 @@ import {Context} from './context'
 import * as Errors from './errors'
 import logger from './logger'
 import * as Configs from './configs'
+import * as Jira from './jira'
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -24,10 +25,10 @@ export type MessageContext = Readonly<{
   conversationId: ChatTypes.ConvIDStr
 }>
 
-type UnknownMessage = Readonly<{
+export type UnknownMessage = Readonly<{
   context: MessageContext
   type: BotMessageType.Unknown
-  error?: string
+  error?: string | Errors.Errors
 }>
 
 export type CreateMessage = Readonly<{
@@ -120,7 +121,9 @@ const checkAndGetProjectName = async (
   required: boolean
 ): Promise<Errors.ResultOrError<
   string,
-  Errors.UnknownError | Errors.DisabledProjectError | Errors.MissingProjectError
+  | Errors.UnknownError
+  | Errors.InvalidJiraFieldError
+  | Errors.MissingProjectError
 >> => {
   const teamChannelConfigRet = await context.configs.getTeamChannelConfig(
     messageContext.teamName,
@@ -145,37 +148,78 @@ const checkAndGetProjectName = async (
         : Errors.missingProjectError
       : Errors.makeResult<string>('')
   }
-  if (
-    teamChannelConfig.enabledProjects.length &&
-    !teamChannelConfig.enabledProjects.includes(project)
-  ) {
+  const jiraMetadata = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  const normalizedProject = jiraMetadata.normalizeProject(project)
+  if (!normalizedProject) {
     return Errors.makeError({
-      type: Errors.ErrorType.DisabledProject,
-      projectName: project,
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.Project,
+      invalidValue: project,
+      validValues: jiraMetadata.projects(),
     })
   }
-  return Errors.makeResult<string>(project.toLowerCase())
+  return Errors.makeResult<string>(normalizedProject)
 }
 
-const checkStatusError = (
+const getStatus = async (
   context: Context,
+  messageContext: MessageContext,
   status: string
-): string | undefined =>
-  status && !context.botConfig.jira.status.includes(status)
-    ? `invalid status: ${status} is not one of ${Utils.humanReadableArray(
-        context.botConfig.jira.status
-      )}`
-    : undefined
+): Promise<Errors.ResultOrError<
+  string | undefined,
+  Errors.InvalidJiraFieldError
+>> => {
+  if (!status) {
+    return undefined
+  }
+  const jiraMetadata = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  const normalizedStatus = jiraMetadata.normalizeStatus(status)
+  if (!normalizedStatus) {
+    return Errors.makeError({
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.Status,
+      invalidValue: status,
+      validValues: jiraMetadata.statuses(),
+    })
+  }
+  return Errors.makeResult<string>(normalizedStatus)
+}
 
-const checkIssueTypeError = (
+const getIssueType = async (
   context: Context,
+  messageContext: MessageContext,
   issueType: string
-): string | undefined =>
-  issueType && !context.botConfig.jira.issueTypes.includes(issueType)
-    ? `invalid issueType: ${issueType} is not one of ${Utils.humanReadableArray(
-        context.botConfig.jira.issueTypes
-      )}`
-    : undefined
+): Promise<Errors.ResultOrError<
+  string | undefined,
+  Errors.InvalidJiraFieldError
+>> => {
+  if (!issueType) {
+    return undefined
+  }
+  const jiraMetadata = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  const normalizedIssueType = jiraMetadata.normalizeIssueType(issueType)
+  if (!normalizedIssueType) {
+    return Errors.makeError({
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.IssueType,
+      invalidValue: issueType,
+      validValues: jiraMetadata.issueTypes(),
+    })
+  }
+  return Errors.makeResult<string>(normalizedIssueType)
+}
 
 const extractArgsAfterCommand = <K extends string>(
   fields: Array<string>,
@@ -260,23 +304,17 @@ export const parseMessage = async (
 
   switch (fields[1]) {
     case 'new': {
-      const issueTypeFromInputCaseMapped = context.botConfig.jira._issueTypeInsensitiveToIssueType(
+      const getIssueTypeRet = await getIssueType(
+        context,
+        messageContext,
         fields[2]
       )
-      const issueType = context.botConfig.jira.issueTypes.includes(
-        issueTypeFromInputCaseMapped
-      )
-        ? issueTypeFromInputCaseMapped
-        : ''
-
-      const issueTypeError = checkIssueTypeError(context, issueType)
-      if (issueTypeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: issueTypeError,
-        }
-      }
+      // Ignore the error and assume fields[2] is not intended to be an
+      // issueType.
+      const issueType =
+        getIssueTypeRet.type === Errors.ReturnType.Error
+          ? undefined
+          : getIssueTypeRet.result
 
       const {args, rest} = extractArgsAfterCommand(
         fields.slice(issueType ? 3 : 2),
@@ -346,14 +384,15 @@ export const parseMessage = async (
 
       const assignee = args.assignee && args.assignee.replace(/^@+/, '')
 
-      const statusError = checkStatusError(context, args.status)
-      if (statusError) {
+      const getStatusRet = await getStatus(context, messageContext, args.status)
+      if (getStatusRet.type === Errors.ReturnType.Error) {
         return {
           context: messageContext,
           type: BotMessageType.Unknown,
-          error: statusError,
+          error: getStatusRet.error,
         }
       }
+      args.status = getStatusRet.result
 
       return {
         context: messageContext,
@@ -420,15 +459,6 @@ export const parseMessage = async (
               type: BotMessageType.Unknown,
               error: `unknown team config parameter ${toSetName}`,
             }
-            return {
-              context: messageContext,
-              type: BotMessageType.Config,
-              configType,
-              toSet: {
-                name: toSetName,
-                value: toSetValue,
-              },
-            }
           }
           return {
             context: messageContext,
@@ -437,9 +467,7 @@ export const parseMessage = async (
           }
         case ConfigType.Channel:
           if (toSetName) {
-            if (
-              !['enabledProjects', 'defaultNewIssueProject'].includes(toSetName)
-            ) {
+            if (!['defaultNewIssueProject'].includes(toSetName)) {
               return {
                 context: messageContext,
                 type: BotMessageType.Unknown,

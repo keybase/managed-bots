@@ -123,9 +123,7 @@ class JiraClientWrapper {
     })
     return this.jiraClient.issueType
       .getAllIssueTypes()
-      .then((resp: Array<{name: string}>) =>
-        resp.map(({name}) => name.toLowerCase())
-      )
+      .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
   }
 
   getProjects(): Promise<Array<string>> {
@@ -134,9 +132,16 @@ class JiraClientWrapper {
     })
     return this.jiraClient.project
       .getAllProjects()
-      .then((resp: Array<{key: string}>) =>
-        resp.map(({key}) => key.toLowerCase())
-      )
+      .then((resp: Array<{key: string}>) => resp.map(({key}) => key))
+  }
+
+  getStatuses(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getStatuses',
+    })
+    return this.jiraClient.status
+      .getAllStatuses()
+      .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
   }
 }
 
@@ -234,14 +239,48 @@ export const getJiraFromTeamnameAndUsername = async (
   )
 }
 
-export type JiraMetadata = Readonly<{
-  issueTypes: Array<string>
-  projects: Array<string>
-}>
+class JiraMetadata {
+  private issueTypesArray: Array<string>
+  private projectsArray: Array<string>
+  private statusesArray: Array<string>
 
-const emptyJiraMetadata: JiraMetadata = {
-  issueTypes: [],
-  projects: [],
+  // lowercased => original
+  private issueTypesSet: Map<string, string>
+  private projectsSet: Map<string, string>
+  private statusesSet: Map<string, string>
+
+  constructor(data: {
+    issueTypes: Array<string>
+    projects: Array<string>
+    statuses: Array<string>
+  }) {
+    this.issueTypesArray = [...data.issueTypes]
+    this.projectsArray = [...data.projects]
+    this.statusesArray = [...data.statuses]
+    this.issueTypesSet = new Map(data.issueTypes.map(s => [s.toLowerCase(), s]))
+    this.projectsSet = new Map(data.projects.map(s => [s.toLowerCase(), s]))
+    this.statusesSet = new Map(data.statuses.map(s => [s.toLowerCase(), s]))
+  }
+
+  normalizeIssueType(issueType: string): undefined | string {
+    return this.issueTypesSet.get(issueType.toLowerCase())
+  }
+  normalizeProject(projectKey: string): undefined | string {
+    return this.projectsSet.get(projectKey.toLowerCase())
+  }
+  normalizeStatus(status: string): undefined | string {
+    return this.statusesSet.get(status.toLowerCase())
+  }
+
+  issueTypes(): Array<string> {
+    return [...this.issueTypesArray]
+  }
+  projects(): Array<string> {
+    return [...this.projectsArray]
+  }
+  statuses(): Array<string> {
+    return [...this.statusesArray]
+  }
 }
 
 export const getJiraMetadata = async (
@@ -261,22 +300,22 @@ export const getJiraMetadata = async (
       case Errors.ErrorType.JirabotNotEnabled:
         break
       case Errors.ErrorType.Unknown:
-        logger.warn({msg: 'refreshJiraMetadata', error: jiraRet.error})
+        logger.warn({msg: 'getJiraMetadata', error: jiraRet.error})
         break
       default:
         let _: never = jiraRet.error
     }
-    return emptyJiraMetadata
+    return new JiraMetadata({issueTypes: [], projects: [], statuses: []})
   }
 
   const jira = jiraRet.result
   try {
     const issueTypes = await jira.getIssueTypes()
     const projects = await jira.getProjects()
-    return {issueTypes, projects}
+    const statuses = await jira.getStatuses()
+    return new JiraMetadata({issueTypes, projects, statuses})
   } catch (error) {
-    logger.warn({msg: 'refreshJiraMetadata', error})
-    return emptyJiraMetadata
+    logger.warn({msg: 'getJiraMetadata', error})
+    return new JiraMetadata({issueTypes: [], projects: [], statuses: []})
   }
 }
-

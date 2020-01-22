@@ -1,6 +1,5 @@
 import * as Message from './message'
 import {Context} from './context'
-import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
 import * as Jira from './jira'

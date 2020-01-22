@@ -4,36 +4,37 @@ import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
 import * as Utils from './utils'
+import * as Jira from './jira'
 
-const makeNewTeamChannelConfig = (
+const makeNewTeamChannelConfig = async (
+  context: Context,
+  messageContext: Message.MessageContext,
   oldConfig: Configs.TeamChannelConfig,
   name: string,
   value: string
-): Errors.ResultOrError<
+): Promise<Errors.ResultOrError<
   Configs.TeamChannelConfig,
-  Errors.UnknownParamError | Errors.DisabledProjectError
-> => {
+  Errors.UnknownParamError | Errors.InvalidJiraFieldError
+>> => {
   switch (name) {
-    case 'enabledProjects': {
-      // TODO check for project existence with jira
-      return Errors.makeResult<Configs.TeamChannelConfig>({
-        ...oldConfig,
-        enabledProjects: value
-          .split(',')
-          .filter(Boolean)
-          .map(s => s.toLowerCase()),
-      })
-    }
     case 'defaultNewIssueProject': {
-      if (!oldConfig.enabledProjects.includes(value)) {
-        return Errors.makeError<Errors.DisabledProjectError>({
-          type: Errors.ErrorType.DisabledProject,
-          projectName: value,
+      const jiraMetadata = await Jira.getJiraMetadata(
+        context,
+        messageContext.teamName,
+        messageContext.senderUsername
+      )
+      const normalizedProject = jiraMetadata.normalizeProject(value)
+      if (!normalizedProject) {
+        return Errors.makeError({
+          type: Errors.ErrorType.InvalidJiraField,
+          fieldType: Errors.InvalidJiraFieldType.Project,
+          invalidValue: value,
+          validValues: jiraMetadata.projects(),
         })
       }
       return Errors.makeResult<Configs.TeamChannelConfig>({
         ...oldConfig,
-        defaultNewIssueProject: value.toLowerCase(),
+        defaultNewIssueProject: normalizedProject.toLowerCase(),
       })
     }
     default:
@@ -61,9 +62,8 @@ const channelConfigToMessageBody = (channelConfig: Configs.TeamChannelConfig) =>
 
 *defaultNewIssueProject:* ${channelConfig.defaultNewIssueProject ||
     '<undefined>'}
-*enabledProjects:* ${channelConfig.enabledProjects.join(',') || '<all>'}
 
-If \`enabledProjects\` is set, you can only interract with the specified projects in this channel. When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
+When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
 `
 
 const handleChannelConfig = async (
@@ -110,7 +110,9 @@ const handleChannelConfig = async (
       return Errors.makeResult(undefined)
     }
 
-    const newConfigRet = makeNewTeamChannelConfig(
+    const newConfigRet = await makeNewTeamChannelConfig(
+      context,
+      parsedMessage.context,
       newConfigBase,
       parsedMessage.toSet.name,
       parsedMessage.toSet.value
@@ -156,8 +158,8 @@ const jiraConfigToMessageBody = (
   jiraConfig: Configs.TeamJiraConfig
 ) =>
   `This team is now configured for \`${jiraConfig.jiraHost}\`. ` +
-  "If you haven't, here are instructions for connecting on Jira side:\n"
-'In Jira admin settings, create an application link of type "Generic Application".' +
+  "If you haven't, here are instructions for connecting on Jira side:\n" +
+  'In Jira admin settings, create an application link of type "Generic Application".' +
   ` Use \`${context.botConfig.httpAddressPrefix}\` as the URL of the application.` +
   `\n\n_Tip: Can't find application link settings on Jira? Try the "Search Jira Admin" box in the top right corner of admin settings._` +
   '\n\nAfter the application link has been created, edit the link and configure "Incoming Authentication" as following:' +
@@ -165,20 +167,13 @@ const jiraConfigToMessageBody = (
   '\n*Public Key:* \n```\n' +
   jiraConfig.jiraAuth.publicKey +
   '```\n' +
-  '\nOther fields can be empty or arbitrary values.'
-'\n\nAfter this has been done, any user in this team can use `!jira auth` to connect their account with Jirabot. You can also use `jira config channel` to customize Jirabot for each channel in this team.'
+  '\nOther fields can be empty or arbitrary values.' +
+  '\n\nAfter this has been done, any user in this team can use `!jira auth` to connect their account with Jirabot. You can also use `jira config channel` to customize Jirabot for each channel in this team.'
 
 const handleTeamConfig = async (
   context: Context,
   parsedMessage: Message.ConfigMessage
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
-  // TODO
-  refreshJiraMetadata(
-    context,
-    parsedMessage.context.teamName,
-    parsedMessage.context.senderUsername
-  )
-
   if (parsedMessage.configType !== Message.ConfigType.Team) {
     return Errors.makeError(undefined)
   }

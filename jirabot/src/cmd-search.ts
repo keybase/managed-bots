@@ -1,9 +1,9 @@
-import ChatTypes from 'keybase-bot/lib/types/chat1'
 import {Issue as JiraIssue} from './jira'
 import {numToEmoji, statusToEmoji} from './emoji'
 import {SearchMessage} from './message'
 import {Context} from './context'
 import * as Errors from './errors'
+import * as Utils from './utils'
 
 const issueToLine = (issue: JiraIssue, index: number) =>
   `${numToEmoji(index)} *${issue.key}* ${statusToEmoji(issue.status)} ${
@@ -82,15 +82,15 @@ export default async (
         assigneeJira,
       })
       .then(({jql, issues}) =>
-        context.bot.chat
-          .send(parsedMessage.context.chatChannel, {
-            body: buildSearchResultBody(parsedMessage, jql, issues, additional),
-          })
-          .then(({id}) => ({
-            count: issues.length > 11 ? 11 : issues.length,
-            id,
-            issues,
-          }))
+        Utils.replyToMessageContext(
+          context,
+          parsedMessage.context,
+          buildSearchResultBody(parsedMessage, jql, issues, additional)
+        ).then(({id}) => ({
+          count: issues.length > 11 ? 11 : issues.length,
+          id,
+          issues,
+        }))
       )
     return Errors.makeResult(undefined)
   } catch (err) {

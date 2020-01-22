@@ -21,12 +21,10 @@ export type TeamUserConfig = Readonly<{
 
 // namespace: jirabot-v1-team-[teamname]; key: channel-[channelname]
 export type TeamChannelConfig = Readonly<{
-  enabledProjects: Array<string>
   defaultNewIssueProject?: string
 }>
 
 export const emptyTeamChannelConfig: TeamChannelConfig = {
-  enabledProjects: [],
   defaultNewIssueProject: undefined,
 }
 
@@ -79,16 +77,14 @@ const jsonToTeamUserConfig = (
 const jsonToTeamChannelConfig = (
   objectFromJson: any
 ): TeamChannelConfig | undefined => {
-  const {enabledProjects, defaultNewIssueProject} = objectFromJson
+  const {defaultNewIssueProject} = objectFromJson
   if (
-    !Array.isArray(enabledProjects) &&
     typeof defaultNewIssueProject !== 'undefined' &&
     typeof defaultNewIssueProject !== 'string'
   ) {
     return undefined
   }
   return {
-    enabledProjects,
     defaultNewIssueProject,
   } as TeamChannelConfig
 }

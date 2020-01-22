@@ -11,14 +11,20 @@ import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
 
-const reportError = (context: Context, parsedMessage: Message.Message) =>
-  Utils.replyToMessageContext(
-    context,
-    parsedMessage.context,
-    parsedMessage.type === 'unknown'
-      ? `Invalid command: ${parsedMessage.error}`
-      : 'Unknown command'
-  )
+const reportError = (context: Context, parsedMessage: Message.UnknownMessage) =>
+  parsedMessage.error && typeof parsedMessage.error !== 'string'
+    ? Errors.reportErrorAndReplyChat(
+        context,
+        parsedMessage.context,
+        parsedMessage.error
+      )
+    : Utils.replyToMessageContext(
+        context,
+        parsedMessage.context,
+        parsedMessage.error
+          ? `Invalid command: ${parsedMessage.error}`
+          : 'Unknown command'
+      )
 
 const reactAck = (
   context: Context,
@@ -151,9 +157,7 @@ const commands = [
       `!jira config team jiraHost foo.atlassian.net\n` +
       `!jira config channel\n` +
       // `!jira config team\n`+
-      `!jira config channel defaultNewIssueProject DESIGN\n` +
-      `!jira config channel enabledProjects DESIGN,FRONTEND\n` +
-      `!jira config channel enabledProjects *\n`,
+      `!jira config channel defaultNewIssueProject DESIGN\n`,
   },
   {
     name: 'jira auth',
