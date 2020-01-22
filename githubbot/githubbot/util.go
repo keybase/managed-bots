@@ -189,3 +189,19 @@ func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, githubUs
 
 	return u
 }
+
+// pref checking
+func shouldParseEvent(event interface{}, features *Features) bool {
+	switch event.(type) {
+	case *github.IssuesEvent:
+		return features.Issues
+	case *github.PullRequestEvent:
+		return features.PullRequests
+	case *github.PushEvent:
+		return features.Commits
+	case *github.CheckRunEvent, *github.StatusEvent:
+		return features.Statuses
+	default:
+		return false
+	}
+}

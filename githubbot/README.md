@@ -7,8 +7,9 @@ A Keybase chat bot that notifies a channel when an event happens on a GitHub rep
 In order to run the GitHub bot, you will need
 
 - a running MySQL database in order to store GitHub OAuth tokens, user preferences, and channel subscriptions
-- the client ID and client secret from a [GitHub OAuth application](https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/)
-- an arbitrary secret, used to authenticate webhooks from GitHub (this can be any string)
+- the app ID, app name, client ID, and client secret from a [GitHub app](https://developer.github.com/apps/building-github-apps/creating-a-github-app/)
+- a [secret string](https://developer.github.com/webhooks/securing), used to authenticate webhooks from GitHub. Remember to update the webhook secret on your Github app to this string!
+- the private key `.pem` file from your GitHub app
 
 ## Running
 
@@ -17,28 +18,31 @@ In order to run the GitHub bot, you will need
    ```
    go install .
    ```
-3. The GitHub bot sets itself up to serve HTTP requests on `/githubbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback url for your GitHub app is set to `http://<your web server>/githubbot/oauth`.
+3. The GitHub bot sets itself up to serve HTTP requests on `/githubbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback URL for your GitHub app is set to `http://<your web server>/githubbot/oauth`, and the webhook URL is set to `http://<your web server>/githubbot/webhook`.
 4. To start the GitHub bot, run a command like this:
    ```
-   $GOPATH/bin/githubbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/githubbot' --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>'
+   $GOPATH/bin/githubbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/githubbot' --app-name 'my-bot' --app-id 12345 --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>' --private-key-path '/path/to/bot.private-key.pem'
    ```
 5. Run `githubbot --help` for more options.
 
 ### Helpful Tips
 
+- Remember to configure the permissions for your GitHub app. The bot expects read-only access to checks, contents, issues, pull requests, and commit statuses, as well as the webhook events for check runs, issues, pushes, statuses, and pull requests.
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
   keybase chat api -m '{"method": "clearcommands"}'
   ```
-- You can optionally save your GitHub OAuth ID and secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitHubBot>` (or the equivalent KBFS path on your system) that matches the following format:
-  ```json
+- You can optionally save your GitHub app details inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitHubBot>` (or the equivalent KBFS path on your system) that matches the following format:
+  ```js
   {
+    "app_name": "your URL-safe GitHub app name",
+    "app_id": 12345, // your GitHub app ID
     "client_id": "your GitHub OAuth client ID here",
     "client_secret": "your GitHub OAuth client secret here"
   }
   ```
-  If you have KBFS running, you can now run the bot without providing the `--client-id` and `--client-secret` command line options.
-- You can also store your bot secret in KBFS by saving it in a file named `bot.secret` in your bot account's private KBFS folder and omitting the `--secret` command line argument.
+  If you have KBFS running, you can now run the bot without providing the `--client-id`, `--client-secret`, `--app-id`, and `--app-name` command line options.
+- You can store your bot secret in KBFS by saving it in a file named `bot.secret` and omitting the `--secret` command line argument, and your private key file in a file named `bot.private-key.pem` and omitting the `--private-key-path` argument.
 
 ### Docker
 
