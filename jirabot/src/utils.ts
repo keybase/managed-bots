@@ -1,3 +1,6 @@
+import {Context} from './context'
+import {MessageContext} from './message'
+
 const quotes: {
   [key: string]: string
 } = {
@@ -62,4 +65,12 @@ export const split2 = (s: string) => {
 }
 
 export const humanReadableArray = (list: Array<string>): string =>
-  list.map(item => (item.match(spacesRE) ? `\`"${item}"\`` : `\`${item}\``)).join(' ')
+  list
+    .map(item => (item.match(spacesRE) ? `\`"${item}"\`` : `\`${item}\``))
+    .join(' ')
+
+export const replyToMessageContext = (
+  context: Context,
+  messageContext: MessageContext,
+  body: string
+): Promise<any> => context.bot.chat.send(messageContext.conversationId, {body})

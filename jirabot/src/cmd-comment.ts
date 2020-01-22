@@ -1,6 +1,7 @@
 import {CommentMessage} from './message'
 import {Context} from './context'
 import * as Errors from './errors'
+import * as Utils from './utils'
 
 const kb2jiraMention = (context: Context, kb: string) =>
   context.botConfig.jira.usernameMapper[kb]
@@ -30,9 +31,11 @@ export default async (
       parsedMessage.ticket,
       parsedMessage.comment
     )
-    await context.bot.chat.send(parsedMessage.context.chatChannel, {
-      body: `@${parsedMessage.context.senderUsername} Done! ${url}`,
-    })
+    await Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      `@${parsedMessage.context.senderUsername} Done! ${url}`
+    )
     return Errors.makeResult(undefined)
   } catch (err) {
     Errors.reportErrorAndReplyChat(
