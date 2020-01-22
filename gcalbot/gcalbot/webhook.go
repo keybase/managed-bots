@@ -213,11 +213,13 @@ func (r *RenewChannelScheduler) Run() error {
 
 func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 	ticker := time.NewTicker(time.Hour)
+	defer func() {
+		ticker.Stop()
+		r.Debug("shutting down")
+	}()
 	for {
 		select {
 		case <-shutdownCh:
-			ticker.Stop()
-			r.Debug("shutting down")
 			return
 		case <-ticker.C:
 			channels, err := r.db.GetExpiringChannelList()
@@ -227,8 +229,6 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 			for _, channel := range channels {
 				select {
 				case <-shutdownCh:
-					ticker.Stop()
-					r.Debug("shutting down")
 					return
 				default:
 				}

@@ -79,6 +79,8 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 			}
 		}
 	}
+	signal.Stop(signalCh)
+	close(signalCh)
 	return nil
 }
 

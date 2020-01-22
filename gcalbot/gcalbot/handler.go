@@ -31,7 +31,7 @@ func NewHandler(
 	config *oauth2.Config,
 	httpPrefix string,
 ) *Handler {
-	handler := &Handler{
+	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
 		db:          db,
@@ -39,7 +39,6 @@ func NewHandler(
 		config:      config,
 		httpPrefix:  httpPrefix,
 	}
-	return handler
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
