@@ -213,10 +213,12 @@ func (s *BotServer) Go() (err error) {
 	requests := &base.OAuthRequests{}
 	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
+	renewScheduler := gcalbot.NewRenewChannelScheduler(db, config, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
-	eg.Go(func() error { return s.HandleSignals(httpSrv) })
+	eg.Go(renewScheduler.Run)
+	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

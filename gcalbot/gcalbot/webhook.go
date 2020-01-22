@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
+
+	"golang.org/x/oauth2"
 
 	"github.com/keybase/managed-bots/base"
 
@@ -165,29 +168,86 @@ func (h *Handler) createEventChannel(
 	return err
 }
 
-func (h *Handler) runRenewChannelScheduler() {
+type RenewChannelScheduler struct {
+	*base.DebugOutput
+	sync.Mutex
+
+	shutdownCh chan struct{}
+
+	db         *DB
+	config     *oauth2.Config
+	httpPrefix string
+}
+
+func NewRenewChannelScheduler(
+	db *DB,
+	config *oauth2.Config,
+	httpPrefix string,
+) *RenewChannelScheduler {
+	return &RenewChannelScheduler{
+		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", nil),
+		db:          db,
+		config:      config,
+		httpPrefix:  httpPrefix,
+		shutdownCh:  make(chan struct{}),
+	}
+}
+
+func (r *RenewChannelScheduler) Shutdown() error {
+	r.Lock()
+	defer r.Unlock()
+	if r.shutdownCh != nil {
+		close(r.shutdownCh)
+		r.shutdownCh = nil
+	}
+	return nil
+}
+
+func (r *RenewChannelScheduler) Run() error {
+	r.Lock()
+	shutdownCh := r.shutdownCh
+	r.Unlock()
+	r.renewScheduler(shutdownCh)
+	return nil
+}
+
+func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 	ticker := time.NewTicker(time.Hour)
-	for range ticker.C {
-		channels, err := h.db.GetExpiringChannelList()
-		if err != nil {
-			h.Debug("error getting expiring channels: %s", "TODO", err)
-		}
-		for _, channel := range channels {
-			err = h.renewChannel(channel)
+	for {
+		select {
+		case <-shutdownCh:
+			ticker.Stop()
+			r.Debug("shutting down")
+			return
+		case <-ticker.C:
+			channels, err := r.db.GetExpiringChannelList()
 			if err != nil {
-				h.Debug("error renewing channel '%s': %s", "TODO", err)
+				r.Debug("error getting expiring channels: %s", err)
+			}
+			for _, channel := range channels {
+				select {
+				case <-shutdownCh:
+					ticker.Stop()
+					r.Debug("shutting down")
+					return
+				default:
+				}
+				err = r.renewChannel(channel)
+				if err != nil {
+					r.Debug("error renewing channel '%s': %s", channel.ChannelID, err)
+				}
 			}
 		}
 	}
 }
 
-func (h *Handler) renewChannel(channel *Channel) error {
-	token, err := h.db.GetToken(channel.AccountID)
+func (r *RenewChannelScheduler) renewChannel(channel *Channel) error {
+	token, err := r.db.GetToken(channel.AccountID)
 	if err != nil {
 		return err
 	}
 
-	client := h.config.Client(context.Background(), token)
+	client := r.config.Client(context.Background(), token)
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		return err
@@ -200,7 +260,7 @@ func (h *Handler) renewChannel(channel *Channel) error {
 
 	// open new channel
 	res, err := srv.Events.Watch(channel.CalendarID, &calendar.Channel{
-		Address: fmt.Sprintf("%s/gcalbot/events/webhook", h.httpPrefix),
+		Address: fmt.Sprintf("%s/gcalbot/events/webhook", r.httpPrefix),
 		Id:      newChannelID,
 		Type:    "web_hook",
 	}).Do()
@@ -208,7 +268,7 @@ func (h *Handler) renewChannel(channel *Channel) error {
 		return err
 	}
 
-	err = h.db.UpdateChannel(channel.ChannelID, newChannelID, time.Unix(res.Expiration/1e3, 0))
+	err = r.db.UpdateChannel(channel.ChannelID, newChannelID, time.Unix(res.Expiration/1e3, 0))
 	if err != nil {
 		return err
 	}

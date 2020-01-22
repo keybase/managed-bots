@@ -58,7 +58,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (o *HTTPSrv) screenshotHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) screenshotHandler(w http.ResponseWriter, r *http.Request) {
 	dat, _ := base64.StdEncoding.DecodeString(screenshot)
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

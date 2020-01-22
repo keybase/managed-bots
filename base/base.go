@@ -64,7 +64,7 @@ func (s *Server) Shutdown() error {
 	return nil
 }
 
-func (s *Server) HandleSignals(shutdowner Shutdowner) (err error) {
+func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, os.Signal(syscall.SIGTERM))
 	sig := <-signalCh
@@ -72,9 +72,11 @@ func (s *Server) HandleSignals(shutdowner Shutdowner) (err error) {
 	if err := s.Shutdown(); err != nil {
 		s.Debug("Unable to shutdown server: %v", err)
 	}
-	if shutdowner != nil {
-		if err := shutdowner.Shutdown(); err != nil {
-			s.Debug("Unable to shutdown shutdowner: %v", err)
+	for _, shutdowner := range shutdowners {
+		if shutdowner != nil {
+			if err := shutdowner.Shutdown(); err != nil {
+				s.Debug("Unable to shutdown shutdowner: %v", err)
+			}
 		}
 	}
 	return nil
@@ -122,9 +124,12 @@ func (s *Server) Listen(handler Handler) error {
 		return err
 	}
 	s.Debug("startup success, listening for messages and convs...")
+	s.Lock()
+	shutdownCh := s.shutdownCh
+	s.Unlock()
 	var eg errgroup.Group
-	eg.Go(func() error { return s.listenForMsgs(s.shutdownCh, sub, handler) })
-	eg.Go(func() error { return s.listenForConvs(s.shutdownCh, sub, handler) })
+	eg.Go(func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
+	eg.Go(func() error { return s.listenForConvs(shutdownCh, sub, handler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

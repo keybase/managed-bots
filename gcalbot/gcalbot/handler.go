@@ -39,8 +39,6 @@ func NewHandler(
 		config:      config,
 		httpPrefix:  httpPrefix,
 	}
-	// begin renewing old channels every hour
-	go handler.runRenewChannelScheduler()
 	return handler
 }
 
