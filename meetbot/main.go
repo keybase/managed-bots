@@ -99,6 +99,7 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
+	defer sdb.Close()
 	db := base.NewGoogleOAuthDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Debug("advertise error: %s", err)

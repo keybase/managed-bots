@@ -68,7 +68,6 @@ Unsubscribe from a specific branch:%s
 !github unsubscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
-
 	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
 
 Examples:%s
@@ -181,6 +180,7 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
+	defer sdb.Close()
 	db := githubbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Debug("advertise error: %s", err)

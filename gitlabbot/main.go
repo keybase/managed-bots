@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/keybase/managed-bots/gitlabbot/gitlabbot"
 	"os"
+
+	"github.com/keybase/managed-bots/gitlabbot/gitlabbot"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -160,6 +161,7 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to connect to MySQL: %s", err)
 		return err
 	}
+	defer sdb.Close()
 	db := gitlabbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Debug("advertise error: %s", err)
