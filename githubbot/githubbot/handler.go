@@ -222,7 +222,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 }
 
 func (h *Handler) handleSubscribeToFeature(repo string, feature string, msg chat1.MsgSummary, enable bool) (err error) {
-	// TODO: make sure user is authed here too
+	// isAdmin is checked in handleSubscribe
 	var message string
 	defer func() {
 		if message != "" {
@@ -282,7 +282,7 @@ func (h *Handler) handleSubscribeToFeature(repo string, feature string, msg chat
 }
 
 func (h *Handler) handleSubscribeToBranch(repo string, branch string, msg chat1.MsgSummary, create bool) (err error) {
-	// TODO: make sure user is authed here too
+	// isAdmin is checked in handleSubscribe
 	var message string
 	defer func() {
 		if message != "" {
