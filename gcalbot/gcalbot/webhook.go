@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
+
+	"golang.org/x/oauth2"
 
 	"github.com/keybase/managed-bots/base"
 
@@ -163,4 +166,128 @@ func (h *Handler) createEventChannel(
 	})
 
 	return err
+}
+
+type RenewChannelScheduler struct {
+	*base.DebugOutput
+	sync.Mutex
+
+	shutdownCh chan struct{}
+
+	db         *DB
+	config     *oauth2.Config
+	httpPrefix string
+}
+
+func NewRenewChannelScheduler(
+	db *DB,
+	config *oauth2.Config,
+	httpPrefix string,
+) *RenewChannelScheduler {
+	return &RenewChannelScheduler{
+		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", nil),
+		db:          db,
+		config:      config,
+		httpPrefix:  httpPrefix,
+		shutdownCh:  make(chan struct{}),
+	}
+}
+
+func (r *RenewChannelScheduler) Shutdown() error {
+	r.Lock()
+	defer r.Unlock()
+	if r.shutdownCh != nil {
+		close(r.shutdownCh)
+		r.shutdownCh = nil
+	}
+	return nil
+}
+
+func (r *RenewChannelScheduler) Run() error {
+	r.Lock()
+	shutdownCh := r.shutdownCh
+	r.Unlock()
+	r.renewScheduler(shutdownCh)
+	return nil
+}
+
+func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
+	ticker := time.NewTicker(time.Hour)
+	defer func() {
+		ticker.Stop()
+		r.Debug("shutting down")
+	}()
+	for {
+		select {
+		case <-shutdownCh:
+			return
+		case <-ticker.C:
+			channels, err := r.db.GetExpiringChannelList()
+			if err != nil {
+				r.Debug("error getting expiring channels: %s", err)
+			}
+			for _, channel := range channels {
+				select {
+				case <-shutdownCh:
+					return
+				default:
+				}
+				err = r.renewChannel(channel)
+				if err != nil {
+					r.Debug("error renewing channel '%s': %s", channel.ChannelID, err)
+				}
+			}
+		}
+	}
+}
+
+func (r *RenewChannelScheduler) renewChannel(channel *Channel) error {
+	token, err := r.db.GetToken(channel.AccountID)
+	if err != nil {
+		return err
+	}
+
+	client := r.config.Client(context.Background(), token)
+	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	if err != nil {
+		return err
+	}
+
+	newChannelID, err := base.MakeRequestID()
+	if err != nil {
+		return err
+	}
+
+	// open new channel
+	res, err := srv.Events.Watch(channel.CalendarID, &calendar.Channel{
+		Address: fmt.Sprintf("%s/gcalbot/events/webhook", r.httpPrefix),
+		Id:      newChannelID,
+		Type:    "web_hook",
+	}).Do()
+	if err != nil {
+		return err
+	}
+
+	err = r.db.UpdateChannel(channel.ChannelID, newChannelID, time.Unix(res.Expiration/1e3, 0))
+	if err != nil {
+		return err
+	}
+
+	// close old channel
+	err = srv.Channels.Stop(&calendar.Channel{
+		Id:         channel.ChannelID,
+		ResourceId: channel.ResourceID,
+	}).Do()
+	switch err := err.(type) {
+	case nil:
+	case *googleapi.Error:
+		if err.Code != 404 {
+			return err
+		}
+		// if the channel wasn't found, don't return an error
+	default:
+		return err
+	}
+
+	return nil
 }

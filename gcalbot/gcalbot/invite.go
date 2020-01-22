@@ -171,6 +171,7 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 				if err.Code != 404 {
 					return err
 				}
+				// if the channel wasn't found, don't return
 			default:
 				return err
 			}
@@ -235,6 +236,9 @@ Awaiting your response. *Are you going?*`
 	} else if event.Organizer.Email != "" {
 		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
 	}
+
+	// TODO(marcel): add conferencing details
+	// TODO(marcel): add event description
 
 	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
 		url, what, when, where, organizer, accountCalendar)

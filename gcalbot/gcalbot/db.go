@@ -142,12 +142,23 @@ func (d *DB) InsertChannel(channel Channel) error {
 	})
 }
 
+func (d *DB) UpdateChannel(oldChannelID, newChannelID string, expiry time.Time) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			UPDATE channel
+				SET channel_id = ?, expiry = ?
+				WHERE channel_id = ?
+		`, newChannelID, expiry, oldChannelID)
+		return err
+	})
+}
+
 func (d *DB) GetChannelByAccountAndCalendarID(accountID, calendarID string) (channel *Channel, err error) {
 	channel = &Channel{}
 	var expiry int64
 	row := d.DB.QueryRow(`
 		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
-		WHERE account_id = ? and calendar_id = ?
+			WHERE account_id = ? and calendar_id = ?
 	`, accountID, calendarID)
 	err = row.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
 		&channel.ResourceID, &expiry, &channel.NextSyncToken)
@@ -185,8 +196,31 @@ func (d *DB) GetChannelByChannelID(channelID string) (channel *Channel, err erro
 func (d *DB) GetChannelListByAccountID(accountID string) (channels []*Channel, err error) {
 	rows, err := d.DB.Query(`
 		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
-		WHERE account_id = ?
+			WHERE account_id = ?
 	`, accountID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		channel := &Channel{}
+		var expiry int64
+		err = rows.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
+			&channel.ResourceID, &expiry, &channel.NextSyncToken)
+		if err != nil {
+			return nil, err
+		}
+		channel.Expiry = time.Unix(expiry, 0)
+		channels = append(channels, channel)
+	}
+	return channels, nil
+}
+
+func (d *DB) GetExpiringChannelList() (channels []*Channel, err error) {
+	// query all channels that are expiring in less than a day
+	rows, err := d.DB.Query(`
+		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
+			WHERE expiry < DATE_ADD(NOW(), INTERVAL 1 DAY)
+	`)
 	if err != nil {
 		return nil, err
 	}

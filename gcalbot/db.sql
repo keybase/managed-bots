@@ -33,7 +33,8 @@ CREATE TABLE `channel` (
     `next_sync_token` varchar(128) NOT NULL,    -- token used for incremental syncs on each webhook
     PRIMARY KEY (`channel_id`),
     UNIQUE KEY (`account_id`, `calendar_id`),
-    FOREIGN KEY (`account_id`) REFERENCES account(`account_id`)
+    FOREIGN KEY (`account_id`) REFERENCES account(`account_id`),
+    INDEX (`expiry`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `subscription`;
