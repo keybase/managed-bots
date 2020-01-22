@@ -56,20 +56,20 @@ const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
+Event type must be one of %sissues, pulls, commits, statuses%s
 
-Example:%s
-!github subscribe keybase/client%s
-
-Subscribe to a specific branch:%s
+Examples:%s
+!github subscribe keybase/client
+!github subscribe microsoft/typescript pulls
 !github subscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
+Event type must be one of %sissues, pulls, commits, statuses%s
 
-Example:%s
-!github unsubscribe keybase/client%s
-
-Unsubscribe from a specific branch:%s
+Examples:%s
+!github unsubscribe keybase/client
+!github unsubscribe microsoft/typescript commits
 !github unsubscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
@@ -85,7 +85,7 @@ Examples:%s
 			Name:        "github subscribe",
 			Description: "Enable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github subscribe* <username/repo> [branch]`,
+				Title:       `*!github subscribe* <username/repo> [branch or event type]`,
 				DesktopBody: subExtended,
 				MobileBody:  subExtended,
 			},
@@ -94,7 +94,7 @@ Examples:%s
 			Name:        "github unsubscribe",
 			Description: "Disable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github unsubscribe* <username/repo> [branch]`,
+				Title:       `*!github unsubscribe* <username/repo> [branch or event type]`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
 			},
