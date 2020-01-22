@@ -15,8 +15,7 @@ Currently supports:
 
 const (
 	GITHUB = iota
-	GITLAB = iota
-	BITBUCKET = iota
+	GITLAB
 )
 
 
