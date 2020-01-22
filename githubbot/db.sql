@@ -36,5 +36,3 @@ CREATE TABLE `user_prefs` (
   `mention` tinyint(1) NOT NULL,
   PRIMARY KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
