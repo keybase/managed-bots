@@ -107,7 +107,17 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 	args := toks[2:]
 	if len(args) < 1 {
-		return fmt.Errorf("bad args for subscribe: %v", args)
+		var message string
+		if create {
+			message = "I don't understand! Try `!github subscribe <username/repo>`"
+		} else {
+			message = "I don't understand! Try `!github unsubscribe <username/repo>`"
+		}
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, message)
+		if err != nil {
+			err = fmt.Errorf("error sending message: %s", err)
+		}
+		return err
 	}
 
 	// Check if command is subscribing to a branch
@@ -141,9 +151,9 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	parsedRepo := strings.Split(args[0], "/")
 	if len(parsedRepo) != 2 {
 		if create {
-			message = "`%s` doesn't look like a repository to me! Try sending `!github subscribe <owner/repository>`"
+			message = "`%s` doesn't look like a repository to me! Try sending `!github subscribe <username/repo>`"
 		} else {
-			message = "`%s` doesn't look like a repository to me! Try sending `!github unsubscribe <owner/repository>`"
+			message = "`%s` doesn't look like a repository to me! Try sending `!github unsubscribe <username/repo>`"
 		}
 		return nil
 	}
