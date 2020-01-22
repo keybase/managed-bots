@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"fmt"
+	"github.com/keybase/managed-bots/base/git"
 	"github.com/xanzy/go-gitlab"
 	"io/ioutil"
 	"net/http"
@@ -59,7 +60,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
 		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
-		message = formatIssueMsg(event, author.String())
+		message = git.FormatIssueMsg(
+			event.ObjectAttributes.Action,
+			author.String(),
+			event.Project.Name,
+			event.ObjectAttributes.IID,
+			event.ObjectAttributes.Title,
+			event.ObjectAttributes.URL,
+			)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
@@ -69,16 +77,39 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		} else {
 			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		}
-		message = formatMRMsg(event, author.String())
+
+		message = git.FormatPullRequestMsg(
+			git.GITLAB,
+			event.ObjectAttributes.Action,
+			author.String(),
+			event.Project.PathWithNamespace,
+			event.ObjectAttributes.IID,
+			event.ObjectAttributes.Title,
+			event.ObjectAttributes.URL,
+			event.ObjectAttributes.TargetBranch,
+			)
+
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.PushEvent:
 		if len(event.Commits) == 0 {
 			break
 		}
-		message = formatPushMsg(event, event.UserUsername)
+
+		branch = git.RefToName(event.Ref)
+		commitMsgs := getCommitMessages(event)
+		lastCommitDiffURL := event.Commits[len(event.Commits) - 1].URL
+
+		message = git.FormatPushMsg(
+			event.UserUsername,
+			event.Project.Name,
+			branch,
+			len(event.Commits),
+			commitMsgs,
+			lastCommitDiffURL)
+
 		repo = strings.ToLower(event.Project.PathWithNamespace)
-		branch = refToName(event.Ref)
+
 	case *gitlab.PipelineEvent:
 		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
@@ -100,7 +131,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			var secretToken = makeSecret(repo, convID, h.secret)
+			var secretToken = base.MakeSecret(repo, convID, h.secret)
 			if signature != secretToken {
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue

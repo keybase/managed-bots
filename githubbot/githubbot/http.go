@@ -3,6 +3,7 @@ package githubbot
 import (
 	"context"
 	"fmt"
+	"github.com/keybase/managed-bots/base/git"
 	"io/ioutil"
 	"net/http"
 
@@ -80,7 +81,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, convID := range convs {
-			if err = github.ValidateSignature(signature, payload, []byte(makeSecret(repo, convID, h.secret))); err != nil {
+			if err = github.ValidateSignature(signature, payload, []byte(base.MakeSecret(repo, convID, h.secret))); err != nil {
 				// if there's an error validating the signature for a conversation, don't send the message to that convo
 				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
@@ -120,7 +121,14 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 	switch event := event.(type) {
 	case *github.IssuesEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
-		message = formatIssueMsg(event, author.String())
+		message = git.FormatIssueMsg(
+			*event.Action,
+			author.String(),
+			event.GetRepo().GetName(),
+			event.GetIssue().GetNumber(),
+			event.GetIssue().GetTitle(),
+			event.GetIssue().GetHTMLURL(),
+			)
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
@@ -128,13 +136,39 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, client *github.C
 		} else {
 			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		}
-		message = formatPRMsg(event, author.String())
+
+		action := *event.Action
+		if event.GetPullRequest().GetMerged() {
+			action = "merged"
+		}
+
+		message = git.FormatPullRequestMsg(
+			git.GITHUB,
+			action,
+			author.String(),
+			event.GetRepo().GetName(),
+			event.GetNumber(),
+			event.GetPullRequest().GetTitle(),
+			event.GetPullRequest().GetHTMLURL(),
+			event.GetRepo().GetName(),
+			)
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
 			break
 		}
-		message = formatPushMsg(event, fmt.Sprintf("*%s*", event.GetSender().GetLogin()))
-		branch = refToName(event.GetRef())
+
+		branch = git.RefToName(event.GetRef())
+		commitMsgs := getCommitMessages(event)
+
+		message = git.FormatPushMsg(
+			event.GetSender().GetLogin(),
+			event.GetRepo().GetName(),
+			branch,
+			len(event.Commits),
+			commitMsgs,
+			event.GetCompare())
+
+
 	case *github.CheckRunEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin())
 		if len(event.GetCheckRun().PullRequests) == 0 {

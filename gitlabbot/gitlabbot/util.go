@@ -1,10 +1,8 @@
 package gitlabbot
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/xanzy/go-gitlab"
 	"net/http"
 	"strings"
@@ -13,81 +11,15 @@ import (
 	"github.com/keybase/managed-bots/base"
 )
 
-func makeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(base.ShortConvID(convID))+secret)))
-}
-
-func refToName(ref string) (branch string) {
-	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
-	branch = strings.Split(ref, "refs/")[1]
-	if strings.HasPrefix(branch, "heads/") {
-		branch = strings.Split(branch, "heads/")[1]
+func getCommitMessages(event *gitlab.PushEvent) []string {
+	var commitMsgs = make([]string, 0)
+	for _, commit := range event.Commits {
+		commitMsgs = append(commitMsgs, commit.Message)
 	}
-	// if we got a tag ref, just leave it as "tags/{tag name}"
-	return branch
+	return commitMsgs
 }
 
 // formatters
-
-func formatPushMsg(evt *gitlab.PushEvent, username string) (res string) {
-	branch := refToName(evt.Ref)
-
-	res = fmt.Sprintf("%s pushed %d commit", username, len(evt.Commits))
-	if len(evt.Commits) != 1 {
-		res += "s"
-	}
-	res += fmt.Sprintf(" to %s/%s:\n", evt.Project.Name, branch)
-	for _, commit := range evt.Commits {
-		res += fmt.Sprintf("- `%s`\n", formatCommitString(commit.Message, 50))
-	}
-
-	var lastCommitDiffURL = evt.Commits[len(evt.Commits) - 1].URL
-	res += fmt.Sprintf("\n%s", lastCommitDiffURL)
-	return res
-}
-
-func formatCommitString(commit string, maxLen int) string {
-	firstLine := strings.Split(commit, "\n")[0]
-	if len(firstLine) > maxLen {
-		firstLine = strings.TrimSpace(firstLine[:maxLen]) + "..."
-	}
-	return firstLine
-}
-
-func formatIssueMsg(evt *gitlab.IssueEvent, username string) (res string) {
-	action := evt.ObjectAttributes.Action
-	switch action {
-	case "open":
-		res = fmt.Sprintf("%s opened issue #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "reopen":
-		res = fmt.Sprintf("%s reopened issue #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "close":
-		res = fmt.Sprintf("%s closed issue #%d on %s.\n", username, evt.ObjectAttributes.IID, evt.Project.Name)
-		res += evt.ObjectAttributes.URL
-	}
-	return res
-}
-
-func formatMRMsg(evt *gitlab.MergeEvent, username string) (res string) {
-	action := evt.ObjectAttributes.Action
-	switch action {
-	case "open":
-		res = fmt.Sprintf("%s opened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "reopen":
-		res = fmt.Sprintf("%s reopened merge request #%d on %s: “%s”\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace, evt.ObjectAttributes.Title)
-		res += evt.ObjectAttributes.URL
-	case "close":
-		res = fmt.Sprintf("%s closed merge request #%d on %s.\n", username, evt.ObjectAttributes.IID, evt.Project.PathWithNamespace)
-		res += evt.ObjectAttributes.URL
-	case "merge":
-		res = fmt.Sprintf("%s merged merge request #%d into %s/%s.\n", username, evt.ObjectAttributes.IID, evt.Project.Name, evt.ObjectAttributes.TargetBranch)
-		res += evt.ObjectAttributes.URL
-	}
-	return res
-}
 
 func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) {
 	action := evt.ObjectAttributes.Status

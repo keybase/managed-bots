@@ -128,7 +128,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 			webhookURL := h.httpPrefix + "/gitlabbot/webhook"
 			eventsFlag := true
-			token := makeSecret(args[0], msg.ConvID, h.secret)
+			token := base.MakeSecret(args[0], msg.ConvID, h.secret)
 			defaultBranch := project.DefaultBranch
 
 			hook, res, err := client.Projects.AddProjectHook(args[0], &gitlab.AddProjectHookOptions{
