@@ -25,12 +25,13 @@ type Handler struct {
 	config     *oauth2.Config
 	atr        *ghinstallation.AppsTransport
 	httpPrefix string
+	appName    string
 	secret     string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, atr *ghinstallation.AppsTransport, httpPrefix string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, atr *ghinstallation.AppsTransport, httpPrefix string, appName string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", kbc),
 		kbc:         kbc,
@@ -39,12 +40,16 @@ func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *o
 		config:      config,
 		atr:         atr,
 		httpPrefix:  httpPrefix,
+		appName:     appName,
 		secret:      secret,
 	}
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <username/repo>`\n"
+	welcomeMsg := fmt.Sprintf(
+		"Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <username/repo>`\n\ngithub.com/apps/%s/installations/new",
+		h.appName,
+	)
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 

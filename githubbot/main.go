@@ -27,6 +27,7 @@ type Options struct {
 	HTTPPrefix        string
 	Secret            string
 	PrivateKeyPath    string
+	AppName           string
 	AppID             int64
 	OAuthClientID     string
 	OAuthClientSecret string
@@ -166,9 +167,9 @@ func (s *BotServer) getAppKey() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func (s *BotServer) getConfig() (appID int64, clientID string, clientSecret string, err error) {
-	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppID != -1 {
-		return s.opts.AppID, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+func (s *BotServer) getConfig() (appName string, appID int64, clientID string, clientSecret string, err error) {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppName != "" && s.opts.AppID != -1 {
+		return s.opts.AppName, s.opts.AppID, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
 	cmd := s.opts.Command("fs", "read", path)
@@ -176,20 +177,21 @@ func (s *BotServer) getConfig() (appID int64, clientID string, clientSecret stri
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
-		return -1, "", "", err
+		return "", -1, "", "", err
 	}
 
 	var j struct {
+		AppName      string `json:"app_name"`
 		AppID        int64  `json:"app_id"`
 		ClientID     string `json:"client_id"`
 		ClientSecret string `json:"client_secret"`
 	}
 
 	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
-		return -1, "", "", err
+		return "", -1, "", "", err
 	}
 
-	return j.AppID, j.ClientID, j.ClientSecret, nil
+	return j.AppName, j.AppID, j.ClientID, j.ClientSecret, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -203,7 +205,7 @@ func (s *BotServer) Go() (err error) {
 		return
 	}
 
-	appID, clientID, clientSecret, err := s.getConfig()
+	appName, appID, clientID, clientSecret, err := s.getConfig()
 	if err != nil {
 		s.Debug("failed to get oauth credentials: %s", err)
 		return
@@ -245,7 +247,7 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to make github apps transport: %s", err)
 		return err
 	}
-	handler := githubbot.NewHandler(s.kbc, db, requests, config, atr, s.opts.HTTPPrefix, secret)
+	handler := githubbot.NewHandler(s.kbc, db, requests, config, atr, s.opts.HTTPPrefix, appName, secret)
 	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, atr, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
@@ -271,6 +273,7 @@ func mainInner() int {
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	fs.StringVar(&opts.PrivateKeyPath, "private-key-path", "", "Path to GitHub app private key file")
+	fs.StringVar(&opts.AppName, "app-name", "", "Github App name")
 	fs.Int64Var(&opts.AppID, "app-id", -1, "GitHub App ID")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
