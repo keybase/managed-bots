@@ -33,7 +33,7 @@ In order to run the GitHub bot, you will need
   keybase chat api -m '{"method": "clearcommands"}'
   ```
 - You can optionally save your GitHub app details inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitHubBot>` (or the equivalent KBFS path on your system) that matches the following format:
-  ```json
+  ```js
   {
     "app_name": "your URL-safe GitHub app name",
     "app_id": 12345, // your GitHub app ID
