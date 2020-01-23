@@ -50,7 +50,7 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	homePage := `Google Calendar Bot is a <a href="https://keybase.io">Keybase</a> chatbot
 	which connects with your Google calendar to notify you of invites, upcoming events and more!
-	<div style="padding-top:10px;">
+	<div style="padding-top:25px;">
 		<img style="width:300px;" src="/gcalbot/image/screenshot">
 	</div>
 	`

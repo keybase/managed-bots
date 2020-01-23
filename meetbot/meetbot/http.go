@@ -43,7 +43,7 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
 	which creates links to Google Meet meetings for you.
-	<div style="padding-top:10px;">
+	<div style="padding-top:25px;">
 		<img style="width:300px;" src="/meetbot/image?=mobile">
 	</div>
 	`
