@@ -21,13 +21,14 @@ type HTTPSrv struct {
 	handler *Handler
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *base.GoogleOAuthDB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	db *base.GoogleOAuthDB, handler *Handler, requests *base.OAuthRequests, oauthConfig *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, requests, h.db, h.handler.HandleAuth,
 		"meetbot", base.Images["logo"], "/meetbot")
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)
@@ -40,7 +41,6 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("homeHandler")
 	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
 	which creates links to Google Meet meetings for you.
 	<div style="padding-top:10px;">
@@ -48,7 +48,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	</div>
 	`
 	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
-		h.Debug("homeHandler: unable to write: %v", err)
+		h.Errorf("homeHandler: unable to write: %v", err)
 	}
 }
 

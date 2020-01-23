@@ -24,9 +24,10 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -89,7 +90,7 @@ func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, pr
 	for index := range options {
 		if _, err := h.kbc.ReactByConvID(convID, *sendRes.Result.MessageID,
 			base.NumberToEmoji(index+1)); err != nil {
-			h.ChatDebug(convID, "failed to set reaction option: %s", err)
+			h.ChatErrorf(convID, "failed to set reaction option: %s", err)
 		}
 	}
 	return nil
@@ -143,7 +144,6 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)

@@ -60,25 +60,26 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := triviabot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
-	handler := triviabot.NewHandler(s.kbc, db)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := triviabot.NewHandler(s.kbc, debugConfig, db)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(func() error { return s.HandleSignals(nil) })

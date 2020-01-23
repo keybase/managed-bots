@@ -21,9 +21,10 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -117,7 +118,6 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)

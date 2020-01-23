@@ -2,11 +2,12 @@ package gitlabbot
 
 import (
 	"fmt"
-	"github.com/keybase/managed-bots/base/git"
-	"github.com/xanzy/go-gitlab"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/keybase/managed-bots/base/git"
+	"github.com/xanzy/go-gitlab"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
@@ -22,14 +23,15 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, config, requests, h.db, h.handler.HandleAuth,
 		"gitlabbot", base.Images["logo"], "/gitlabbot")
 	http.HandleFunc("/gitlabbot", h.handleHealthCheck)
 	http.HandleFunc("/gitlabbot/webhook", h.handleWebhook)
@@ -43,14 +45,14 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		h.Debug("Error reading payload: %s", err)
+		h.Errorf("Error reading payload: %s", err)
 		return
 	}
 	defer r.Body.Close()
 
 	event, err := gitlab.ParseWebhook(gitlab.WebhookEventType(r), payload)
 	if err != nil {
-		h.Debug("could not parse webhook: %s\n", err)
+		h.Errorf("could not parse webhook: %s\n", err)
 		return
 	}
 
@@ -67,7 +69,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.IID,
 			event.ObjectAttributes.Title,
 			event.ObjectAttributes.URL,
-			)
+		)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
@@ -87,7 +89,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.Title,
 			event.ObjectAttributes.URL,
 			event.ObjectAttributes.TargetBranch,
-			)
+		)
 
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
@@ -98,7 +100,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 		branch = git.RefToName(event.Ref)
 		commitMsgs := getCommitMessages(event)
-		lastCommitDiffURL := event.Commits[len(event.Commits) - 1].URL
+		lastCommitDiffURL := event.Commits[len(event.Commits)-1].URL
 
 		message = git.FormatPushMsg(
 			event.UserUsername,
@@ -126,14 +128,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
-			h.Debug("Error getting subscriptions for repo: %s", err)
+			h.Errorf("Error getting subscriptions for repo: %s", err)
 			return
 		}
 
 		for _, convID := range convs {
 			var secretToken = base.MakeSecret(repo, convID, h.secret)
 			if signature != secretToken {
-				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
+				h.Errorf("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
 

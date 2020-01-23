@@ -25,7 +25,8 @@ type HTTPSrv struct {
 	tokenSecret string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, tokenSecret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	db *DB, tokenSecret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:         kbc,
 		db:          db,
@@ -35,7 +36,7 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, tokenSecret string) *HTTPSrv {
 	http.HandleFunc("/pollbot/vote", h.handleVote)
 	http.HandleFunc("/pollbot/login", h.handleLogin)
 	http.HandleFunc("/pollbot/image", h.handleImage)
-	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
 	return h
 }
 
@@ -54,7 +55,7 @@ func (h *HTTPSrv) showError(w http.ResponseWriter) {
 func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bool) {
 	cookie, err := r.Cookie("auth")
 	if err != nil {
-		h.Debug("error getting cookie: %s", err)
+		h.Errorf("error getting cookie: %s", err)
 		h.showLoginInstructions(w)
 		return "", false
 	}
@@ -66,7 +67,7 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 	auth := cookie.Value
 	toks := strings.Split(auth, ":")
 	if len(toks) != 2 {
-		h.Debug("malformed auth cookie")
+		h.Debug("malformed auth cookie", auth)
 		h.showLoginInstructions(w)
 		return "", false
 	}
@@ -88,19 +89,19 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 	vstr := r.URL.Query().Get("")
 	vote := NewVoteFromEncoded(vstr)
 	if err := h.db.CastVote(username, vote); err != nil {
-		h.Debug("failed to cast vote: %s", err)
+		h.Errorf("failed to cast vote: %s", err)
 		h.showError(w)
 		return
 	}
 	resultMsgID, numChoices, err := h.db.GetPollInfo(vote.ConvID, vote.MsgID)
 	if err != nil {
-		h.Debug("failed to find poll result msg: %s", err)
+		h.Errorf("failed to find poll result msg: %s", err)
 		h.showError(w)
 		return
 	}
 	tally, err := h.db.GetTally(vote.ConvID, vote.MsgID)
 	if err != nil {
-		h.Debug("failed to get tally: %s", err)
+		h.Errorf("failed to get tally: %s", err)
 		h.showError(w)
 		return
 	}

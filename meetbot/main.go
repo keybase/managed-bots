@@ -90,28 +90,29 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to get config %v", err)
 	}
 
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := base.NewGoogleOAuthDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := meetbot.NewHandler(s.kbc, db, requests, config)
-	httpSrv := meetbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := meetbot.NewHandler(s.kbc, debugConfig, db, requests, config)
+	httpSrv := meetbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

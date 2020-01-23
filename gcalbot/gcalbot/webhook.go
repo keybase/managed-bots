@@ -20,7 +20,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	var err error
 	defer func() {
 		if err != nil {
-			h.Debug("error in event update webhook: %s", err)
+			h.Errorf("error in event update webhook: %s", err)
 		}
 	}()
 
@@ -180,12 +180,13 @@ type RenewChannelScheduler struct {
 }
 
 func NewRenewChannelScheduler(
+	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
 	config *oauth2.Config,
 	httpPrefix string,
 ) *RenewChannelScheduler {
 	return &RenewChannelScheduler{
-		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", nil),
+		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", debugConfig),
 		db:          db,
 		config:      config,
 		httpPrefix:  httpPrefix,
@@ -224,7 +225,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 		case <-ticker.C:
 			channels, err := r.db.GetExpiringChannelList()
 			if err != nil {
-				r.Debug("error getting expiring channels: %s", err)
+				r.Errorf("error getting expiring channels: %s", err)
 			}
 			for _, channel := range channels {
 				select {
@@ -234,7 +235,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 				}
 				err = r.renewChannel(channel)
 				if err != nil {
-					r.Debug("error renewing channel '%s': %s", channel.ChannelID, err)
+					r.Errorf("error renewing channel '%s': %s", channel.ChannelID, err)
 				}
 			}
 		}

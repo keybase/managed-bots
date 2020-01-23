@@ -25,9 +25,10 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *base.GoogleOAuthDB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+	db *base.GoogleOAuthDB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
 		requests:    requests,
@@ -46,7 +47,6 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 
@@ -62,7 +62,7 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 	err := h.meetHandlerInner(msg)
 	switch err.(type) {
 	case *googleapi.Error:
-		h.Debug("unable to get service %v, deleting credentials and retrying", err)
+		h.Errorf("unable to get service %v, deleting credentials and retrying", err)
 		// retry auth after nuking stored credentials
 		if err := h.db.DeleteToken(base.IdentifierFromMsg(msg)); err != nil {
 			return err
@@ -121,11 +121,8 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 	if confData := event.ConferenceData; confData != nil {
 		for _, ep := range confData.EntryPoints {
 			if ep.EntryPointType == "video" {
-				link := ep.Label
-				if link == "" {
-					// strip protocol to skip unfurl prompt
-					link = strings.TrimPrefix(ep.Uri, "https://")
-				}
+				// strip protocol to skip unfurl prompt
+				link := strings.TrimPrefix(ep.Uri, "https://")
 				if link == "" {
 					continue
 				}

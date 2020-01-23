@@ -50,7 +50,7 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error)
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	if !strings.HasPrefix(cmd, "!gcal accounts connect") {
 		if err = h.HandleCommand(msg); err != nil {
-			h.ChatDebug(msg.ConvID, err.Error())
+			h.ChatErrorf(msg.ConvID, err.Error())
 		}
 	}
 	return nil

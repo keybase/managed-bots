@@ -19,25 +19,27 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	kbc        *kbchat.API
-	db         *DB
-	requests   *base.OAuthRequests
-	config     *oauth2.Config
-	atr        *ghinstallation.AppsTransport
-	httpPrefix string
-	appName    string
-	secret     string
+	kbc         *kbchat.API
+	db          *DB
+	requests    *base.OAuthRequests
+	oauthConfig *oauth2.Config
+	atr         *ghinstallation.AppsTransport
+	httpPrefix  string
+	appName     string
+	secret      string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB, requests *base.OAuthRequests, config *oauth2.Config, atr *ghinstallation.AppsTransport, httpPrefix string, appName string, secret string) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, requests *base.OAuthRequests,
+	oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport,
+	httpPrefix, appName, secret string) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
 		requests:    requests,
-		config:      config,
+		oauthConfig: oauthConfig,
 		atr:         atr,
 		httpPrefix:  httpPrefix,
 		appName:     appName,
@@ -172,7 +174,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			}
 
 			// check that user has authorization
-			tc, err := base.GetOAuthClient(msg.Sender.Username, msg, h.kbc, h.requests, h.config, h.db,
+			tc, err := base.GetOAuthClient(msg.Sender.Username, msg, h.kbc, h.requests, h.oauthConfig, h.db,
 				base.GetOAuthOpts{
 					AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub updates.",
 				})

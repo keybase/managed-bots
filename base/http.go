@@ -3,8 +3,6 @@ package base
 import (
 	"context"
 	"net/http"
-
-	"github.com/keybase/go-keybase-chat-bot/kbchat"
 )
 
 type HTTPSrv struct {
@@ -12,9 +10,9 @@ type HTTPSrv struct {
 	srv *http.Server
 }
 
-func NewHTTPSrv(kbc *kbchat.API) *HTTPSrv {
+func NewHTTPSrv(debugConfig *ChatDebugOutputConfig) *HTTPSrv {
 	return &HTTPSrv{
-		DebugOutput: NewDebugOutput("HTTPSrv", kbc),
+		DebugOutput: NewDebugOutput("HTTPSrv", debugConfig),
 		srv:         &http.Server{Addr: ":8080"},
 	}
 }

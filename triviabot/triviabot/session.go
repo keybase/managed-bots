@@ -104,9 +104,9 @@ type session struct {
 	dupCheck       map[string]bool
 }
 
-func newSession(kbc *kbchat.API, db *DB, convID chat1.ConvIDStr) *session {
+func newSession(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, convID chat1.ConvIDStr) *session {
 	return &session{
-		DebugOutput: base.NewDebugOutput("session", kbc),
+		DebugOutput: base.NewDebugOutput("session", debugConfig),
 		db:          db,
 		convID:      convID,
 		answerCh:    make(chan answer, 10),
@@ -146,13 +146,13 @@ func (s *session) getToken(forceAPI bool) (token string, err error) {
 		err = errForceAPI
 	}
 	if err != nil {
-		s.Debug("getToken: failed to get token from DB: %s", err)
+		s.Errorf("getToken: failed to get token from DB: %s", err)
 		if token, err = s.getAPIToken(); err != nil {
-			s.ChatDebug(s.convID, "getToken: failed to get token from API: %s", err)
+			s.ChatErrorf(s.convID, "getToken: failed to get token from API: %s", err)
 			return "", err
 		}
 		if err := s.db.SetAPIToken(s.convID, token); err != nil {
-			s.Debug("getToken: failed to set token in DB: %s", err)
+			s.Errorf("getToken: failed to set token in DB: %s", err)
 		}
 	} else {
 		s.Debug("getToken: DB hit")
@@ -165,7 +165,7 @@ var errTokenExpired = errors.New("token expired")
 func (s *session) getNextQuestion() error {
 	token, err := s.getToken(false)
 	if err != nil {
-		s.Debug("getNextQuestion: failed to get token: %s", err)
+		s.Errorf("getNextQuestion: failed to get token: %s", err)
 		return err
 	}
 	var apiResp apiResponse
@@ -192,11 +192,11 @@ func (s *session) getNextQuestion() error {
 		if err == errTokenExpired {
 			s.Debug("getNextQuestion: token expired, trying again")
 			if token, err = s.getToken(true); err != nil {
-				s.Debug("getNextQuestion: failed to get token: %s", err)
+				s.Errorf("getNextQuestion: failed to get token: %s", err)
 				return err
 			}
 			if err := getQuestion(token); err != nil {
-				s.Debug("getNextQuestion: failed to get next question after token error: %s", err)
+				s.Errorf("getNextQuestion: failed to get next question after token error: %s", err)
 				return err
 			}
 		}
@@ -236,16 +236,16 @@ func (s *session) askQuestion() error {
 	s.Debug("askQuestion: question: %s answer: %d", q.question, q.correctAnswer+1)
 	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
 	if err != nil {
-		s.ChatDebug(s.convID, "askQuestion: failed to ask question: %s", err)
+		s.ChatErrorf(s.convID, "askQuestion: failed to ask question: %s", err)
 		return err
 	}
 	if sendRes.Result.MessageID == nil {
-		s.ChatDebug(s.convID, "askQuestion: failed to get message ID of question ask")
+		s.ChatErrorf(s.convID, "askQuestion: failed to get message ID of question ask")
 	}
 	for index := range q.answers {
 		if _, err := s.kbc.ReactByConvID(s.convID, *sendRes.Result.MessageID,
 			base.NumberToEmoji(index+1)); err != nil {
-			s.ChatDebug(s.convID, "askQuestion: failed to set reaction option: %s", err)
+			s.ChatErrorf(s.convID, "askQuestion: failed to set reaction option: %s", err)
 		}
 	}
 	s.curMsgID = *sendRes.Result.MessageID
@@ -311,7 +311,7 @@ func (s *session) waitForCorrectAnswer() {
 				}
 				isCorrect, pointAdjust := s.getAnswerPoints(answer, *s.curQuestion)
 				if err := s.db.RecordAnswer(s.convID, answer.username, pointAdjust, isCorrect); err != nil {
-					s.ChatDebugFull(s.convID, "waitForCorrectAnswer: failed to record answer: %s", err)
+					s.Errorf("waitForCorrectAnswer: failed to record answer: %s", err)
 				}
 				s.regDupe(answer.username)
 				if !isCorrect {
@@ -362,11 +362,11 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 			default:
 			}
 			if err := s.getNextQuestion(); err != nil {
-				s.ChatDebug(s.convID, "start: failed to get next question: %s", err)
+				s.ChatErrorf(s.convID, "start: failed to get next question: %s", err)
 				continue
 			}
 			if err := s.askQuestion(); err != nil {
-				s.ChatDebug(s.convID, "start: failed to ask question: %s", err)
+				s.ChatErrorf(s.convID, "start: failed to ask question: %s", err)
 				continue
 			}
 			s.waitForCorrectAnswer()

@@ -25,7 +25,8 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
+func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, handler *Handler,
+	requests *base.OAuthRequests, oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
@@ -33,7 +34,7 @@ func NewHTTPSrv(kbc *kbchat.API, db *DB, handler *Handler, requests *base.OAuthR
 		atr:     atr,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, config, requests, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, requests, h.db, h.handler.HandleAuth,
 		"githubbot", base.Images["logo"], "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
@@ -47,13 +48,13 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := github.ValidatePayload(r, []byte(h.secret))
 	if err != nil {
-		h.Debug("Error validating payload: %s\n", err)
+		h.Errorf("Error validating payload: %s\n", err)
 		return
 	}
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.Debug("could not parse webhook: %s\n", err)
+		h.Errorf("could not parse webhook: %s\n", err)
 		return
 	}
 
@@ -73,7 +74,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			repo = evt.GetRepo().GetFullName()
 			installationID = evt.GetInstallation().GetID()
 		} else {
-			h.Debug("could not get information from webhook, webhook type: %s\n", github.WebHookType(r))
+			h.Errorf("could not get information from webhook, webhook type: %s\n", github.WebHookType(r))
 			return
 		}
 	}
@@ -84,19 +85,19 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	if repo != "" {
 		defaultBranch, err := getDefaultBranch(repo, client)
 		if err != nil {
-			h.Debug("Error getting default branch: %s", err)
+			h.Errorf("Error getting default branch: %s", err)
 		}
 
 		convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
 		if err != nil {
-			h.Debug("Error getting subscriptions for repo: %s", err)
+			h.Errorf("Error getting subscriptions for repo: %s", err)
 			return
 		}
 
 		for _, convID := range convs {
 			features, err := h.db.GetFeatures(convID, repo)
 			if err != nil {
-				h.Debug("Error getting features for repo and convID: %s", err)
+				h.Errorf("Error getting features for repo and convID: %s", err)
 				return
 			}
 
@@ -115,7 +116,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				// if the event is not on the default branch, check if we're subscribed to that branch
 				subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
 				if err != nil {
-					h.Debug("could not get subscription: %s\n", err)
+					h.Errorf("could not get subscription: %s\n", err)
 					return
 				}
 
@@ -206,7 +207,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch st
 			},
 		)
 		if err != nil {
-			h.Debug("error getting pull requests from commit: %s", err)
+			h.Errorf("error getting pull requests from commit: %s", err)
 		}
 		if len(pullRequests) == 0 && len(event.Branches) >= 1 {
 			// this is a branch test, not associated with a PR
