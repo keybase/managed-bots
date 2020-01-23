@@ -3,7 +3,6 @@ package githubbot
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/keybase/managed-bots/base/git"
@@ -46,12 +45,11 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := ioutil.ReadAll(r.Body)
+	payload, err := github.ValidatePayload(r, []byte(h.secret))
 	if err != nil {
-		h.Debug("Error reading payload: %s\n", err)
+		h.Debug("Error validating payload: %s\n", err)
 		return
 	}
-	defer r.Body.Close()
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
@@ -84,13 +82,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	client := github.NewClient(&http.Client{Transport: itr})
 
 	if repo != "" {
-		signature := r.Header.Get("X-Hub-Signature")
-		if err = github.ValidateSignature(signature, payload, []byte(h.secret)); err != nil {
-			// if there's an error validating the signature for a conversation, don't send the message to that convo
-			h.Debug("Error validating payload signature: %s", err)
-			return
-		}
-
 		defaultBranch, err := getDefaultBranch(repo, client)
 		if err != nil {
 			h.Debug("Error getting default branch: %s", err)
