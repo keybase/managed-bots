@@ -26,14 +26,13 @@ type Handler struct {
 	atr         *ghinstallation.AppsTransport
 	httpPrefix  string
 	appName     string
-	secret      string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, requests *base.OAuthRequests,
 	oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport,
-	httpPrefix, appName, secret string) *Handler {
+	httpPrefix, appName string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
@@ -43,7 +42,6 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB
 		atr:         atr,
 		httpPrefix:  httpPrefix,
 		appName:     appName,
-		secret:      secret,
 	}
 }
 

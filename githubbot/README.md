@@ -38,11 +38,12 @@ In order to run the GitHub bot, you will need
     "app_name": "your URL-safe GitHub app name",
     "app_id": 12345, // your GitHub app ID
     "client_id": "your GitHub OAuth client ID here",
-    "client_secret": "your GitHub OAuth client secret here"
+    "client_secret": "your GitHub OAuth client secret here",
+    "webhook_secret": "your secret here"
   }
   ```
-  If you have KBFS running, you can now run the bot without providing the `--client-id`, `--client-secret`, `--app-id`, and `--app-name` command line options.
-- You can store your bot secret in KBFS by saving it in a file named `bot.secret` and omitting the `--secret` command line argument, and your private key file in a file named `bot.private-key.pem` and omitting the `--private-key-path` argument.
+  If you have KBFS running, you can now run the bot without providing the `--client-id`, `--client-secret`, `--app-id`, `--app-name`, and `--secret` command line options.
+- You can store your private key file in KBFS by saving it in a file named `bot.private-key.pem` and omitting the `--private-key-path` argument.
 
 ### Docker
 
