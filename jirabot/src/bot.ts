@@ -187,8 +187,11 @@ const onNewConversation = async (
   context: Context,
   convSummary: ChatTypes.ConvSummary
 ) => {
-  if (!convSummary.isDefaultConv) {
-    // only say hi in #general
+  if (
+    !convSummary.isDefaultConv ||
+    convSummary.creatorInfo?.username === context.botConfig.keybase.username
+  ) {
+    // only say hi in #general; don't say hi in bot-created conversations.
     return
   }
   logger.info({msg: 'onNewConversation', channel: convSummary.channel})
