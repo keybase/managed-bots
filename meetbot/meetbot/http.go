@@ -41,7 +41,6 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
-	h.Debug("homeHandler")
 	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
 	which creates links to Google Meet meetings for you.
 	<div style="padding-top:10px;">
@@ -49,7 +48,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	</div>
 	`
 	if _, err := w.Write(base.MakeOAuthHTML("meetbot", "home", homePage, "/meetbot/image?=logo")); err != nil {
-		h.Debug("homeHandler: unable to write: %v", err)
+		h.Errorf("homeHandler: unable to write: %v", err)
 	}
 }
 

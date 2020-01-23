@@ -45,14 +45,14 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		h.Debug("Error reading payload: %s", err)
+		h.Errorf("Error reading payload: %s", err)
 		return
 	}
 	defer r.Body.Close()
 
 	event, err := gitlab.ParseWebhook(gitlab.WebhookEventType(r), payload)
 	if err != nil {
-		h.Debug("could not parse webhook: %s\n", err)
+		h.Errorf("could not parse webhook: %s\n", err)
 		return
 	}
 
@@ -128,14 +128,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 		convs, err := h.db.GetSubscribedConvs(repo, branch)
 		if err != nil {
-			h.Debug("Error getting subscriptions for repo: %s", err)
+			h.Errorf("Error getting subscriptions for repo: %s", err)
 			return
 		}
 
 		for _, convID := range convs {
 			var secretToken = base.MakeSecret(repo, convID, h.secret)
 			if signature != secretToken {
-				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
+				h.Errorf("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
 

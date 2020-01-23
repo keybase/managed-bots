@@ -53,7 +53,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 

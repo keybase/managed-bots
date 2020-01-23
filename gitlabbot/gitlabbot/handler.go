@@ -51,7 +51,6 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 
@@ -71,7 +70,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	token, err := h.db.GetToken(identifier)
 	if err != nil {
-		h.Debug("error getting token from db")
+		h.Errorf("error getting token from db")
 		return err
 	}
 

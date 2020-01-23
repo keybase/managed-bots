@@ -62,9 +62,9 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
-			o.Debug("oauthHandler: %v", err)
+			o.Errorf("oauthHandler: %v", err)
 			if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "error", "Unable to complete request, please try again!", o.htmlLogoSrc)); err != nil {
-				o.Debug("oauthHandler: unable to write: %v", err)
+				o.Errorf("oauthHandler: unable to write: %v", err)
 			}
 		}
 	}()
@@ -99,7 +99,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "success", "Success! You can now close this page and return to the Keybase app.", o.htmlLogoSrc)); err != nil {
-		o.Debug("oauthHandler: unable to write: %v", err)
+		o.Errorf("oauthHandler: unable to write: %v", err)
 	}
 }
 

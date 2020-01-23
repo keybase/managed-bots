@@ -108,7 +108,7 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 func (s *Server) Listen(handler Handler) error {
 	sub, err := s.kbc.Listen(kbchat.ListenOptions{Convs: true})
 	if err != nil {
-		s.Debug("Listen: failed to listen: %s", err)
+		s.Errorf("Listen: failed to listen: %s", err)
 		return err
 	}
 	s.Debug("startup success, listening for messages and convs...")
@@ -147,24 +147,24 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 			switch {
 			case strings.HasPrefix(cmd, "!logsend"):
 				if err := s.handleLogSend(msg); err != nil {
-					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handleLogSend: %v", err)
+					s.Errorf("listenForMsgs: unable to handleLogSend: %v", err)
 				}
 				continue
 			case strings.HasPrefix(cmd, "!botlog"):
 				if err := s.handleBotLogs(msg); err != nil {
-					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handleBotLogs: %v", err)
+					s.Errorf("listenForMsgs: unable to handleBotLogs: %v", err)
 				}
 				continue
 			case strings.HasPrefix(cmd, "!pprof"):
 				if err := s.handlePProf(msg); err != nil {
-					s.ChatDebugFull(msg.ConvID, "listenForMsgs: unable to handlePProf: %v", err)
+					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
 			}
 		}
 
 		if err := handler.HandleCommand(msg); err != nil {
-			s.ChatDebug(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
+			s.ChatErrorf(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
 		}
 	}
 }
@@ -185,7 +185,7 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscri
 		}
 
 		if err := handler.HandleNewConv(c.Conversation); err != nil {
-			s.Debug("listenForConvs: unable to HandleNewConv: %v", err)
+			s.Errorf("listenForConvs: unable to HandleNewConv: %v", err)
 		}
 	}
 }
@@ -211,23 +211,23 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 		fmt.Sprintf("managed-bot log requested by @%s", msg.Sender.Username))
 	output, err := cmd.StdoutPipe()
 	if err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to get output pipe: %v", err)
+		s.Errorf("unable to get output pipe: %v", err)
 		return err
 	}
 	if err := cmd.Start(); err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to start command: %v", err)
+		s.Errorf("unable to start command: %v", err)
 		return err
 	}
 	outputBytes, err := ioutil.ReadAll(output)
 	if err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to read ouput: %v", err)
+		s.Errorf("unable to read ouput: %v", err)
 		return err
 	}
 	if len(outputBytes) > 0 {
-		s.ChatDebugFull(msg.ConvID, "log send output: ```%v```", string(outputBytes))
+		s.Errorf("log send output: ```%v```", string(outputBytes))
 	}
 	if err := cmd.Wait(); err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to finish command: %v", err)
+		s.Errorf("unable to finish command: %v", err)
 		return err
 	}
 	return nil
@@ -245,14 +245,14 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 		return err
 	}
 	if len(toks) <= 1 {
-		s.ChatDebugFull(msg.ConvID, "must specify 'trace', 'cpu' or 'heap'. Try `!pprof cpu -d 5m`")
+		s.Errorf("must specify 'trace', 'cpu' or 'heap'. Try `!pprof cpu -d 5m`")
 		return nil
 	}
 	// drop `!` from `!pprof`
 	toks[0] = strings.TrimPrefix(toks[0], "!")
 	dur, err := time.ParseDuration(toks[len(toks)-1])
 	if err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to parse duration using default of 5m: %v", err)
+		s.Errorf("unable to parse duration using default of 5m: %v", err)
 		dur = time.Minute * 5
 		toks[len(toks)-1] = dur.String()
 	}
@@ -262,7 +262,7 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 	s.ChatEcho(msg.ConvID, "starting pprof... %s", toks)
 	cmd := s.kbc.Command(toks...)
 	if err := cmd.Run(); err != nil {
-		s.ChatDebugFull(msg.ConvID, "unable to get run command: %v", err)
+		s.Errorf("unable to get run command: %v", err)
 		return err
 	}
 	go func() {
@@ -272,11 +272,11 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 			time.Sleep(time.Minute)
 			s.Debug("cleaning up %s", outfile)
 			if err = os.Remove(outfile); err != nil {
-				s.Debug("unable to clean up %s: %v", outfile, err)
+				s.Errorf("unable to clean up %s: %v", outfile, err)
 			}
 		}()
 		if _, err := s.kbc.SendAttachmentByConvID(msg.ConvID, outfile, ""); err != nil {
-			s.ChatDebugFull(msg.ConvID, "unable to send attachment profile: %v", err)
+			s.Errorf("unable to send attachment profile: %v", err)
 		}
 	}()
 	return nil

@@ -147,28 +147,28 @@ func (s *BotServer) Go() (err error) {
 
 	secret, err := s.getSecret()
 	if err != nil {
-		s.Debug("failed to get secret: %s", err)
+		s.Errorf("failed to get secret: %s", err)
 		return
 	}
 
 	clientID, clientSecret, err := s.getOAuthConfig()
 	if err != nil {
-		s.Debug("failed to get oauth credentials: %s", err)
+		s.Errorf("failed to get oauth credentials: %s", err)
 		return
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := gitlabbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
 	// If changing scopes, wipe tokens from DB

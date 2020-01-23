@@ -197,24 +197,24 @@ func (s *BotServer) Go() (err error) {
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := gcalbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
 	requests := &base.OAuthRequests{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
-	renewScheduler := gcalbot.NewRenewChannelScheduler(db, config, s.opts.HTTPPrefix)
+	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

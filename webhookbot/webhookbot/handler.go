@@ -118,7 +118,6 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
-		h.Debug("skipping non-text message")
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)

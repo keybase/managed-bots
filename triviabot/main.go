@@ -65,17 +65,17 @@ func (s *BotServer) Go() (err error) {
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := triviabot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)

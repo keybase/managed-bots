@@ -35,7 +35,7 @@ func (d *DebugOutput) Debug(msg string, args ...interface{}) {
 	fmt.Printf(d.name+": "+msg+"\n", args...)
 }
 
-func (d *DebugOutput) Error(msg string, args ...interface{}) {
+func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
 	d.Debug(msg, args...)
 	if d.config == nil {
 		d.Debug("Unable to report error to chat, errReportConv, chat debug not configured")
@@ -56,8 +56,8 @@ func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...inte
 	}
 }
 
-func (d *DebugOutput) ChatDebugFull(convID chat1.ConvIDStr, msg string, args ...interface{}) {
-	d.Debug(msg, args...)
+func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...interface{}) {
+	d.Errorf(msg, args...)
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
 		d.Debug("chatDebugFull: failed to send error message: %s", err)
 	}

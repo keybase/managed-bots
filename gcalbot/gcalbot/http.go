@@ -55,7 +55,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	</div>
 	`
 	if _, err := w.Write(base.MakeOAuthHTML("gcalbot", "home", homePage, "/gcalbot/image/logo")); err != nil {
-		h.Debug("homeHandler: unable to write: %v", err)
+		h.Errorf("homeHandler: unable to write: %v", err)
 	}
 }
 

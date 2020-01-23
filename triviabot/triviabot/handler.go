@@ -40,7 +40,7 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 	session := newSession(h.kbc, h.debugConfig, h.db, convID)
 	doneCb, err := session.start(0)
 	if err != nil {
-		h.ChatDebug(convID, "handleState: failed to start: %s", err)
+		h.ChatErrorf(convID, "handleState: failed to start: %s", err)
 	}
 	h.sessions[convID] = session
 	go func() {
@@ -48,7 +48,7 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 		h.ChatEcho(convID, "Session complete, here are the top players")
 		err := h.handleTop(convID)
 		if err != nil {
-			h.ChatDebug(msg.ConvID, err.Error())
+			h.ChatErrorf(msg.ConvID, err.Error())
 		}
 	}()
 }

@@ -201,33 +201,33 @@ func (s *BotServer) Go() (err error) {
 
 	secret, err := s.getSecret()
 	if err != nil {
-		s.Debug("failed to get secret: %s", err)
+		s.Errorf("failed to get secret: %s", err)
 		return
 	}
 
 	appName, appID, clientID, clientSecret, err := s.getConfig()
 	if err != nil {
-		s.Debug("failed to get oauth credentials: %s", err)
+		s.Errorf("failed to get oauth credentials: %s", err)
 		return
 	}
 
 	appKey, err := s.getAppKey()
 	if err != nil {
-		s.Debug("failed to get private key: %s", err)
+		s.Errorf("failed to get private key: %s", err)
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
-		s.Debug("failed to connect to MySQL: %s", err)
+		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
 	defer sdb.Close()
 	db := githubbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Debug("advertise error: %s", err)
+		s.Errorf("advertise error: %s", err)
 		return err
 	}
 	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Debug("failed to announce self: %s", err)
+		s.Errorf("failed to announce self: %s", err)
 	}
 
 	// If changing scopes, wipe tokens from DB
@@ -244,7 +244,7 @@ func (s *BotServer) Go() (err error) {
 	tr := http.DefaultTransport
 	atr, err := ghinstallation.NewAppsTransport(tr, appID, appKey)
 	if err != nil {
-		s.Debug("failed to make github apps transport: %s", err)
+		s.Errorf("failed to make github apps transport: %s", err)
 		return err
 	}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
