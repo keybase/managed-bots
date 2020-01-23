@@ -3,6 +3,7 @@ package gcalbot
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"google.golang.org/api/googleapi"
@@ -210,12 +211,19 @@ Awaiting your response. *Are you going?*`
 	what := event.Summary
 
 	// TODO(marcel): better date formatting for recurring events
-	// TODO(marcel): respect 24 clock setting
 	timezone, err := srv.Settings.Get("timezone").Do()
 	if err != nil {
 		return err
 	}
-	when, err := FormatTimeRange(event.Start, event.End, timezone.Value)
+	format24HourTimeSetting, err := srv.Settings.Get("format24HourTime").Do()
+	if err != nil {
+		return err
+	}
+	format24HourTime, err := strconv.ParseBool(format24HourTimeSetting.Value)
+	if err != nil {
+		return err
+	}
+	when, err := FormatTimeRange(event.Start, event.End, timezone.Value, format24HourTime)
 	if err != nil {
 		return err
 	}

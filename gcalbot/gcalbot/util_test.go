@@ -32,6 +32,7 @@ func TestFormatTimeRange(t *testing.T) {
 				DateTime: "2020-01-01T19:30:00-05:00",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -47,6 +48,7 @@ func TestFormatTimeRange(t *testing.T) {
 				DateTime: "2020-01-02T18:30:00-05:00",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -62,6 +64,7 @@ func TestFormatTimeRange(t *testing.T) {
 				DateTime: "2020-02-01T18:00:00-05:00",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -77,6 +80,7 @@ func TestFormatTimeRange(t *testing.T) {
 				DateTime: "2021-01-01T09:30:00-05:00",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -92,6 +96,7 @@ func TestFormatTimeRange(t *testing.T) {
 				Date: "2020-01-02",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -107,6 +112,7 @@ func TestFormatTimeRange(t *testing.T) {
 				Date: "2020-01-03",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -122,6 +128,7 @@ func TestFormatTimeRange(t *testing.T) {
 				Date: "2020-02-02",
 			},
 			"America/New_York",
+			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
@@ -137,6 +144,39 @@ func TestFormatTimeRange(t *testing.T) {
 				Date: "2021-01-02",
 			},
 			"America/New_York",
+			false,
+		)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("24 hour format", func(t *testing.T) {
+		expected := "Fri Jan 31 17:00 - Sat Feb 1, 2020 18:00 (EST)"
+		actual, err := gcalbot.FormatTimeRange(
+			&calendar.EventDateTime{
+				DateTime: "2020-01-31T17:00:00-05:00",
+			},
+			&calendar.EventDateTime{
+				DateTime: "2020-02-01T18:00:00-05:00",
+			},
+			"America/New_York",
+			true,
+		)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+	})
+
+	t.Run("all day 24 hour format", func(t *testing.T) {
+		expected := "Fri Jan 31 - Sat Feb 1, 2020"
+		actual, err := gcalbot.FormatTimeRange(
+			&calendar.EventDateTime{
+				Date: "2020-01-31",
+			},
+			&calendar.EventDateTime{
+				Date: "2020-02-02",
+			},
+			"America/New_York",
+			true,
 		)
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)

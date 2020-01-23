@@ -7,7 +7,10 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-func FormatTimeRange(startDateTime, endDateTime *calendar.EventDateTime, timezoneID string) (timeRange string, err error) {
+func FormatTimeRange(
+	startDateTime, endDateTime *calendar.EventDateTime,
+	timezoneID string, format24HourTime bool,
+) (timeRange string, err error) {
 	// For normal events:
 	//	If the year, month and day are the same: Wed Jan 1, 2020 6:30pm - 7:30pm (EST)
 	//	If just the year and month are the same: Wed Jan 1 4:30pm - Thu Jan 2, 2020 6:30pm (EST)
@@ -60,17 +63,21 @@ func FormatTimeRange(startDateTime, endDateTime *calendar.EventDateTime, timezon
 
 	var startTime string
 	var endTime string
-
 	if !isAllDay {
-		if start.Minute() == 0 {
-			startTime = start.Format("3pm")
+		if format24HourTime {
+			startTime = start.Format("15:04")
+			endTime = end.Format("15:04")
 		} else {
-			startTime = start.Format("3:04pm")
-		}
-		if end.Minute() == 0 {
-			endTime = end.Format("3pm")
-		} else {
-			endTime = end.Format("3:04pm")
+			if start.Minute() == 0 {
+				startTime = start.Format("3pm")
+			} else {
+				startTime = start.Format("3:04pm")
+			}
+			if end.Minute() == 0 {
+				endTime = end.Format("3pm")
+			} else {
+				endTime = end.Format("3:04pm")
+			}
 		}
 	}
 
