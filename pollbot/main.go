@@ -88,7 +88,7 @@ func (s *BotServer) getLoginSecret() (string, error) {
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	loginSecret, err := s.getLoginSecret()
@@ -111,8 +111,9 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to announce self: %s", err)
 	}
 
-	httpSrv := pollbot.NewHTTPSrv(s.kbc, db, loginSecret)
-	handler := pollbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	httpSrv := pollbot.NewHTTPSrv(s.kbc, debugConfig, db, loginSecret)
+	handler := pollbot.NewHandler(s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

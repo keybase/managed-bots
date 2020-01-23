@@ -191,7 +191,7 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to get config %v", err)
 	}
 
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
@@ -211,8 +211,9 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := gcalbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix)
-	httpSrv := gcalbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix)
+	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(db, config, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })

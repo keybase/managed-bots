@@ -195,7 +195,7 @@ func (s *BotServer) getConfig() (appName string, appID int64, clientID string, c
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 
@@ -247,8 +247,9 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to make github apps transport: %s", err)
 		return err
 	}
-	handler := githubbot.NewHandler(s.kbc, db, requests, config, atr, s.opts.HTTPPrefix, appName, secret)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, db, handler, requests, config, atr, secret)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := githubbot.NewHandler(s.kbc, debugConfig, db, requests, config, atr, s.opts.HTTPPrefix, appName, secret)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, atr, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

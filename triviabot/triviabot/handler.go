@@ -15,17 +15,19 @@ type Handler struct {
 	*base.DebugOutput
 	sync.Mutex
 
-	kbc      *kbchat.API
-	db       *DB
-	sessions map[chat1.ConvIDStr]*session
+	kbc         *kbchat.API
+	debugConfig *base.ChatDebugOutputConfig
+	db          *DB
+	sessions    map[chat1.ConvIDStr]*session
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, db *DB) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", kbc),
+		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
+		debugConfig: debugConfig,
 		db:          db,
 		sessions:    make(map[chat1.ConvIDStr]*session),
 	}
@@ -35,7 +37,7 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 	h.Lock()
 	defer h.Unlock()
 	convID := msg.ConvID
-	session := newSession(h.kbc, h.db, convID)
+	session := newSession(h.kbc, h.debugConfig, h.db, convID)
 	doneCb, err := session.start(0)
 	if err != nil {
 		h.ChatDebug(convID, "handleState: failed to start: %s", err)

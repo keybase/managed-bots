@@ -34,6 +34,7 @@ type OAuthHTTPSrv struct {
 
 func NewOAuthHTTPSrv(
 	kbc *kbchat.API,
+	debugConfig *ChatDebugOutputConfig,
 	oauth *oauth2.Config,
 	requests *OAuthRequests,
 	storage OAuthStorage,
@@ -51,7 +52,7 @@ func NewOAuthHTTPSrv(
 		htmlLogoB64: htmlLogoB64,
 		htmlLogoSrc: urlPrefix + "/image/logo",
 	}
-	o.HTTPSrv = NewHTTPSrv(kbc)
+	o.HTTPSrv = NewHTTPSrv(debugConfig)
 	http.HandleFunc(urlPrefix+"/oauth", o.oauthHandler)
 	http.HandleFunc(o.htmlLogoSrc, o.logoHandler)
 	return o

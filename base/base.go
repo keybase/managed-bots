@@ -84,14 +84,14 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	return nil
 }
 
-func (s *Server) Start(keybaseLoc, home string) (kbc *kbchat.API, err error) {
+func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API, err error) {
 	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
 		KeybaseLocation: keybaseLoc,
 		HomeDir:         home,
 	}); err != nil {
 		return s.kbc, err
 	}
-	s.DebugOutput = NewDebugOutput("Server", s.kbc)
+	s.DebugOutput = NewDebugOutput("Server", NewChatDebugOutputConfig(s.kbc, errReportConv))
 	return s.kbc, nil
 }
 
@@ -100,23 +100,9 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 		return nil
 	}
 	defer func() {
-		if err == nil {
-			s.Debug("announcement success")
-		}
+		s.Debug("SendAnnouncement: %v", err)
 	}()
-	if _, err := s.kbc.SendMessageByConvID(chat1.ConvIDStr(announcement), running); err == nil {
-		return nil
-	}
-	s.Debug("failed to announce self as conv ID: %s", err)
-	if _, err := s.kbc.SendMessageByTlfName(announcement, running); err == nil {
-		return nil
-	}
-	s.Debug("failed to announce self as user: %s", err)
-	if _, err := s.kbc.SendMessageByTeamName(announcement, nil, running); err != nil {
-		s.Debug("failed to announce self as team: %s", err)
-		return err
-	}
-	return nil
+	return SendByConvNameOrID(s.kbc, announcement, running)
 }
 
 func (s *Server) Listen(handler Handler) error {

@@ -89,7 +89,7 @@ Remove a webhook`,
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -107,8 +107,9 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to announce self: %s", err)
 	}
 
-	httpSrv := webhookbot.NewHTTPSrv(s.kbc, db)
-	handler := webhookbot.NewHandler(s.kbc, httpSrv, db, s.opts.HTTPPrefix)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	httpSrv := webhookbot.NewHTTPSrv(debugConfig, db)
+	handler := webhookbot.NewHandler(s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

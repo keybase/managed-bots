@@ -90,7 +90,7 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to get config %v", err)
 	}
 
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
@@ -110,8 +110,9 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := meetbot.NewHandler(s.kbc, db, requests, config)
-	httpSrv := meetbot.NewHTTPSrv(s.kbc, db, handler, requests, config)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := meetbot.NewHandler(s.kbc, debugConfig, db, requests, config)
+	httpSrv := meetbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

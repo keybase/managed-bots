@@ -60,7 +60,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -78,7 +78,8 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("failed to announce self: %s", err)
 	}
 
-	handler := triviabot.NewHandler(s.kbc, db)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := triviabot.NewHandler(s.kbc, debugConfig, db)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(func() error { return s.HandleSignals(nil) })

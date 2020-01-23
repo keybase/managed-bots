@@ -5,23 +5,20 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 )
 
 type HTTPSrv struct {
 	*base.HTTPSrv
 
-	kbc *kbchat.API
-	db  *DB
+	db *DB
 }
 
-func NewHTTPSrv(kbc *kbchat.API, db *DB) *HTTPSrv {
+func NewHTTPSrv(debugConfig *base.ChatDebugOutputConfig, db *DB) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc: kbc,
-		db:  db,
+		db: db,
 	}
-	h.HTTPSrv = base.NewHTTPSrv(kbc)
+	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
 	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)

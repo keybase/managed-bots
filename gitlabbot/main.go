@@ -141,7 +141,7 @@ func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err 
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home); err != nil {
+	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
 		return err
 	}
 
@@ -181,8 +181,9 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	requests := &base.OAuthRequests{}
-	handler := gitlabbot.NewHandler(s.kbc, db, requests, config, s.opts.HTTPPrefix, secret)
-	httpSrv := gitlabbot.NewHTTPSrv(s.kbc, db, handler, requests, config, secret)
+	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
+	handler := gitlabbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix, secret)
+	httpSrv := gitlabbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

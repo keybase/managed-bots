@@ -18,11 +18,17 @@ func (o *AWSOptions) IsEmpty() bool {
 }
 
 type Options struct {
+	// Location of the keybase binary
 	KeybaseLocation string
-	Home            string
-	Announcement    string
-	DSN             string
-	AWSOpts         *AWSOptions
+	// Home directory for keybase service
+	Home string
+	// Conversation name or ID to announce when the bot begins
+	Announcement string
+	// Conversation name or ID to report bot errors to
+	ErrReportConv string
+	// Database Source Name
+	DSN     string
+	AWSOpts *AWSOptions
 }
 
 func NewOptions() *Options {
@@ -33,7 +39,9 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.KeybaseLocation, "keybase", "keybase", "keybase command")
 	fs.StringVar(&o.Home, "home", "", "Home directory")
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
-		"Where to announce we are running")
+		"Conversation name or ID to announce we are running")
+	fs.StringVar(&o.ErrReportConv, "err-report-conv", os.Getenv("BOT_ERR_REPORT_CONV"),
+		"Conversation name or ID to report errors to")
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 
 	awsOpts := &AWSOptions{}
