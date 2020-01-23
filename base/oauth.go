@@ -98,7 +98,11 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "success", "Success! You can now close this page and return to the Keybase app.", o.htmlLogoSrc)); err != nil {
+	_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
+		`<div class="success"> Success! </div>
+		<div>You can now close this page and return to the Keybase app.</div>`,
+		o.htmlLogoSrc))
+	if err != nil {
 		o.Errorf("oauthHandler: unable to write: %v", err)
 	}
 }

@@ -144,33 +144,64 @@ func MakeOAuthHTML(botName string, title, msg string, logoUrl string) []byte {
 body {
 	background-color: white;
 	display: flex;
-	min-height: 98vh;
+	min-height: 94vh;
 	flex-direction: column;
+	padding-top: 50px;
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva,
+		Verdana, sans-serif;
+	font-size: 22px;
+}
+main{
+	flex: 1;
 }
 .content{
-	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+a {
+	color: black;
 }
 .msg {
 	text-align: center;
-	color: rgb(80,160,247);
-	margin-top: 15vh;
-}
-a {
-	color: rgb(80,160,247);
+	padding-top: 15px;
+	padding-bottom: 7px;
 }
 .logo {
-	width: 80px;
-	padding: 5px;
+	width: 150px;
+	padding: 25px;
+}
+.success {
+	font-size: 32px;
+	margin-bottom: 24px;
+}
+footer {
+	font-size: 15px;
+}
+@media only screen and (max-width: 768px) {
+	body {
+		font-size: 18px;
+	}
+	footer {
+		font-size: 12px;
+	}
+	.logo {
+		width: 100px;
+		padding: 20px;
+	}
 }
 </style>
 <title>` + botName + ` | ` + title + `</title>
 </head>
 <body>
-  <main class="content">
+  <main>
+	<div class="content">
 	  <a href="https://keybase.io"><img class="logo" src="` + logoUrl + `"></a>
 	  <div>
-		<h1 class="msg">` + msg + `</h1>
+		<div class="msg">` + msg + `</div>
 	  </div>
+	</div>
   </main>
   <footer>
 		<a href="https://keybase.io/docs/privacypolicy">Privacy Policy</a>
