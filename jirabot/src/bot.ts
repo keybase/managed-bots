@@ -187,6 +187,10 @@ const onNewConversation = async (
   context: Context,
   convSummary: ChatTypes.ConvSummary
 ) => {
+  if (!convSummary.isDefaultConv) {
+    // only say hi in #general
+    return
+  }
   logger.info({msg: 'onNewConversation', channel: convSummary.channel})
   const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
     convSummary.channel.name
@@ -201,6 +205,8 @@ const onNewConversation = async (
     await context.bot.chat.send(convSummary.id, {
       body: `Manage your Jira workflow without leaving the Keybase app. Get started by making an application link on Jira: \`!jira config team\``,
     })
+  } else {
+    logger.warn({msg: 'onNewConversation', error: teamJiraConfigRet.error})
   }
 }
 
