@@ -191,36 +191,30 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 }
 
 func (h *Handler) sendEventInvite(srv *calendar.Service, channel *Channel, event *calendar.Event) error {
-	message := `You've been invited to an event: %s
+	message := `You've been invited to %s: %s
 > What: *%s*
 > When: %s%s%s%s%s
 > Calendar: %s
 Awaiting your response. *Are you going?*`
 
-	account, err := h.db.GetAccountByAccountID(channel.AccountID)
-	if err != nil {
-		return err
+	var eventType string
+	if event.Recurrence == nil {
+		eventType = "an event"
+	} else {
+		eventType = "a recurring event"
 	}
-
-	invitedCalendar, err := srv.Calendars.Get(channel.CalendarID).Do()
-	if err != nil {
-		return err
-	}
-
-	timezone, err := srv.Settings.Get("timezone").Do()
-	if err != nil {
-		return err
-	}
-
-	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
-
-	what := event.Summary
 
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
 
+	what := event.Summary
+
 	// TODO(marcel): better date formatting for recurring events
 	// TODO(marcel): respect 24 clock setting
+	timezone, err := srv.Settings.Get("timezone").Do()
+	if err != nil {
+		return err
+	}
 	when, err := FormatTimeRange(event.Start, event.End, timezone.Value)
 	if err != nil {
 		return err
@@ -264,8 +258,18 @@ Awaiting your response. *Are you going?*`
 		description = fmt.Sprintf("\n> Description: %s", event.Description)
 	}
 
+	account, err := h.db.GetAccountByAccountID(channel.AccountID)
+	if err != nil {
+		return err
+	}
+	invitedCalendar, err := srv.Calendars.Get(channel.CalendarID).Do()
+	if err != nil {
+		return err
+	}
+	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
+
 	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		url, what, when, where, conferenceData, organizer, description, accountCalendar)
+		eventType, url, what, when, where, conferenceData, organizer, description, accountCalendar)
 	if err != nil {
 		return err
 	}
