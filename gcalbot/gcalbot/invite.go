@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"google.golang.org/api/googleapi"
 
@@ -160,7 +159,6 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		}
 
 		if channel != nil {
-			// TODO(marcel): exponential backoff for api calls
 			err = srv.Channels.Stop(&calendar.Channel{
 				Id:         channel.ChannelID,
 				ResourceId: channel.ResourceID,
@@ -192,14 +190,24 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 	return nil
 }
 
-func (h *Handler) sendEventInvite(accountID string, invitedCalendar *calendar.Calendar, event *calendar.Event) error {
+func (h *Handler) sendEventInvite(srv *calendar.Service, channel *Channel, event *calendar.Event) error {
 	message := `You've been invited to an event: %s
 > What: *%s*
-> When: %s%s%s
+> When: %s%s%s%s%s
 > Calendar: %s
 Awaiting your response. *Are you going?*`
 
-	account, err := h.db.GetAccountByAccountID(accountID)
+	account, err := h.db.GetAccountByAccountID(channel.AccountID)
+	if err != nil {
+		return err
+	}
+
+	invitedCalendar, err := srv.Calendars.Get(channel.CalendarID).Do()
+	if err != nil {
+		return err
+	}
+
+	timezone, err := srv.Settings.Get("timezone").Do()
 	if err != nil {
 		return err
 	}
@@ -211,17 +219,12 @@ Awaiting your response. *Are you going?*`
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
 
-	// TODO(marcel): support all day events
 	// TODO(marcel): better date formatting for recurring events
-	startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
+	// TODO(marcel): respect 24 clock setting
+	when, err := FormatTimeRange(event.Start, event.End, timezone.Value)
 	if err != nil {
 		return err
 	}
-	endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
-	if err != nil {
-		return err
-	}
-	when := FormatTimeRange(startTime, endTime)
 
 	var where string
 	if event.Location != "" {
@@ -237,17 +240,38 @@ Awaiting your response. *Are you going?*`
 		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
 	}
 
-	// TODO(marcel): add conferencing details
-	// TODO(marcel): add event description
+	var conferenceData string
+	if event.ConferenceData != nil {
+		for _, entryPoint := range event.ConferenceData.EntryPoints {
+			uri := strings.TrimPrefix(entryPoint.Uri, "https://")
+			switch entryPoint.EntryPointType {
+			case "video", "more":
+				conferenceData += fmt.Sprintf("\n> Join online: %s", uri)
+			case "phone":
+				conferenceData += fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label)
+				if entryPoint.Pin != "" {
+					conferenceData += fmt.Sprintf(" PIN: %s", entryPoint.Pin)
+				}
+			case "sip":
+				conferenceData += fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label)
+			}
+		}
+	}
+
+	// note: description can contain HTML
+	var description string
+	if event.Description != "" {
+		description = fmt.Sprintf("\n> Description: %s", event.Description)
+	}
 
 	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		url, what, when, where, organizer, accountCalendar)
+		url, what, when, where, conferenceData, organizer, description, accountCalendar)
 	if err != nil {
 		return err
 	}
 
 	err = h.db.InsertInvite(Invite{
-		AccountID:       accountID,
+		AccountID:       channel.AccountID,
 		CalendarID:      invitedCalendar.Id,
 		EventID:         event.Id,
 		KeybaseUsername: account.KeybaseUsername,

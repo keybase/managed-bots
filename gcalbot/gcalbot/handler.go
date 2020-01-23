@@ -63,8 +63,27 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	tokens, err := shellquote.Split(cmd)
-	if err != nil {
-		// TODO(marcel): send better error message to user
+	switch err {
+	case nil:
+	case shellquote.UnterminatedSingleQuoteError:
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Error in command: unterminated single-quoted string")
+		if err != nil {
+			h.Debug("error sending message: %s", err)
+		}
+		return nil
+	case shellquote.UnterminatedDoubleQuoteError:
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Error in command: unterminated double-quoted string")
+		if err != nil {
+			h.Debug("error sending message: %s", err)
+		}
+		return nil
+	case shellquote.UnterminatedEscapeError:
+		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Error in command: unterminated backslash-escape")
+		if err != nil {
+			h.Debug("error sending message: %s", err)
+		}
+		return nil
+	default:
 		return fmt.Errorf("error splitting command string: %s", err)
 	}
 
