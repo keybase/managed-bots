@@ -107,7 +107,10 @@ func EmojiToNumber(s string) int {
 
 func HandleNewTeam(log *DebugOutput, kbc *kbchat.API, conv chat1.ConvSummary, welcomeMsg string) error {
 	if conv.Channel.MembersType == "team" && !conv.IsDefaultConv {
-		log.Debug("HandleNewTeam: skipping conversation %+v", conv)
+		log.Debug("HandleNewTeam: skipping conversation %+v, not default team conv", conv)
+		return nil
+	} else if conv.CreatorInfo != nil && conv.CreatorInfo.Username == kbc.GetUsername() {
+		log.Debug("HandleNewTeam: skipping conversation %+v, bot created conversation", conv)
 		return nil
 	}
 	_, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg)
