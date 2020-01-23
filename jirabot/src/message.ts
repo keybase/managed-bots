@@ -3,6 +3,8 @@ import * as Utils from './utils'
 import {Context} from './context'
 import * as Errors from './errors'
 import logger from './logger'
+import * as Configs from './configs'
+import * as Jira from './jira'
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -23,10 +25,10 @@ export type MessageContext = Readonly<{
   conversationId: ChatTypes.ConvIDStr
 }>
 
-type UnknownMessage = Readonly<{
+export type UnknownMessage = Readonly<{
   context: MessageContext
   type: BotMessageType.Unknown
-  error?: string
+  error?: string | Errors.Errors
 }>
 
 export type CreateMessage = Readonly<{
@@ -112,7 +114,7 @@ const getTextMessage = (message: ChatTypes.MsgSummary): string | undefined => {
   return undefined
 }
 
-const checkAndGetProjectName = async (
+const getProject = async (
   context: Context,
   messageContext: MessageContext,
   project: string,
@@ -120,69 +122,122 @@ const checkAndGetProjectName = async (
 ): Promise<Errors.ResultOrError<
   string,
   | Errors.UnknownError
-  | Errors.DisabledProjectError
-  | Errors.ChannelNotConfiguredError
+  | Errors.InvalidJiraFieldError
   | Errors.MissingProjectError
+  | Errors.JirabotNotEnabledError
+  | Errors.UnknownError
 >> => {
   const teamChannelConfigRet = await context.configs.getTeamChannelConfig(
     messageContext.teamName,
     messageContext.channelName
   )
+  let teamChannelConfig: Configs.TeamChannelConfig
   if (teamChannelConfigRet.type === Errors.ReturnType.Error) {
     switch (teamChannelConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
         return Errors.makeError(teamChannelConfigRet.error)
       case Errors.ErrorType.KVStoreNotFound:
-        return Errors.channelNotConfiguredError
+        teamChannelConfig = Configs.emptyTeamChannelConfig
     }
+  } else {
+    teamChannelConfig = teamChannelConfigRet.result.config
   }
-  const teamChannelConfig = teamChannelConfigRet.result
   if (!project) {
-    const defaultProject = teamChannelConfig.config.defaultNewIssueProject
+    const defaultProject = teamChannelConfig.defaultNewIssueProject
     return required
       ? defaultProject
         ? Errors.makeResult<string>(defaultProject)
         : Errors.missingProjectError
       : Errors.makeResult<string>('')
   }
-  if (!teamChannelConfig.config.enabledProjects.includes(project)) {
+  const jiraMetadataRet = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+    return jiraMetadataRet
+  }
+  const jiraMetadata = jiraMetadataRet.result
+  const normalizedProject = jiraMetadata.normalizeProject(project)
+  if (!normalizedProject) {
     return Errors.makeError({
-      type: Errors.ErrorType.DisabledProject,
-      projectName: project,
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.Project,
+      invalidValue: project,
+      validValues: jiraMetadata.projects(),
     })
   }
-  return Errors.makeResult<string>(project.toLowerCase())
+  return Errors.makeResult<string>(normalizedProject)
 }
 
-const checkStatusError = (
+const getStatus = async (
   context: Context,
+  messageContext: MessageContext,
   status: string
-): string | undefined =>
-  status && !context.botConfig.jira.status.includes(status)
-    ? `invalid status: ${status} is not one of ${Utils.humanReadableArray(
-        context.botConfig.jira.status
-      )}`
-    : undefined
+): Promise<Errors.ResultOrError<
+  string | undefined,
+  | Errors.InvalidJiraFieldError
+  | Errors.JirabotNotEnabledError
+  | Errors.UnknownError
+>> => {
+  if (!status) {
+    return Errors.makeResult(undefined)
+  }
+  const jiraMetadataRet = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+    return jiraMetadataRet
+  }
+  const jiraMetadata = jiraMetadataRet.result
+  const normalizedStatus = jiraMetadata.normalizeStatus(status)
+  if (!normalizedStatus) {
+    return Errors.makeError({
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.Status,
+      invalidValue: status,
+      validValues: jiraMetadata.statuses(),
+    })
+  }
+  return Errors.makeResult<string>(normalizedStatus)
+}
 
-const checkAssigneeError = (
+const getIssueType = async (
   context: Context,
-  assignee: string
-): string | undefined =>
-  assignee && !context.botConfig.jira.usernameMapper[assignee]
-    ? `invalid assignee: ${assignee} is not one of ${Utils.humanReadableArray(
-        Object.keys(context.botConfig.jira.usernameMapper)
-      )}`
-    : undefined
-
-const checkIssueTypeError = (
-  context: Context,
+  messageContext: MessageContext,
   issueType: string
-): string | undefined =>
-  issueType && !context.botConfig.jira.issueTypes.includes(issueType)
-    ? `invalid issueType: ${issueType} is not one of ${Utils.humanReadableArray(
-        context.botConfig.jira.issueTypes
-      )}`
-    : undefined
+): Promise<Errors.ResultOrError<
+  string | undefined,
+  | Errors.InvalidJiraFieldError
+  | Errors.JirabotNotEnabledError
+  | Errors.UnknownError
+>> => {
+  if (!issueType) {
+    return Errors.makeResult(undefined)
+  }
+  const jiraMetadataRet = await Jira.getJiraMetadata(
+    context,
+    messageContext.teamName,
+    messageContext.senderUsername
+  )
+  if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+    return jiraMetadataRet
+  }
+  const jiraMetadata = jiraMetadataRet.result
+  const normalizedIssueType = jiraMetadata.normalizeIssueType(issueType)
+  if (!normalizedIssueType) {
+    return Errors.makeError({
+      type: Errors.ErrorType.InvalidJiraField,
+      fieldType: Errors.InvalidJiraFieldType.IssueType,
+      invalidValue: issueType,
+      validValues: jiraMetadata.issueTypes(),
+    })
+  }
+  return Errors.makeResult<string>(normalizedIssueType)
+}
 
 const extractArgsAfterCommand = <K extends string>(
   fields: Array<string>,
@@ -267,22 +322,25 @@ export const parseMessage = async (
 
   switch (fields[1]) {
     case 'new': {
-      const issueTypeFromInputCaseMapped = context.botConfig.jira._issueTypeInsensitiveToIssueType(
+      const getIssueTypeRet = await getIssueType(
+        context,
+        messageContext,
         fields[2]
       )
-      const issueType = context.botConfig.jira.issueTypes.includes(
-        issueTypeFromInputCaseMapped
-      )
-        ? issueTypeFromInputCaseMapped
-        : ''
-
-      const issueTypeError = checkIssueTypeError(context, issueType)
-      if (issueTypeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: issueTypeError,
+      let issueType: string | undefined = undefined
+      if (getIssueTypeRet.type === Errors.ReturnType.Error) {
+        if (getIssueTypeRet.error.type !== Errors.ErrorType.InvalidJiraField) {
+          Errors.reportErrorAndReplyChat(
+            context,
+            messageContext,
+            getIssueTypeRet.error
+          )
+          return undefined
         }
+        // Ignore the InvalidJiraField error and assume fields[2] is not intended
+        // to be an issueType.
+      } else {
+        issueType = getIssueTypeRet.result
       }
 
       const {args, rest} = extractArgsAfterCommand(
@@ -297,17 +355,17 @@ export const parseMessage = async (
         }
       }
 
-      const checkAndGetProjectNameRet = await checkAndGetProjectName(
+      const getProjectRet = await getProject(
         context,
         messageContext,
         args.in,
         true
       )
-      if (checkAndGetProjectNameRet.type === Errors.ReturnType.Error) {
+      if (getProjectRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           messageContext,
-          checkAndGetProjectNameRet.error
+          getProjectRet.error
         )
         return undefined
       }
@@ -315,20 +373,12 @@ export const parseMessage = async (
       const assignee = args.assignee
         ? args.assignee.replace(/^@+/, '')
         : args.for && args.for.replace(/^@+/, '')
-      const assigneeError = checkAssigneeError(context, assignee)
-      if (assigneeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: assigneeError,
-        }
-      }
 
       return {
         context: messageContext,
         type: BotMessageType.Create,
         name: rest[0],
-        project: checkAndGetProjectNameRet.result,
+        project: getProjectRet.result,
         assignee,
         description: rest.slice(1).join(' '),
         issueType,
@@ -344,45 +394,38 @@ export const parseMessage = async (
         }
       }
 
-      const checkAndGetProjectNameRet = await checkAndGetProjectName(
+      const getProjectRet = await getProject(
         context,
         messageContext,
         args.in,
         false
       )
-      if (checkAndGetProjectNameRet.type === Errors.ReturnType.Error) {
+      if (getProjectRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
           context,
           messageContext,
-          checkAndGetProjectNameRet.error
+          getProjectRet.error
         )
         return undefined
       }
 
       const assignee = args.assignee && args.assignee.replace(/^@+/, '')
-      const assigneeError = checkAssigneeError(context, assignee)
-      if (assigneeError) {
-        return {
-          context: messageContext,
-          type: BotMessageType.Unknown,
-          error: assigneeError,
-        }
-      }
 
-      const statusError = checkStatusError(context, args.status)
-      if (statusError) {
+      const getStatusRet = await getStatus(context, messageContext, args.status)
+      if (getStatusRet.type === Errors.ReturnType.Error) {
         return {
           context: messageContext,
           type: BotMessageType.Unknown,
-          error: statusError,
+          error: getStatusRet.error,
         }
       }
+      args.status = getStatusRet.result
 
       return {
         context: messageContext,
         type: BotMessageType.Search,
         query: rest.join(' '),
-        project: checkAndGetProjectNameRet.result,
+        project: getProjectRet.result,
         assignee,
         status: args.status,
       }
@@ -443,46 +486,32 @@ export const parseMessage = async (
               type: BotMessageType.Unknown,
               error: `unknown team config parameter ${toSetName}`,
             }
-            return {
-              context: messageContext,
-              type: BotMessageType.Config,
-              configType,
-              toSet: {
-                name: toSetName,
-                value: toSetValue,
-              },
-            }
           }
           return {
             context: messageContext,
             type: BotMessageType.Config,
             configType,
+            toSet: toSetName && {
+              name: toSetName,
+              value: toSetValue,
+            },
           }
         case ConfigType.Channel:
-          if (toSetName) {
-            if (
-              !['enabledProjects', 'defaultNewIssueProject'].includes(toSetName)
-            ) {
-              return {
-                context: messageContext,
-                type: BotMessageType.Unknown,
-                error: `unknown config parameter ${toSetName}`,
-              }
-            }
+          if (toSetName && !['defaultNewIssueProject'].includes(toSetName)) {
             return {
               context: messageContext,
-              type: BotMessageType.Config,
-              configType,
-              toSet: {
-                name: toSetName,
-                value: toSetValue,
-              },
+              type: BotMessageType.Unknown,
+              error: `unknown config parameter ${toSetName}`,
             }
           }
           return {
             context: messageContext,
             type: BotMessageType.Config,
             configType,
+            toSet: toSetName && {
+              name: toSetName,
+              value: toSetValue,
+            },
           }
       }
     }

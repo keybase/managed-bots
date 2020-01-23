@@ -21,12 +21,10 @@ export type TeamUserConfig = Readonly<{
 
 // namespace: jirabot-v1-team-[teamname]; key: channel-[channelname]
 export type TeamChannelConfig = Readonly<{
-  enabledProjects: Array<string>
   defaultNewIssueProject?: string
 }>
 
 export const emptyTeamChannelConfig: TeamChannelConfig = {
-  enabledProjects: [],
   defaultNewIssueProject: undefined,
 }
 
@@ -79,16 +77,14 @@ const jsonToTeamUserConfig = (
 const jsonToTeamChannelConfig = (
   objectFromJson: any
 ): TeamChannelConfig | undefined => {
-  const {enabledProjects, defaultNewIssueProject} = objectFromJson
+  const {defaultNewIssueProject} = objectFromJson
   if (
-    !Array.isArray(enabledProjects) &&
     typeof defaultNewIssueProject !== 'undefined' &&
     typeof defaultNewIssueProject !== 'string'
   ) {
     return undefined
   }
   return {
-    enabledProjects,
     defaultNewIssueProject,
   } as TeamChannelConfig
 }
@@ -211,6 +207,23 @@ export default class Configs {
       // TODO check and return KVStoreRevisionError
       return Errors.makeUnknownError(err)
     }
+  }
+
+  public async clearAllForTest(): Promise<any> {
+    const teamname = `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`
+    this.bot.kvstore
+      .listNamespaces(teamname)
+      .then(res =>
+        res.namespaces?.forEach(namespace =>
+          this.bot.kvstore
+            .listEntryKeys(teamname, namespace)
+            .then(res =>
+              res.entryKeys?.forEach(({entryKey}) =>
+                this.bot.kvstore.delete(teamname, namespace, entryKey)
+              )
+            )
+        )
+      )
   }
 
   async getTeamJiraConfig(

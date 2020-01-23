@@ -4,36 +4,44 @@ import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
 import * as Utils from './utils'
+import * as Jira from './jira'
 
-const makeNewTeamChannelConfig = (
+const makeNewTeamChannelConfig = async (
+  context: Context,
+  messageContext: Message.MessageContext,
   oldConfig: Configs.TeamChannelConfig,
   name: string,
   value: string
-): Errors.ResultOrError<
+): Promise<Errors.ResultOrError<
   Configs.TeamChannelConfig,
-  Errors.UnknownParamError | Errors.DisabledProjectError
-> => {
+  | Errors.UnknownParamError
+  | Errors.InvalidJiraFieldError
+  | Errors.JirabotNotEnabledError
+  | Errors.UnknownError
+>> => {
   switch (name) {
-    case 'enabledProjects': {
-      // TODO check for project existence with jira
-      return Errors.makeResult<Configs.TeamChannelConfig>({
-        ...oldConfig,
-        enabledProjects: value
-          .split(',')
-          .filter(Boolean)
-          .map(s => s.toLowerCase()),
-      })
-    }
     case 'defaultNewIssueProject': {
-      if (!oldConfig.enabledProjects.includes(value)) {
-        return Errors.makeError<Errors.DisabledProjectError>({
-          type: Errors.ErrorType.DisabledProject,
-          projectName: value,
+      const jiraMetadataRet = await Jira.getJiraMetadata(
+        context,
+        messageContext.teamName,
+        messageContext.senderUsername
+      )
+      if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+        return jiraMetadataRet
+      }
+      const jiraMetadata = jiraMetadataRet.result
+      const normalizedProject = jiraMetadata.normalizeProject(value)
+      if (!normalizedProject) {
+        return Errors.makeError({
+          type: Errors.ErrorType.InvalidJiraField,
+          fieldType: Errors.InvalidJiraFieldType.Project,
+          invalidValue: value,
+          validValues: jiraMetadata.projects(),
         })
       }
       return Errors.makeResult<Configs.TeamChannelConfig>({
         ...oldConfig,
-        defaultNewIssueProject: value.toLowerCase(),
+        defaultNewIssueProject: normalizedProject.toLowerCase(),
       })
     }
     default:
@@ -61,9 +69,8 @@ const channelConfigToMessageBody = (channelConfig: Configs.TeamChannelConfig) =>
 
 *defaultNewIssueProject:* ${channelConfig.defaultNewIssueProject ||
     '<undefined>'}
-*enabledProjects:* ${channelConfig.enabledProjects.join(',') || '<empty>'}
 
-In this channel you can only interract with projects in \`enabledProjects\`. When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
+When creating a new issue, one can omit the \`in <project>\` part if \`defaultNewIssueProject\` is set.
 `
 
 const handleChannelConfig = async (
@@ -101,21 +108,18 @@ const handleChannelConfig = async (
     }
 
     if (!parsedMessage.toSet) {
-      oldCachedConfig
-        ? replyChat(
-            context,
-            parsedMessage,
-            channelConfigToMessageBody(oldCachedConfig.config)
-          )
-        : Errors.reportErrorAndReplyChat(
-            context,
-            parsedMessage.context,
-            Errors.JirabotNotEnabledForChannelError
-          )
+      oldCachedConfig &&
+        replyChat(
+          context,
+          parsedMessage,
+          channelConfigToMessageBody(oldCachedConfig.config)
+        )
       return Errors.makeResult(undefined)
     }
 
-    const newConfigRet = makeNewTeamChannelConfig(
+    const newConfigRet = await makeNewTeamChannelConfig(
+      context,
+      parsedMessage.context,
       newConfigBase,
       parsedMessage.toSet.name,
       parsedMessage.toSet.value
@@ -161,15 +165,18 @@ const jiraConfigToMessageBody = (
   jiraConfig: Configs.TeamJiraConfig
 ) =>
   `This team is now configured for \`${jiraConfig.jiraHost}\`. ` +
-  'In Jira admin settings, create an application link of type "Generic Application".' +
+  "If you haven't, here are instructions for connecting on Jira side:\n" +
+  'Go to the application links section of Jira admin settings: ' +
+  `https://${jiraConfig.jiraHost}/plugins/servlet/applinks/listApplicationLinks` +
+  ', and create an application link of type "Generic Application".' +
   ` Use \`${context.botConfig.httpAddressPrefix}\` as the URL of the application.` +
-  `\n\n_Tip: Can't find application link settings on Jira? Try the "Search Jira Admin" box in the top right corner of admin settings._` +
   '\n\nAfter the application link has been created, edit the link and configure "Incoming Authentication" as following:' +
   `\n\n*Consumer Key:* \`${jiraConfig.jiraAuth.consumerKey}\`` +
   '\n*Public Key:* \n```\n' +
   jiraConfig.jiraAuth.publicKey +
   '```\n' +
-  '\nOther fields can be empty or arbitrary values.'
+  '\nOther fields can be empty or arbitrary values.' +
+  '\n\nAfter this has been done, any user in this team can use `!jira auth` to connect their account with Jirabot. You can also use `jira config channel` to customize Jirabot for each channel in this team.'
 
 const handleTeamConfig = async (
   context: Context,
@@ -226,13 +233,16 @@ const handleTeamConfig = async (
         return Errors.makeError(undefined)
       }
       const details = detailsRet.result
+
       const newConfig = {
-        jiraHost: parsedMessage.toSet.value,
+        jiraHost: parsedMessage.toSet.value.replace(/\/+$/, ''),
         jiraAuth: {
           consumerKey: details.consumerKey,
           publicKey: details.publicKey,
           privateKey: details.privateKey,
         },
+        issueTypes: [] as Array<string>,
+        projects: [] as Array<string>,
       }
       const updateRet = await context.configs.updateTeamJiraConfig(
         parsedMessage.context.teamName,

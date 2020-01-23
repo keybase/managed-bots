@@ -11,14 +11,20 @@ import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
 
-const reportError = (context: Context, parsedMessage: Message.Message) =>
-  Utils.replyToMessageContext(
-    context,
-    parsedMessage.context,
-    parsedMessage.type === 'unknown'
-      ? `Invalid command: ${parsedMessage.error}`
-      : 'Unknown command'
-  )
+const reportError = (context: Context, parsedMessage: Message.UnknownMessage) =>
+  parsedMessage.error && typeof parsedMessage.error !== 'string'
+    ? Errors.reportErrorAndReplyChat(
+        context,
+        parsedMessage.context,
+        parsedMessage.error
+      )
+    : Utils.replyToMessageContext(
+        context,
+        parsedMessage.context,
+        parsedMessage.error
+          ? `Invalid command: ${parsedMessage.error}`
+          : 'Unknown command'
+      )
 
 const reactAck = (
   context: Context,
@@ -151,9 +157,7 @@ const commands = [
       `!jira config team jiraHost foo.atlassian.net\n` +
       `!jira config channel\n` +
       // `!jira config team\n`+
-      `!jira config channel defaultNewIssueProject DESIGN\n` +
-      `!jira config channel enabledProjects DESIGN,FRONTEND\n` +
-      `!jira config channel enabledProjects *\n`,
+      `!jira config channel defaultNewIssueProject DESIGN\n`,
   },
   {
     name: 'jira auth',
@@ -179,6 +183,27 @@ const advertisements = [
   },
 ]
 
+const onNewConversation = async (
+  context: Context,
+  convSummary: ChatTypes.ConvSummary
+) => {
+  logger.info({msg: 'onNewConversation', channel: convSummary.channel})
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
+    convSummary.channel.name
+  )
+  if (teamJiraConfigRet.type === Errors.ReturnType.Ok) {
+    await context.bot.chat.send(convSummary.id, {
+      body: `Manage your Jira workflow without leaving the Keybase app. Your Jira admin has configured this team for ${teamJiraConfigRet.result.config.jiraHost}. Type \`!jira\` to see a list of supported commands.`,
+    })
+  } else if (
+    teamJiraConfigRet.error.type === Errors.ErrorType.KVStoreNotFound
+  ) {
+    await context.bot.chat.send(convSummary.id, {
+      body: `Manage your Jira workflow without leaving the Keybase app. Get started by making an application link on Jira: \`!jira config team\``,
+    })
+  }
+}
+
 export default (context: Context) => {
   context.bot.chat.advertiseCommands({
     alias: 'Jira',
@@ -186,5 +211,8 @@ export default (context: Context) => {
   })
   context.bot.chat.watchAllChannelsForNewMessages(message =>
     onMessage(context, message)
+  )
+  context.bot.chat.watchForNewConversation(convSummary =>
+    onNewConversation(context, convSummary)
   )
 }

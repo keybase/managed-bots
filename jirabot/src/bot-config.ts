@@ -7,20 +7,6 @@ export type BotConfig = {
     paperkey: string
   }
   allowedTeams: Array<string>
-  // TODO: move this to TeamConfig
-  jira: {
-    host: string
-    email: string
-    apiToken: string
-    projects: Array<string>
-    issueTypes: Array<string>
-    status: Array<string>
-    usernameMapper: {
-      [key: string]: string
-    }
-
-    _issueTypeInsensitiveToIssueType: (issueType: string) => string
-  }
 }
 
 const checkBotConfig = (obj: any): null | BotConfig => {
@@ -69,62 +55,6 @@ const checkBotConfig = (obj: any): null | BotConfig => {
     )
     return null
   }
-
-  if (typeof obj.jira !== 'object') {
-    logger.error('unexpect obj.jira type', typeof obj.jira)
-    return null
-  }
-  if (typeof obj.jira.host !== 'string') {
-    logger.error('unexpect obj.jira.host type', typeof obj.jira.host)
-    return null
-  }
-  if (typeof obj.jira.email !== 'string') {
-    logger.error('unexpect obj.jira.email type', typeof obj.jira.email)
-    return null
-  }
-  if (typeof obj.jira.apiToken !== 'string') {
-    logger.error('unexpect obj.jira.apiToken type', typeof obj.jira.apiToken)
-    return null
-  }
-  if (!Array.isArray(obj.jira.projects)) {
-    logger.error(
-      'unexpect obj.jira.projects type: not an array',
-      obj.jira.projects
-    )
-    return null
-  }
-  if (!Array.isArray(obj.jira.issueTypes)) {
-    logger.error(
-      'unexpect obj.jira.issueTypes type: not an array',
-      obj.jira.issueTypes
-    )
-    return null
-  }
-  if (!Array.isArray(obj.jira.status)) {
-    logger.error('unexpect obj.jira.status type: not an array', obj.jira.status)
-    return null
-  }
-
-  // case-insensitive
-  obj.jira.projects = obj.jira.projects.map((project: string) =>
-    project.toLowerCase()
-  )
-  obj.jira.status = obj.jira.status.map((status: string) =>
-    status.toLowerCase()
-  )
-
-  obj.jira._issueTypeInsensitiveToIssueType = (() => {
-    const mapper = new Map(
-      obj.jira.issueTypes.map((original: string) => [
-        original.toLowerCase(),
-        original,
-      ])
-    )
-    return (issueType: string) =>
-      mapper.get(issueType.toLowerCase()) || issueType
-  })()
-
-  // TODO validate usernameMapper maybe
 
   return obj as BotConfig
 }

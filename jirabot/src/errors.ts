@@ -2,6 +2,7 @@ import * as Message from './message'
 import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
+import {startAuth} from './cmd-auth'
 
 export enum ReturnType {
   Ok = 'ok',
@@ -21,9 +22,8 @@ export enum ErrorType {
   Unknown = 'unknown',
   Timeout = 'timeout',
   UnknownParam = 'unknown-param',
-  DisabledProject = 'disabled-project',
+  InvalidJiraField = 'invalid-field',
   MissingProject = 'missing-project',
-  ChannelNotConfigured = 'channel-not-configured',
   KVStoreRevision = 'kvstore-revision',
   KVStoreNotFound = 'kvstore-not-found',
   JirabotNotEnabled = 'jirabot-not-enabled',
@@ -53,17 +53,35 @@ export type UnknownParamError = {
   paramName: string
 }
 
-export type DisabledProjectError = {
-  type: ErrorType.DisabledProject
-  projectName: string
+export enum InvalidJiraFieldType {
+  Project = 'project',
+  IssueType = 'issueType',
+  Status = 'status',
+}
+
+const invalidJiraFieldTypeToString = (
+  fieldType: InvalidJiraFieldType,
+  capitalizeFirstChar?: boolean
+): string => {
+  switch (fieldType) {
+    case InvalidJiraFieldType.Project:
+      return capitalizeFirstChar ? 'Project' : 'project'
+    case InvalidJiraFieldType.IssueType:
+      return capitalizeFirstChar ? 'Issue type' : 'issue type'
+    case InvalidJiraFieldType.Status:
+      return capitalizeFirstChar ? 'Status' : 'status'
+  }
+}
+
+export type InvalidJiraFieldError = {
+  type: ErrorType.InvalidJiraField
+  fieldType: InvalidJiraFieldType
+  invalidValue: string
+  validValues: Array<string>
 }
 
 export type MissingProjectError = {
   type: ErrorType.MissingProject
-}
-
-export type ChannelNotConfiguredError = {
-  type: ErrorType.ChannelNotConfigured
 }
 
 export type KVStoreRevisionError = {
@@ -76,17 +94,12 @@ export type KVStoreNotFoundError = {
 
 export type JirabotNotEnabledError = Readonly<{
   type: ErrorType.JirabotNotEnabled
-  notEnabledType: 'team' | 'channel' | 'user'
+  notEnabledType: 'team' | 'user'
 }>
 
 export const JirabotNotEnabledForTeamError: JirabotNotEnabledError = {
   type: ErrorType.JirabotNotEnabled,
   notEnabledType: 'team',
-} as const
-
-export const JirabotNotEnabledForChannelError: JirabotNotEnabledError = {
-  type: ErrorType.JirabotNotEnabled,
-  notEnabledType: 'channel',
 } as const
 
 export const JirabotNotEnabledForUserError: JirabotNotEnabledError = {
@@ -98,9 +111,8 @@ export type Errors =
   | UnknownError
   | TimeoutError
   | UnknownParamError
-  | DisabledProjectError
+  | InvalidJiraFieldError
   | MissingProjectError
-  | ChannelNotConfiguredError
   | KVStoreNotFoundError
   | KVStoreRevisionError
   | JirabotNotEnabledError
@@ -115,9 +127,6 @@ export const makeError = <E extends Errors>(error: E): Error<E> => ({
   error,
 })
 
-export const channelNotConfiguredError: Error<ChannelNotConfiguredError> = makeError<
-  ChannelNotConfiguredError
->({type: ErrorType.ChannelNotConfigured})
 export const kvStoreRevisionError: Error<KVStoreRevisionError> = makeError<
   KVStoreRevisionError
 >({type: ErrorType.KVStoreRevision})
@@ -147,23 +156,21 @@ export const reportErrorAndReplyChat = (
         messageContext,
         `unknown param ${error.paramName}`
       )
-    case ErrorType.DisabledProject:
+    case ErrorType.InvalidJiraField:
       return Utils.replyToMessageContext(
         context,
         messageContext,
-        `project "${error.projectName}" is disabled in this channel`
+        `${invalidJiraFieldTypeToString(error.fieldType, true)} "${
+          error.invalidValue
+        }" is invalid. Your Jira projects are: ${Utils.humanReadableArray(
+          error.validValues
+        )}`
       )
     case ErrorType.MissingProject:
       return Utils.replyToMessageContext(
         context,
         messageContext,
         'You need to specify a prject name for this command. You can also `!jira config channel defaultNewIssueProject <default-project> to set a default one for this channel.'
-      )
-    case ErrorType.ChannelNotConfigured:
-      return Utils.replyToMessageContext(
-        context,
-        messageContext,
-        'Jira is not configured for this channel. See `!jira config channel`'
       )
     case ErrorType.Timeout:
       return Utils.replyToMessageContext(
@@ -177,20 +184,14 @@ export const reportErrorAndReplyChat = (
           return Utils.replyToMessageContext(
             context,
             messageContext,
-            'This team has not been configured for jirabot. Use `!jirabot config team jiraHost <domain>` to enable jirabot for this team.'
-          )
-        case 'channel':
-          return Utils.replyToMessageContext(
-            context,
-            messageContext,
-            `This channel has not been configured for Jirabot. In order to use Jirabot, you need to set at least \`enabledProjects\`.`
+            'This team has not been configured for jirabot. Use `!jira config team jiraHost <domain>` to enable jirabot for this team.'
           )
         case 'user':
           return Utils.replyToMessageContext(
             context,
             messageContext,
-            'You have not given Jirabot permission to access your Jira account. In order to use Jirabot, connect with `!jira auth`.'
-          )
+            'You have not given Jirabot permission to access your Jira account. I will start the authorization process for you.'
+          ).then(() => startAuth(context, messageContext))
         default:
           let _: never = error.notEnabledType
       }

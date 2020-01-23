@@ -1,6 +1,5 @@
 import * as Message from './message'
 import {Context} from './context'
-import * as Configs from './configs'
 import * as Errors from './errors'
 import * as JiraOauth from './jira-oauth'
 import * as Jira from './jira'
@@ -8,13 +7,11 @@ import * as Utils from './utils'
 
 const replyInPrivate = async (
   context: Context,
-  parsedMessage: Message.AuthMessage,
+  messageContext: Message.MessageContext,
   body: string
 ): Promise<any> => {
   const channel = {
-    name: `${parsedMessage.context.senderUsername},${
-      context.bot.myInfo().username
-    }`,
+    name: `${messageContext.senderUsername},${context.bot.myInfo().username}`,
     public: false,
     topicType: 'chat',
   }
@@ -29,40 +26,36 @@ const replyInPrivate = async (
 
 const replyInTeamConvo = async (
   context: Context,
-  parsedMessage: Message.AuthMessage,
+  messageContext: Message.MessageContext,
   body: string
 ): Promise<any> => {
   try {
-    return await Utils.replyToMessageContext(
-      context,
-      parsedMessage.context,
-      body
-    )
+    return await Utils.replyToMessageContext(context, messageContext, body)
   } catch {
     return
   }
 }
 
-export default async (
+export const startAuth = async (
   context: Context,
-  parsedMessage: Message.AuthMessage
+  messageContext: Message.MessageContext
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
   const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
-    parsedMessage.context.teamName
+    messageContext.teamName
   )
   if (teamJiraConfigRet.type === Errors.ReturnType.Error) {
     switch (teamJiraConfigRet.error.type) {
       case Errors.ErrorType.Unknown:
         Errors.reportErrorAndReplyChat(
           context,
-          parsedMessage.context,
+          messageContext,
           teamJiraConfigRet.error
         )
         return Errors.makeError(undefined)
       case Errors.ErrorType.KVStoreNotFound:
         Errors.reportErrorAndReplyChat(
           context,
-          parsedMessage.context,
+          messageContext,
           Errors.JirabotNotEnabledForTeamError
         )
         return Errors.makeError(undefined)
@@ -76,12 +69,12 @@ export default async (
   const onAuthUrl = (url: string) => {
     replyInPrivate(
       context,
-      parsedMessage,
+      messageContext,
       `Please allow Jirabot to access your Jira account here: ${url}`
     )
     replyInTeamConvo(
       context,
-      parsedMessage,
+      messageContext,
       'A link has been sent to you in private message. Please continue from there to allow Jirabot to access your account'
     )
   }
@@ -91,11 +84,7 @@ export default async (
     switch (oauthRet.error.type) {
       case Errors.ErrorType.Unknown:
       case Errors.ErrorType.Timeout:
-        Errors.reportErrorAndReplyChat(
-          context,
-          parsedMessage.context,
-          oauthRet.error
-        )
+        Errors.reportErrorAndReplyChat(context, messageContext, oauthRet.error)
         return Errors.makeError(undefined)
       default:
         let _: never = oauthRet.error
@@ -112,7 +101,7 @@ export default async (
   if (jiraAccountIDRet.type === Errors.ReturnType.Error) {
     Errors.reportErrorAndReplyChat(
       context,
-      parsedMessage.context,
+      messageContext,
       jiraAccountIDRet.error
     )
     return Errors.makeError(undefined)
@@ -120,8 +109,8 @@ export default async (
   const jiraAccountID = jiraAccountIDRet.result
 
   const updateRet = await context.configs.updateTeamUserConfig(
-    parsedMessage.context.teamName,
-    parsedMessage.context.senderUsername,
+    messageContext.teamName,
+    messageContext.senderUsername,
     undefined,
     {
       jiraAccountID,
@@ -130,18 +119,20 @@ export default async (
     }
   )
   if (updateRet.type === Errors.ReturnType.Error) {
-    Errors.reportErrorAndReplyChat(
-      context,
-      parsedMessage.context,
-      updateRet.error
-    )
+    Errors.reportErrorAndReplyChat(context, messageContext, updateRet.error)
     return Errors.makeError(undefined)
   }
   replyInPrivate(
     context,
-    parsedMessage,
-    `Success! You can now use Jirabot in ${parsedMessage.context.teamName}.`
+    messageContext,
+    `Success! You can now use Jirabot in ${messageContext.teamName}.`
   )
 
   return Errors.makeResult(undefined)
 }
+
+export default async (
+  context: Context,
+  parsedMessage: Message.AuthMessage
+): Promise<Errors.ResultOrError<undefined, undefined>> =>
+  startAuth(context, parsedMessage.context)

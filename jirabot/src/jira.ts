@@ -116,6 +116,33 @@ class JiraClientWrapper {
       })
       .then(({key}: {key: string}) => `https://${this.jiraHost}/browse/${key}`)
   }
+
+  getIssueTypes(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getIssueTypes',
+    })
+    return this.jiraClient.issueType
+      .getAllIssueTypes()
+      .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
+  }
+
+  getProjects(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getProjects',
+    })
+    return this.jiraClient.project
+      .getAllProjects()
+      .then((resp: Array<{key: string}>) => resp.map(({key}) => key))
+  }
+
+  getStatuses(): Promise<Array<string>> {
+    logger.debug({
+      msg: 'getStatuses',
+    })
+    return this.jiraClient.status
+      .getAllStatuses()
+      .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
+  }
 }
 
 const jiraClientCacheTimeout = 60 * 1000 // 1min
@@ -210,4 +237,118 @@ export const getJiraFromTeamnameAndUsername = async (
   return Errors.makeResult(
     new JiraClientWrapper(jiraClient, teamJiraConfig.jiraHost)
   )
+}
+
+class JiraMetadata {
+  private issueTypesArray: Array<string>
+  private projectsArray: Array<string>
+  private statusesArray: Array<string>
+
+  // lowercased => original
+  private issueTypesSet: Map<string, string>
+  private projectsSet: Map<string, string>
+  private statusesSet: Map<string, string>
+
+  constructor(data: {
+    issueTypes: Array<string>
+    projects: Array<string>
+    statuses: Array<string>
+  }) {
+    this.issueTypesArray = [...data.issueTypes]
+    this.projectsArray = [...data.projects]
+    this.statusesArray = [...data.statuses]
+    this.issueTypesSet = new Map(data.issueTypes.map(s => [s.toLowerCase(), s]))
+    this.projectsSet = new Map(data.projects.map(s => [s.toLowerCase(), s]))
+    this.statusesSet = new Map(data.statuses.map(s => [s.toLowerCase(), s]))
+  }
+
+  normalizeIssueType(issueType: string): undefined | string {
+    return this.issueTypesSet.get(issueType.toLowerCase())
+  }
+  normalizeProject(projectKey: string): undefined | string {
+    return this.projectsSet.get(projectKey.toLowerCase())
+  }
+  normalizeStatus(status: string): undefined | string {
+    return this.statusesSet.get(status.toLowerCase())
+  }
+
+  issueTypes(): Array<string> {
+    return [...this.issueTypesArray]
+  }
+  projects(): Array<string> {
+    return [...this.projectsArray]
+  }
+  statuses(): Array<string> {
+    return [...this.statusesArray]
+  }
+}
+
+const jiraMetadataCacheTimeout = 10 * 1000 // 10s
+const jiraMetadataCache = new Map<
+  string,
+  {fetchTime: number; jiraMetadata: JiraMetadata}
+>() // teamname -> JiraMetadata
+const getFromJiraMetadataCache = (
+  teamname: string
+): undefined | JiraMetadata => {
+  const cached = jiraMetadataCache.get(teamname)
+  return (
+    cached &&
+    (Date.now() - cached.fetchTime < jiraMetadataCacheTimeout
+      ? cached.jiraMetadata
+      : undefined)
+  )
+}
+const putInJiraMetadataCache = (
+  teamname: string,
+  jiraMetadata: JiraMetadata
+) => {
+  jiraMetadataCache.set(teamname, {fetchTime: Date.now(), jiraMetadata})
+}
+
+export const getJiraMetadata = async (
+  context: Context,
+  teamname: string,
+  username: string
+): Promise<Errors.ResultOrError<
+  JiraMetadata,
+  Errors.UnknownError | Errors.JirabotNotEnabledError
+>> => {
+  const cached = getFromJiraMetadataCache(teamname)
+  if (cached) {
+    return Errors.makeResult(cached)
+  }
+
+  const jiraRet = await getJiraFromTeamnameAndUsername(
+    context,
+    teamname,
+    username
+  )
+  if (jiraRet.type === Errors.ReturnType.Error) {
+    switch (jiraRet.error.type) {
+      case Errors.ErrorType.JirabotNotEnabled:
+        break
+      case Errors.ErrorType.Unknown:
+        logger.warn({msg: 'getJiraMetadata', error: jiraRet.error})
+        break
+      default:
+        let _: never = jiraRet.error
+    }
+    return jiraRet
+  }
+
+  const jira = jiraRet.result
+  try {
+    const jiraMetadata = new JiraMetadata({
+      issueTypes: await jira.getIssueTypes(),
+      projects: await jira.getProjects(),
+      statuses: await jira.getStatuses(),
+    })
+
+    putInJiraMetadataCache(teamname, jiraMetadata)
+
+    return Errors.makeResult(jiraMetadata)
+  } catch (error) {
+    return Errors.makeUnknownError(error)
+  }
 }
