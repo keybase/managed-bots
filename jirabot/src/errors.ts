@@ -190,7 +190,7 @@ export const reportErrorAndReplyChat = (
           return Utils.replyToMessageContext(
             context,
             messageContext,
-            'You have not given Jirabot permission to access your Jira account. I will start the authorization process for you. For future reference, you can also use `!jira auth` to start this process.'
+            'You have not given Jirabot permission to access your Jira account. I will start the authorization process for you.'
           ).then(() => startAuth(context, messageContext))
         default:
           let _: never = error.notEnabledType

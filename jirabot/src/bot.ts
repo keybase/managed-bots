@@ -183,6 +183,27 @@ const advertisements = [
   },
 ]
 
+const onNewConversation = async (
+  context: Context,
+  convSummary: ChatTypes.ConvSummary
+) => {
+  logger.info({msg: 'onNewConversation', channel: convSummary.channel})
+  const teamJiraConfigRet = await context.configs.getTeamJiraConfig(
+    convSummary.channel.name
+  )
+  if (teamJiraConfigRet.type === Errors.ReturnType.Ok) {
+    await context.bot.chat.send(convSummary.id, {
+      body: `Manage your Jira workflow without leaving the Keybase app. Your Jira admin has configured this team for ${teamJiraConfigRet.result.config.jiraHost}. Type \`!jira\` to see a list of supported commands.`,
+    })
+  } else if (
+    teamJiraConfigRet.error.type === Errors.ErrorType.KVStoreNotFound
+  ) {
+    await context.bot.chat.send(convSummary.id, {
+      body: `Manage your Jira workflow without leaving the Keybase app. Get started by making an application link on Jira: \`!jira config team\``,
+    })
+  }
+}
+
 export default (context: Context) => {
   context.bot.chat.advertiseCommands({
     alias: 'Jira',
@@ -190,5 +211,8 @@ export default (context: Context) => {
   })
   context.bot.chat.watchAllChannelsForNewMessages(message =>
     onMessage(context, message)
+  )
+  context.bot.chat.watchForNewConversation(convSummary =>
+    onNewConversation(context, convSummary)
   )
 }
