@@ -165,11 +165,16 @@ a {
 }
 .msg {
 	text-align: center;
+	padding-top: 15px;
 	padding-bottom: 7px;
 }
 .logo {
 	width: 150px;
 	padding: 25px;
+}
+.success {
+	font-size: 32px;
+	margin-bottom: 24px;
 }
 footer {
 	font-size: 15px;
