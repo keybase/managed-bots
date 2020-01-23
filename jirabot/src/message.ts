@@ -182,7 +182,7 @@ const getStatus = async (
   | Errors.UnknownError
 >> => {
   if (!status) {
-    return undefined
+    return Errors.makeResult(undefined)
   }
   const jiraMetadataRet = await Jira.getJiraMetadata(
     context,
@@ -216,7 +216,7 @@ const getIssueType = async (
   | Errors.UnknownError
 >> => {
   if (!issueType) {
-    return undefined
+    return Errors.makeResult(undefined)
   }
   const jiraMetadataRet = await Jira.getJiraMetadata(
     context,

@@ -283,6 +283,29 @@ class JiraMetadata {
   }
 }
 
+const jiraMetadataCacheTimeout = 10 * 1000 // 10s
+const jiraMetadataCache = new Map<
+  string,
+  {fetchTime: number; jiraMetadata: JiraMetadata}
+>() // teamname -> JiraMetadata
+const getFromJiraMetadataCache = (
+  teamname: string
+): undefined | JiraMetadata => {
+  const cached = jiraMetadataCache.get(teamname)
+  return (
+    cached &&
+    (Date.now() - cached.fetchTime < jiraMetadataCacheTimeout
+      ? cached.jiraMetadata
+      : undefined)
+  )
+}
+const putInJiraMetadataCache = (
+  teamname: string,
+  jiraMetadata: JiraMetadata
+) => {
+  jiraMetadataCache.set(teamname, {fetchTime: Date.now(), jiraMetadata})
+}
+
 export const getJiraMetadata = async (
   context: Context,
   teamname: string,
@@ -291,7 +314,10 @@ export const getJiraMetadata = async (
   JiraMetadata,
   Errors.UnknownError | Errors.JirabotNotEnabledError
 >> => {
-  // TODO cache
+  const cached = getFromJiraMetadataCache(teamname)
+  if (cached) {
+    return Errors.makeResult(cached)
+  }
 
   const jiraRet = await getJiraFromTeamnameAndUsername(
     context,
@@ -313,10 +339,15 @@ export const getJiraMetadata = async (
 
   const jira = jiraRet.result
   try {
-    const issueTypes = await jira.getIssueTypes()
-    const projects = await jira.getProjects()
-    const statuses = await jira.getStatuses()
-    return Errors.makeResult(new JiraMetadata({issueTypes, projects, statuses}))
+    const jiraMetadata = new JiraMetadata({
+      issueTypes: await jira.getIssueTypes(),
+      projects: await jira.getProjects(),
+      statuses: await jira.getStatuses(),
+    })
+
+    putInJiraMetadataCache(teamname, jiraMetadata)
+
+    return Errors.makeResult(jiraMetadata)
   } catch (error) {
     return Errors.makeUnknownError(error)
   }
