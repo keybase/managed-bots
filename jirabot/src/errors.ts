@@ -2,6 +2,7 @@ import * as Message from './message'
 import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
+import {startAuth} from './cmd-auth'
 
 export enum ReturnType {
   Ok = 'ok',
@@ -183,14 +184,14 @@ export const reportErrorAndReplyChat = (
           return Utils.replyToMessageContext(
             context,
             messageContext,
-            'This team has not been configured for jirabot. Use `!jirabot config team jiraHost <domain>` to enable jirabot for this team.'
+            'This team has not been configured for jirabot. Use `!jira config team jiraHost <domain>` to enable jirabot for this team.'
           )
         case 'user':
           return Utils.replyToMessageContext(
             context,
             messageContext,
-            'You have not given Jirabot permission to access your Jira account. In order to use Jirabot, connect with `!jira auth`.'
-          )
+            'You have not given Jirabot permission to access your Jira account. I will start the authorization process for you. For future reference, you can also use `!jira auth` to start this process.'
+          ).then(() => startAuth(context, messageContext))
         default:
           let _: never = error.notEnabledType
       }

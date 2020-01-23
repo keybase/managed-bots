@@ -49,11 +49,20 @@ export default async (
   const assigneeJira = assigneeJiraRet.result
 
   try {
-    const jiraMetadata = await Jira.getJiraMetadata(
+    const jiraMetadataRet = await Jira.getJiraMetadata(
       context,
       parsedMessage.context.teamName,
       parsedMessage.context.senderUsername
     )
+    if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+      Errors.reportErrorAndReplyChat(
+        context,
+        parsedMessage.context,
+        jiraMetadataRet.error
+      )
+      return Errors.makeError(undefined)
+    }
+    const jiraMetadata = jiraMetadataRet.result
     const url = await jira.createIssue({
       assigneeJira,
       project: parsedMessage.project,

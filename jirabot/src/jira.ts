@@ -287,7 +287,10 @@ export const getJiraMetadata = async (
   context: Context,
   teamname: string,
   username: string
-): Promise<JiraMetadata> => {
+): Promise<Errors.ResultOrError<
+  JiraMetadata,
+  Errors.UnknownError | Errors.JirabotNotEnabledError
+>> => {
   // TODO cache
 
   const jiraRet = await getJiraFromTeamnameAndUsername(
@@ -305,7 +308,7 @@ export const getJiraMetadata = async (
       default:
         let _: never = jiraRet.error
     }
-    return new JiraMetadata({issueTypes: [], projects: [], statuses: []})
+    return jiraRet
   }
 
   const jira = jiraRet.result
@@ -313,9 +316,8 @@ export const getJiraMetadata = async (
     const issueTypes = await jira.getIssueTypes()
     const projects = await jira.getProjects()
     const statuses = await jira.getStatuses()
-    return new JiraMetadata({issueTypes, projects, statuses})
+    return Errors.makeResult(new JiraMetadata({issueTypes, projects, statuses}))
   } catch (error) {
-    logger.warn({msg: 'getJiraMetadata', error})
-    return new JiraMetadata({issueTypes: [], projects: [], statuses: []})
+    return Errors.makeUnknownError(error)
   }
 }

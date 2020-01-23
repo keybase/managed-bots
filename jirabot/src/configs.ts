@@ -209,6 +209,23 @@ export default class Configs {
     }
   }
 
+  public async clearAllForTest(): Promise<any> {
+    const teamname = `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`
+    this.bot.kvstore
+      .listNamespaces(teamname)
+      .then(res =>
+        res.namespaces?.forEach(namespace =>
+          this.bot.kvstore
+            .listEntryKeys(teamname, namespace)
+            .then(res =>
+              res.entryKeys?.forEach(({entryKey}) =>
+                this.bot.kvstore.delete(teamname, namespace, entryKey)
+              )
+            )
+        )
+      )
+  }
+
   async getTeamJiraConfig(
     teamname: string
   ): Promise<

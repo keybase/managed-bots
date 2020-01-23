@@ -14,15 +14,22 @@ const makeNewTeamChannelConfig = async (
   value: string
 ): Promise<Errors.ResultOrError<
   Configs.TeamChannelConfig,
-  Errors.UnknownParamError | Errors.InvalidJiraFieldError
+  | Errors.UnknownParamError
+  | Errors.InvalidJiraFieldError
+  | Errors.JirabotNotEnabledError
+  | Errors.UnknownError
 >> => {
   switch (name) {
     case 'defaultNewIssueProject': {
-      const jiraMetadata = await Jira.getJiraMetadata(
+      const jiraMetadataRet = await Jira.getJiraMetadata(
         context,
         messageContext.teamName,
         messageContext.senderUsername
       )
+      if (jiraMetadataRet.type === Errors.ReturnType.Error) {
+        return jiraMetadataRet
+      }
+      const jiraMetadata = jiraMetadataRet.result
       const normalizedProject = jiraMetadata.normalizeProject(value)
       if (!normalizedProject) {
         return Errors.makeError({
@@ -159,9 +166,10 @@ const jiraConfigToMessageBody = (
 ) =>
   `This team is now configured for \`${jiraConfig.jiraHost}\`. ` +
   "If you haven't, here are instructions for connecting on Jira side:\n" +
-  'In Jira admin settings, create an application link of type "Generic Application".' +
+  'Go to the application links section of Jira admin settings: ' +
+  `https://${jiraConfig.jiraHost}/plugins/servlet/applinks/listApplicationLinks` +
+  ', and create an application link of type "Generic Application".' +
   ` Use \`${context.botConfig.httpAddressPrefix}\` as the URL of the application.` +
-  `\n\n_Tip: Can't find application link settings on Jira? Try the "Search Jira Admin" box in the top right corner of admin settings._` +
   '\n\nAfter the application link has been created, edit the link and configure "Incoming Authentication" as following:' +
   `\n\n*Consumer Key:* \`${jiraConfig.jiraAuth.consumerKey}\`` +
   '\n*Public Key:* \n```\n' +
@@ -227,7 +235,7 @@ const handleTeamConfig = async (
       const details = detailsRet.result
 
       const newConfig = {
-        jiraHost: parsedMessage.toSet.value,
+        jiraHost: parsedMessage.toSet.value.replace(/\/+$/, ''),
         jiraAuth: {
           consumerKey: details.consumerKey,
           publicKey: details.publicKey,
