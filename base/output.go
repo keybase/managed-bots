@@ -38,13 +38,13 @@ func (d *DebugOutput) Debug(msg string, args ...interface{}) {
 func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
 	d.Debug(msg, args...)
 	if d.config == nil {
-		d.Debug("Unable to report error to chat, errReportConv, chat debug not configured")
+		d.Debug("Errorf: Unable to report error to chat, errReportConv, chat debug not configured")
 	} else if d.config.ErrReportConv == "" || d.config.KBC == nil {
-		d.Debug("Unable to report error to chat, errReportConv: %v, kbc: %v",
+		d.Debug("Errorf: Unable to report error to chat, errReportConv: %v, kbc: %v",
 			d.config.ErrReportConv, d.config.KBC)
 	} else {
 		if err := SendByConvNameOrID(d.config.KBC, d.config.ErrReportConv, msg, args...); err != nil {
-			d.Debug("Error: failed to send error message: %s", err)
+			d.Debug("Errorf: failed to send error message: %s", err)
 		}
 	}
 }
@@ -52,19 +52,19 @@ func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
 func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	d.Debug(msg, args...)
 	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil {
-		d.Debug("chatDebug: failed to send error message: %s", err)
+		d.Debug("ChatDebug: failed to send error message: %s", err)
 	}
 }
 
 func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	d.Errorf(msg, args...)
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
-		d.Debug("chatDebugFull: failed to send error message: %s", err)
+		d.Debug("ChatErrorf: failed to send error message: %s", err)
 	}
 }
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
-		d.Debug("chatEcho: failed to send echo message: %s", err)
+		d.Debug("ChatEcho: failed to send echo message: %s", err)
 	}
 }
