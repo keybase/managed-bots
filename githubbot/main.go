@@ -25,7 +25,7 @@ import (
 type Options struct {
 	*base.Options
 	HTTPPrefix        string
-	Secret            string
+	WebhookSecret     string
 	PrivateKeyPath    string
 	AppName           string
 	AppID             int64
@@ -125,21 +125,6 @@ Examples:%s
 	}
 }
 
-func (s *BotServer) getSecret() (string, error) {
-	if s.opts.Secret != "" {
-		return s.opts.Secret, nil
-	}
-	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
-	cmd := s.opts.Command("fs", "read", path)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
-	return out.String(), nil
-}
-
 func (s *BotServer) getAppKey() ([]byte, error) {
 	if s.opts.PrivateKeyPath != "" {
 		keyFile, err := os.Open(s.opts.PrivateKeyPath)
@@ -167,9 +152,23 @@ func (s *BotServer) getAppKey() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func (s *BotServer) getConfig() (appName string, appID int64, clientID string, clientSecret string, err error) {
+type botConfig struct {
+	AppName       string `json:"app_name"`
+	AppID         int64  `json:"app_id"`
+	ClientID      string `json:"client_id"`
+	ClientSecret  string `json:"client_secret"`
+	WebhookSecret string `json:"webhook_secret"`
+}
+
+func (s *BotServer) getConfig() (config *botConfig, err error) {
 	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppName != "" && s.opts.AppID != -1 {
-		return s.opts.AppName, s.opts.AppID, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+		return &botConfig{
+			s.opts.AppName,
+			s.opts.AppID,
+			s.opts.OAuthClientID,
+			s.opts.OAuthClientSecret,
+			s.opts.WebhookSecret,
+		}, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
 	cmd := s.opts.Command("fs", "read", path)
@@ -177,21 +176,14 @@ func (s *BotServer) getConfig() (appName string, appID int64, clientID string, c
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
-		return "", -1, "", "", err
+		return nil, err
 	}
 
-	var j struct {
-		AppName      string `json:"app_name"`
-		AppID        int64  `json:"app_id"`
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
+	if err := json.Unmarshal(out.Bytes(), &config); err != nil {
+		return nil, err
 	}
 
-	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
-		return "", -1, "", "", err
-	}
-
-	return j.AppName, j.AppID, j.ClientID, j.ClientSecret, nil
+	return config, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -199,15 +191,9 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	secret, err := s.getSecret()
+	botConfig, err := s.getConfig()
 	if err != nil {
-		s.Errorf("failed to get secret: %s", err)
-		return
-	}
-
-	appName, appID, clientID, clientSecret, err := s.getConfig()
-	if err != nil {
-		s.Errorf("failed to get oauth credentials: %s", err)
+		s.Errorf("failed to get bot configuration: %s", err)
 		return
 	}
 
@@ -232,8 +218,8 @@ func (s *BotServer) Go() (err error) {
 
 	// If changing scopes, wipe tokens from DB
 	config := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     botConfig.ClientID,
+		ClientSecret: botConfig.ClientSecret,
 		Scopes:       []string{},
 		Endpoint:     oauth2github.Endpoint,
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
@@ -242,14 +228,14 @@ func (s *BotServer) Go() (err error) {
 	requests := &base.OAuthRequests{}
 
 	tr := http.DefaultTransport
-	atr, err := ghinstallation.NewAppsTransport(tr, appID, appKey)
+	atr, err := ghinstallation.NewAppsTransport(tr, botConfig.AppID, appKey)
 	if err != nil {
 		s.Errorf("failed to make github apps transport: %s", err)
 		return err
 	}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := githubbot.NewHandler(s.kbc, debugConfig, db, requests, config, atr, s.opts.HTTPPrefix, appName, secret)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, atr, secret)
+	handler := githubbot.NewHandler(s.kbc, debugConfig, db, requests, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, atr, botConfig.WebhookSecret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -270,7 +256,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
-	fs.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	fs.StringVar(&opts.WebhookSecret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	fs.StringVar(&opts.PrivateKeyPath, "private-key-path", "", "Path to GitHub app private key file")

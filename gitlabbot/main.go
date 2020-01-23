@@ -23,7 +23,7 @@ import (
 type Options struct {
 	*base.Options
 	HTTPPrefix        string
-	Secret            string
+	WebhookSecret     string
 	OAuthClientID     string
 	OAuthClientSecret string
 }
@@ -100,24 +100,9 @@ Unsubscribe from a specific branch:%s
 	}
 }
 
-func (s *BotServer) getSecret() (string, error) {
-	if s.opts.Secret != "" {
-		return s.opts.Secret, nil
-	}
-	path := fmt.Sprintf("/keybase/private/%s/bot.secret", s.kbc.GetUsername())
-	cmd := s.opts.Command("fs", "read", path)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
-	if err := cmd.Run(); err != nil {
-		return "", err
-	}
-	return out.String(), nil
-}
-
-func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err error) {
+func (s *BotServer) getConfig() (webhookSecret string, clientID string, clientSecret string, err error) {
 	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
-		return s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+		return s.opts.WebhookSecret, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
 	cmd := s.opts.Command("fs", "read", path)
@@ -125,19 +110,20 @@ func (s *BotServer) getOAuthConfig() (clientID string, clientSecret string, err 
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	var j struct {
-		ClientID     string `json:"client_id"`
-		ClientSecret string `json:"client_secret"`
+		WebhookSecret string `json:"webhook_secret"`
+		ClientID      string `json:"client_id"`
+		ClientSecret  string `json:"client_secret"`
 	}
 
 	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return j.ClientID, j.ClientSecret, nil
+	return j.WebhookSecret, j.ClientID, j.ClientSecret, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -145,15 +131,9 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	secret, err := s.getSecret()
+	secret, clientID, clientSecret, err := s.getConfig()
 	if err != nil {
-		s.Errorf("failed to get secret: %s", err)
-		return
-	}
-
-	clientID, clientSecret, err := s.getOAuthConfig()
-	if err != nil {
-		s.Errorf("failed to get oauth credentials: %s", err)
+		s.Errorf("failed to get configuration: %s", err)
 		return
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -204,7 +184,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
-	fs.StringVar(&opts.Secret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	fs.StringVar(&opts.WebhookSecret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitLab OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitLab OAuth2 client secret")
 	if err := opts.Parse(fs, os.Args); err != nil {

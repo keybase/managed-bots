@@ -5,7 +5,7 @@ A Keybase chat bot that notifies a channel when an event happens on a GitLab pro
 ## GitLab API
 
 The one scope needed for GitLab bot is: `api`. For more information on GitLab scopes visit the GitLab
-[docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#limiting-scopes-of-a-personal-access-token). 
+[docs](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#limiting-scopes-of-a-personal-access-token).
 
 In GitLab's OAuth Application dashboard specify the Callback URL: `https://<YOUR_DOMAIN>/gitlabbot/oauth`
 which is needed for the redirect in the OAuth flow.
@@ -41,15 +41,15 @@ In order to run the GitLab bot, you will need
   ```
   keybase chat api -m '{"method": "clearcommands"}'
   ```
-- You can optionally save your GitLab OAuth ID and secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitLabBot>` (or the equivalent KBFS path on your system) that matches the following format:
+- You can optionally save your GitLab OAuth ID , OAuth secret, and bot secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitLabBot>` (or the equivalent KBFS path on your system) that matches the following format:
   ```json
   {
     "client_id": "your GitLab OAuth client ID here",
-    "client_secret": "your GitLab OAuth client secret here"
+    "client_secret": "your GitLab OAuth client secret here",
+    "webhook_secret": "your secret here"
   }
   ```
-  If you have KBFS running, you can now run the bot without providing the `--client-id` and `--client-secret` command line options.
-- You can also store your bot secret in KBFS by saving it in a file named `bot.secret` in your bot account's private KBFS folder and omitting the `--secret` command line argument.
+  If you have KBFS running, you can now run the bot without providing the `--client-id`, `--client-secret`, and `--secret` command line options.
 
 ### Docker
 
