@@ -109,10 +109,6 @@ Examples:%s
 				MobileBody:  mentionsExtended,
 			},
 		},
-		{
-			Name:        "github auth",
-			Description: "Check if GitHub is authenticated for your account.",
-		},
 	}
 	return kbchat.Advertisement{
 		Alias: "GitHub",

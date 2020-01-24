@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+
 	"github.com/keybase/managed-bots/base/git"
 
 	"github.com/bradleyfalzon/ghinstallation"
@@ -107,7 +109,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			message, branch := h.formatMessage(event, repo, defaultBranch, client)
+			message, branch := h.formatMessage(convID, event, repo, defaultBranch, client)
 			if message == "" {
 				// if we don't have a message to send, bail
 				continue
@@ -136,7 +138,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch string, client *github.Client) (message string, branch string) {
+func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo string, defaultBranch string, client *github.Client) (message string, branch string) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
 		h.Debug("invalid repo: %s", repo)
@@ -146,7 +148,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch st
 	branch = defaultBranch
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetIssue().GetUser().GetLogin())
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetIssue().GetUser().GetLogin(), convID)
 		return git.FormatIssueMsg(
 			*event.Action,
 			author.String(),
@@ -158,9 +160,9 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch st
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin())
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin(), convID)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetUser().GetLogin())
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetUser().GetLogin(), convID)
 		}
 
 		action := *event.Action
@@ -209,7 +211,7 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch st
 			h.Errorf("Error getting pull request object: %s", err)
 			return formatCheckRunMessage(event, ""), branch
 		}
-		author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pr.GetUser().GetLogin())
+		author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pr.GetUser().GetLogin(), convID)
 		return formatCheckRunMessage(event, author.String()), branch
 
 	case *github.StatusEvent:
@@ -231,9 +233,9 @@ func (h *HTTPSrv) formatMessage(event interface{}, repo string, defaultBranch st
 		if len(pullRequests) == 0 && len(event.Branches) >= 1 {
 			// this is a branch test, not associated with a PR
 			branch = event.Branches[0].GetName()
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin())
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin(), convID)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pullRequests[0].GetUser().GetLogin())
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pullRequests[0].GetUser().GetLogin(), convID)
 		}
 
 		return formatStatusMessage(event, pullRequests, author.String()), branch

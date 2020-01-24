@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 
@@ -171,7 +173,7 @@ type keybaseID struct {
 	Username string `json:"username"`
 }
 
-func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, githubUsername string) (u username) {
+func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, githubUsername string, convID chat1.ConvIDStr) (u username) {
 	u = username{githubUsername: githubUsername}
 	id := kbc.Command("id", "-j", fmt.Sprintf("%s@github", githubUsername))
 	output, err := id.Output()
@@ -187,7 +189,7 @@ func getPossibleKBUser(kbc *kbchat.API, d *DB, debug *base.DebugOutput, githubUs
 		return u
 	}
 
-	prefs, err := d.GetUserPreferences(i.Username)
+	prefs, err := d.GetUserPreferences(i.Username, convID)
 	if err != nil {
 		debug.Debug("getPossibleKBUser: couldn't get user preferences: %s", err)
 		return u
