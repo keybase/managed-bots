@@ -67,12 +67,13 @@ func formatCheckRunMessage(evt *github.CheckRunEvent, username string) (res stri
 				res = fmt.Sprintf(":warning: %s cancelled for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
 			}
 		}
+
 		if isPullRequest && res != "" && username != "" {
-			if strings.HasPrefix(username, "@") {
-				res = fmt.Sprintf("%s\n%s", res, username)
-			} else {
-				res = fmt.Sprintf("%s\n(for %s)", res, username)
+			if strings.HasPrefix(username, "@") { // if keybase user, @ them directly
+				return fmt.Sprintf("%s\n%s", res, username)
 			}
+
+			return fmt.Sprintf("%s\n(for %s)", res, username)
 		}
 	}
 	return res
@@ -119,12 +120,13 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 			res = fmt.Sprintf(":x: %s failed for pull request #%d on %s.\n%s", testName, pr.GetNumber(), repo, targetURL)
 		}
 	}
+
 	if isPullRequest && res != "" && username != "" {
 		if strings.HasPrefix(username, "@") {
-			res = fmt.Sprintf("%s\n%s", res, username)
-		} else {
-			res = fmt.Sprintf("%s\n(for %s)", res, username)
+			return fmt.Sprintf("%s\n%s", res, username)
 		}
+
+		return fmt.Sprintf("%s\n(for %s)", res, username)
 	}
 	return res
 }
