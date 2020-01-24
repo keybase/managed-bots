@@ -1,9 +1,6 @@
 package gcalbot_test
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"testing"
 
 	"google.golang.org/api/calendar/v3"
@@ -184,28 +181,4 @@ func TestFormatTimeRange(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expected, actual)
 	})
-}
-
-func TestParseReminderDuration(t *testing.T) {
-	unitTable := map[string][]string{
-		"minutes": {"m", "min", "mins", "minute", "minutes"},
-		"hours":   {"h", "hr", "hrs", "hour", "hours"},
-		"days":    {"d", "day", "days"},
-		"weeks":   {"w", "wk", "wks", "week", "weeks"},
-	}
-
-	for unit, suffixList := range unitTable {
-		for length := 0; length <= 4; length++ {
-			expected := fmt.Sprintf("%d %s", length, unit)
-			if length == 1 {
-				expected = strings.TrimSuffix(expected, "s")
-			}
-			for _, suffix := range suffixList {
-				duration, userErr, err := gcalbot.ParseReminderDuration(strconv.Itoa(length), suffix)
-				require.NoError(t, err)
-				require.Empty(t, userErr)
-				require.Equal(t, expected, duration.String())
-			}
-		}
-	}
 }

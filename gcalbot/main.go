@@ -92,16 +92,15 @@ Examples:%s
 		back, back, backs, backs)
 
 	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders over direct message for the primary calendar of a Google account given the account connection's nickname.
+Reminders can be set for 0 minutes up to 60 minutes before the start of an event.
 You can configure multiple event reminders per account.
 View your connected Google accounts using %s!gcal accounts list%s
 View existing reminder configurations using %s!gcal reminders list%s
 
 Examples:%s
-!gcal reminders subscribe personal 5 minutes
-!gcal reminders subscribe personal 30 minutes
-!gcal reminders subscribe family 2 hours
-!gcal reminders subscribe school 3 days
-!gcal reminders subscribe work 1 week%s`,
+!gcal reminders subscribe personal 0
+!gcal reminders subscribe family 5
+!gcal reminders subscribe work 60%s`,
 		back, back, back, back, backs, backs)
 
 	remindersUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event reminders for the primary calendar of a Google account given the account connection's nickname.
@@ -109,11 +108,9 @@ View your connected Google accounts using %s!gcal accounts list%s
 View existing reminder configurations using %s!gcal reminders list%s
 
 Examples:%s
-!gcal reminders unsubscribe personal 5 minutes
-!gcal reminders unsubscribe personal 30 minutes
-!gcal reminders unsubscribe family 2 hours
-!gcal reminders unsubscribe school 3 days
-!gcal reminders unsubscribe work 1 week%s`,
+!gcal reminders subscribe personal 0
+!gcal reminders subscribe family 5
+!gcal reminders subscribe work 60%s`,
 		back, back, back, back, backs, backs)
 
 	remindersListDesc := fmt.Sprintf(`Lists event reminders configured for the primary calendar of a Google account given the account connection's nickname.
@@ -185,9 +182,9 @@ Examples:%s
 		{
 			Name:        "gcal reminders subscribe",
 			Description: "Subscribe to event reminders over direct message for your primary calendar",
-			Usage:       "<account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",
+			Usage:       "<account nickname> <minutes before start of event>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders subscribe* <account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",
+				Title:       "*!gcal reminders subscribe* <account nickname> <minutes before start of event>",
 				DesktopBody: remindersSubscribeDesc,
 				MobileBody:  remindersSubscribeDesc,
 			},
@@ -195,9 +192,9 @@ Examples:%s
 		{
 			Name:        "gcal reminders unsubscribe",
 			Description: "Unsubscribe from event reminders for your primary calendar",
-			Usage:       "<account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",
+			Usage:       "<account nickname> <minutes before start of event>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders unsubscribe* <account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",
+				Title:       "*!gcal reminders unsubscribe* <account nickname> <minutes before start of event>",
 				DesktopBody: remindersUnsubscribeDesc,
 				MobileBody:  remindersUnsubscribeDesc,
 			},
