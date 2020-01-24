@@ -21,62 +21,69 @@ func getCommitMessages(event *github.PushEvent) []string {
 	return commitMsgs
 }
 
+func formatPRUsername(isPullRequest bool, res, username string) string {
+	if isPullRequest && res != "" && username != "" {
+		if strings.HasPrefix(username, "@") {
+			return fmt.Sprintf("%s\n%s", res, username)
+		}
+		return fmt.Sprintf("%s\n(for %s)", res, username)
+	}
+	return res
+}
+
 // formatters
 
 func formatCheckRunMessage(evt *github.CheckRunEvent, username string) (res string) {
 	action := evt.Action
-	if *action == "completed" {
-		run := evt.GetCheckRun()
-		repo := evt.GetRepo().GetName()
-		isPullRequest := len(run.PullRequests) > 0
-		var testName string
-		if run.GetName() != "" {
-			testName = fmt.Sprintf("*%s*", run.GetName())
-		} else {
-			testName = "Test"
-		}
-		switch run.GetConclusion() {
-		case "success":
-			if !isPullRequest {
-				res = fmt.Sprintf(":white_check_mark: %s passed for %s/%s.", testName, repo, run.GetCheckSuite().GetHeadBranch())
-			} else {
-				pr := run.PullRequests[0]
-				res = fmt.Sprintf(":white_check_mark: %s passed for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-			}
-		case "failure", "timed_out", "action_required":
-			urlSplit := strings.Split(run.GetHTMLURL(), "://")
-			var targetURL string
-			if len(urlSplit) != 2 {
-				// if the CI target URL isn't formatted as expected, just skip it
-				targetURL = ""
-			} else {
-				targetURL = urlSplit[1]
-			}
-
-			if !isPullRequest {
-				res = fmt.Sprintf(":x: %s failed for %s/%s.\n%s", testName, repo, run.GetCheckSuite().GetHeadBranch(), targetURL)
-			} else {
-				pr := run.PullRequests[0]
-				res = fmt.Sprintf(":x: %s failed for pull request #%d on %s.\n%s", testName, pr.GetNumber(), repo, targetURL)
-			}
-		case "cancelled":
-			if !isPullRequest {
-				res = fmt.Sprintf(":warning: %s cancelled for %s/%s.", testName, repo, run.GetCheckSuite().GetHeadBranch())
-			} else {
-				pr := run.PullRequests[0]
-				res = fmt.Sprintf(":warning: %s cancelled for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
-			}
-		}
-
-		if isPullRequest && res != "" && username != "" {
-			if strings.HasPrefix(username, "@") { // if keybase user, @ them directly
-				return fmt.Sprintf("%s\n%s", res, username)
-			}
-
-			return fmt.Sprintf("%s\n(for %s)", res, username)
-		}
+	if action == nil || *action != "completed" {
+		return ""
 	}
-	return res
+
+	run := evt.GetCheckRun()
+	repo := evt.GetRepo().GetName()
+	isPullRequest := len(run.PullRequests) > 0
+	var testName string
+	if run.GetName() != "" {
+		testName = fmt.Sprintf("*%s*", run.GetName())
+	} else {
+		testName = "Test"
+	}
+
+	defer func() {
+		res = formatPRUsername(isPullRequest, res, username)
+	}()
+
+	switch run.GetConclusion() {
+	case "success":
+		if !isPullRequest {
+			return fmt.Sprintf(":white_check_mark: %s passed for %s/%s.", testName, repo, run.GetCheckSuite().GetHeadBranch())
+		}
+		pr := run.PullRequests[0]
+		return fmt.Sprintf(":white_check_mark: %s passed for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
+	case "failure", "timed_out", "action_required":
+		urlSplit := strings.Split(run.GetHTMLURL(), "://")
+		var targetURL string
+		if len(urlSplit) != 2 {
+			// if the CI target URL isn't formatted as expected, just skip it
+			targetURL = ""
+		} else {
+			targetURL = urlSplit[1]
+		}
+
+		if !isPullRequest {
+			return fmt.Sprintf(":x: %s failed for %s/%s.\n%s", testName, repo, run.GetCheckSuite().GetHeadBranch(), targetURL)
+		}
+		pr := run.PullRequests[0]
+		return fmt.Sprintf(":x: %s failed for pull request #%d on %s.\n%s", testName, pr.GetNumber(), repo, targetURL)
+	case "cancelled":
+		if !isPullRequest {
+			return fmt.Sprintf(":warning: %s cancelled for %s/%s.", testName, repo, run.GetCheckSuite().GetHeadBranch())
+		}
+		pr := run.PullRequests[0]
+		return fmt.Sprintf(":warning: %s cancelled for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
+	default:
+		return ""
+	}
 }
 
 func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullRequest, username string) (res string) {
@@ -94,14 +101,18 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 	} else {
 		testName = "Test"
 	}
+
+	defer func() {
+		res = formatPRUsername(isPullRequest, res, username)
+	}()
+
 	switch state {
 	case "success":
 		if !isPullRequest {
-			res = fmt.Sprintf(":white_check_mark: %s passed for %s/%s.", testName, repo, branch)
-		} else {
-			pr := pullRequests[0]
-			res = fmt.Sprintf(":white_check_mark: %s passed for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
+			return fmt.Sprintf(":white_check_mark: %s passed for %s/%s.", testName, repo, branch)
 		}
+		pr := pullRequests[0]
+		return fmt.Sprintf(":white_check_mark: %s passed for pull request #%d on %s.\n%s/pull/%d", testName, pr.GetNumber(), repo, evt.GetRepo().GetHTMLURL(), pr.GetNumber())
 	case "failure", "error":
 		var targetURL string
 		urlSplit := strings.Split(evt.GetTargetURL(), "://")
@@ -113,22 +124,13 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 		}
 
 		if !isPullRequest {
-			res = fmt.Sprintf(":x: %s failed for %s/%s.\n%s", testName, repo, branch, targetURL)
-		} else {
-			pr := pullRequests[0]
-
-			res = fmt.Sprintf(":x: %s failed for pull request #%d on %s.\n%s", testName, pr.GetNumber(), repo, targetURL)
+			return fmt.Sprintf(":x: %s failed for %s/%s.\n%s", testName, repo, branch, targetURL)
 		}
+		pr := pullRequests[0]
+		return fmt.Sprintf(":x: %s failed for pull request #%d on %s.\n%s", testName, pr.GetNumber(), repo, targetURL)
+	default:
+		return ""
 	}
-
-	if isPullRequest && res != "" && username != "" {
-		if strings.HasPrefix(username, "@") {
-			return fmt.Sprintf("%s\n%s", res, username)
-		}
-
-		return fmt.Sprintf("%s\n(for %s)", res, username)
-	}
-	return res
 }
 
 func getDefaultBranch(repo string, client *github.Client) (branch string, err error) {

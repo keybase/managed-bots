@@ -56,9 +56,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.Mess
 		body += fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
 			h.generateVoteLink(convID, promptMsgID, index+1))
 	}
-	if _, err = h.kbc.SendMessageByConvID(convID, body); err != nil {
-		return fmt.Errorf("failed to send choices: %s", err)
-	}
+	h.ChatEcho(convID, body)
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}

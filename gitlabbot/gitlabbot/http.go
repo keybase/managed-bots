@@ -59,10 +59,9 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	branch := "master"
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		message = git.FormatIssueMsg(
 			event.ObjectAttributes.Action,
-			author.String(),
+			event.User.Username,
 			event.Project.Name,
 			event.ObjectAttributes.IID,
 			event.ObjectAttributes.Title,
@@ -71,17 +70,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
-		var author username
-		if event.ObjectAttributes.State == "merged" {
-			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
-		} else {
-			author = getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
-		}
 
 		message = git.FormatPullRequestMsg(
 			git.GITLAB,
 			event.ObjectAttributes.Action,
-			author.String(),
+			event.User.Username,
 			event.Project.PathWithNamespace,
 			event.ObjectAttributes.IID,
 			event.ObjectAttributes.Title,
@@ -111,14 +104,13 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 
 	case *gitlab.PipelineEvent:
-		author := getPossibleKBUser(h.kbc, h.DebugOutput, event.User.Username)
 		repo = strings.ToLower(event.Project.PathWithNamespace)
 		if event.MergeRequest.IID == 0 {
 			branch = event.ObjectAttributes.Ref
 		} else {
 			branch = event.Project.DefaultBranch
 		}
-		message = formatPipelineMsg(event, author.String())
+		message = formatPipelineMsg(event, event.User.Username)
 	}
 
 	if message != "" && repo != "" {
@@ -136,12 +128,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				h.Errorf("Error validating payload signature for conversation %s: %s", convID, err)
 				continue
 			}
-
-			_, err = h.kbc.SendMessageByConvID(convID, message)
-			if err != nil {
-				h.Debug("Error sending message: %s", err)
-				return
-			}
+			h.ChatEcho(convID, message)
 		}
 	}
 }

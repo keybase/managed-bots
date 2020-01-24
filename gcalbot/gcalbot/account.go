@@ -20,9 +20,7 @@ func GetAccountID(keybaseUsername string, accountNickname string) string {
 func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error) {
 	defer func() {
 		if err != nil {
-			if _, err := h.kbc.SendMessageByConvID(msg.ConvID, "Something went wrong!"); err != nil {
-				h.Debug("failed to send error message: %s", err)
-			}
+			h.ChatEcho(msg.ConvID, "Something went wrong!")
 		}
 	}()
 
@@ -41,12 +39,7 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error)
 		return fmt.Errorf("error connecting account '%s': %s", accountNickname, err)
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Account '%s' has been connected.", accountNickname)
-	if err != nil {
-		h.Debug("error sending message: %s", err)
-		return nil // no need to display an error on the web page, the account was successfully connected
-	}
-
+	h.ChatEcho(msg.ConvID, "Account '%s' has been connected.", accountNickname)
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	if !strings.HasPrefix(cmd, "!gcal accounts connect") {
 		if err = h.HandleCommand(msg); err != nil {
@@ -64,10 +57,7 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	}
 
 	if accounts == nil {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "You have no connected accounts.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "You have no connected accounts.")
 		return nil
 	}
 
@@ -77,19 +67,13 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 		accountInterfaces[index] = accounts[index]
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, accountListMessage, accountInterfaces...)
-	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
-	}
+	h.ChatEcho(msg.ConvID, accountListMessage, accountInterfaces...)
 	return nil
 }
 
 func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
 	}
 
@@ -124,10 +108,7 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 
 func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
 	}
 
@@ -148,10 +129,7 @@ func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string)
 		return err
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Account '%s' has been disconnected.", accountNickname)
-	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
-	}
+	h.ChatEcho(msg.ConvID, "Account '%s' has been disconnected.", accountNickname)
 	return nil
 }
 

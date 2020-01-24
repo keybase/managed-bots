@@ -32,19 +32,13 @@ const (
 )
 
 func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) error {
-	if !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "This command can only be run through direct message.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+	if !base.IsDirectPrivateMessage(msg) {
+		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
 	}
 
 	if len(args) != 1 {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
 	}
 
@@ -91,28 +85,19 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+	h.ChatEcho(msg.ConvID,
 		"OK, you will be notified of event invites for your primary calendar '%s' from now on.", primaryCalendar.Summary)
-	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
-	}
 	return nil
 }
 
 func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) error {
-	if !(msg.Sender.Username == msg.Channel.Name || len(strings.Split(msg.Channel.Name, ",")) == 2) {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "This command can only be run through direct message.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+	if !base.IsDirectPrivateMessage(msg) {
+		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
 	}
 
 	if len(args) != 1 {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
 	}
 
@@ -182,12 +167,8 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		}
 	}
 
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+	h.ChatEcho(msg.ConvID,
 		"OK, you will no longer be notified of event invites for your primary calendar '%s'.", primaryCalendar.Summary)
-	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
-	}
-
 	return nil
 }
 

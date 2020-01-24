@@ -279,3 +279,9 @@ func SplitTokens(cmd string) (tokens []string, userErrorMessage string, err erro
 		return nil, "", fmt.Errorf("error splitting command string: %s", err)
 	}
 }
+
+func IsDirectPrivateMessage(msg chat1.MsgSummary) bool {
+	return msg.Channel.MembersType != "team" &&
+		(msg.Sender.Username == msg.Channel.Name ||
+			len(strings.Split(msg.Channel.Name, ",")) == 2)
+}

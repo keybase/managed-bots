@@ -126,13 +126,13 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 				if link == "" {
 					continue
 				}
-				_, err = h.kbc.SendMessageByConvID(msg.ConvID, link)
-				return err
+				h.ChatEcho(msg.ConvID, link)
+				return nil
 			}
 		}
 	}
 
 	h.Debug("meetHandler: no event found, conferenceData: %+v", event.ConferenceData)
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, "I wasn't able to create a meeting, please try again.")
-	return err
+	h.ChatEcho(msg.ConvID, "I wasn't able to create a meeting, please try again.")
+	return nil
 }

@@ -77,56 +77,47 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		return h.handleSubscribeToBranch(cmd, msg, create)
 	}
 
-	var message string
-	defer func() {
-		if message != "" {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0]))
-			if err != nil {
-				err = fmt.Errorf("error sending message: %s", err)
-			}
-		}
-	}()
-
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, args[0])
+	repo := args[0]
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
 
-	parsedRepo := strings.Split(args[0], "/")
+	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
-		return fmt.Errorf("invalid repo: %s", args[0])
+		return fmt.Errorf("invalid repo: %s", repo)
 	}
 	if create {
 		if !alreadyExists {
 			defaultBranch := "master"
-
-			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, base.IdentifierFromMsg(msg))
+			err = h.db.CreateSubscription(msg.ConvID, repo, defaultBranch, base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
-
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], msg, h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, msg, h.httpPrefix, h.secret))
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
-
+			if !base.IsDirectPrivateMessage(msg) {
+				h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
+			}
 			return nil
 		}
 
-		message = "You're already receiving notifications for %s here!"
+		h.ChatEcho(msg.ConvID, "You're already receiving notifications for `%s` here!", repo)
 		return nil
 	}
 
 	if alreadyExists {
-		err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, args[0])
+		err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, repo)
 		if err != nil {
 			return fmt.Errorf("error deleting subscriptions: %s", err)
 		}
-		message = "Okay, you won't receive updates for %s here."
+		h.ChatEcho(msg.ConvID, "Okay, you won't receive updates for `%s` here.", repo)
 		return nil
 	}
 
-	message = "You aren't subscribed to updates for %s!"
+	h.ChatEcho(msg.ConvID, "You aren't subscribed to updates for `%s`!", repo)
 	return nil
 }
 
@@ -139,53 +130,48 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 		return nil
 	}
 	args := toks[2:]
-	var message string
-	defer func() {
-		if message != "" {
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, fmt.Sprintf(message, args[0], args[1]))
-			if err != nil {
-				err = fmt.Errorf("error sending message: %s", err)
-			}
-		}
-	}()
-
 	if len(args) < 2 {
 		return fmt.Errorf("bad args for subscribe to branch: %v", args)
 	}
 
 	defaultBranch := "master"
-
-	if exists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], defaultBranch); !exists {
-		if err != nil {
-			return fmt.Errorf("error getting subscription: %s", err)
-		}
-		var message string
+	repo := args[0]
+	branch := args[1]
+	exists, err := h.db.GetSubscriptionExists(msg.ConvID, repo, defaultBranch)
+	if err != nil {
+		return err
+	} else if !exists {
 		if create {
-			message = fmt.Sprintf("You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", args[0])
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, msg, h.httpPrefix, h.secret))
+			if err != nil {
+				return fmt.Errorf("error sending message: %s", err)
+			}
+			if !base.IsDirectPrivateMessage(msg) {
+				h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
+			}
 		} else {
-			message = fmt.Sprintf("You aren't subscribed to notifications for %s!", args[0])
-		}
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, message)
-		if err != nil {
-			return fmt.Errorf("Error sending message: %s", err)
+			h.ChatEcho(msg.ConvID, "You aren't subscribed to notifications for `%s`!", repo)
 		}
 		return nil
 	}
 
 	if create {
-		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], base.IdentifierFromMsg(msg))
+		err = h.db.CreateSubscription(msg.ConvID, repo, branch, base.IdentifierFromMsg(msg))
 		if err != nil {
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
 
-		message = "Now subscribed to commits on %s/%s."
+		if exists {
+			h.ChatEcho(msg.ConvID, "Now subscribed to commits on `%s/%s`.", repo, branch)
+		}
 		return nil
 	}
-	err = h.db.DeleteSubscription(msg.ConvID, args[0], args[1])
+
+	err = h.db.DeleteSubscription(msg.ConvID, repo, branch)
 	if err != nil {
 		return fmt.Errorf("error deleting subscription: %s", err)
 	}
 
-	message = "Okay, you won't receive notifications for commits in %s/%s."
+	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
 	return nil
 }

@@ -81,10 +81,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!gcal unsubscribe invites"):
 		return h.handleUnsubscribeInvites(msg, tokens[3:])
 	default:
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Unknown command.")
-		if err != nil {
-			h.Debug("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Unknown command.")
 		return nil
 	}
 }
