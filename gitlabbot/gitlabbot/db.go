@@ -20,16 +20,16 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, hookID int64, oauthIdentifier string) error {
+func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, oauthIdentifier string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO subscriptions
-			(conv_id, repo, branch, hook_id, oauth_identifier)
+			(conv_id, repo, branch, oauth_identifier)
 			VALUES
-			(?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
-			hook_id=VALUES(hook_id)
-		`, convID, repo, branch, hookID, oauthIdentifier)
+			oauth_identifier=VALUES(oauth_identifier)
+			(?, ?, ?, ?)
+		`, convID, repo, branch, oauthIdentifier)
 		return err
 	})
 }
@@ -109,20 +109,6 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	default:
 		return false, err
 	}
-}
-
-func (d *DB) GetHookIDForRepo(convID chat1.ConvIDStr, repo string) (hookID int64, err error) {
-	row := d.DB.QueryRow(`
-	SELECT hook_id
-	FROM subscriptions
-	WHERE (conv_id = ? AND repo = ?)
-	`, convID, repo)
-	err = row.Scan(&hookID)
-	if err != nil {
-		return -1, err
-	}
-
-	return hookID, nil
 }
 
 // OAuth2 token methods

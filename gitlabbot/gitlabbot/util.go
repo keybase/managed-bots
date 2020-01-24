@@ -3,8 +3,8 @@ package gitlabbot
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/xanzy/go-gitlab"
-	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -56,17 +56,18 @@ func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) 
 	return res
 }
 
-func getProject(repo string, client *gitlab.Client) (*gitlab.Project, error) {
-	if client == nil {
-		return nil, fmt.Errorf("getDefaultBranch: client is nil")
-	}
+func formatSetupInstructions(repo string, msg chat1.MsgSummary, httpAddress string, secret string) (res string) {
+	back := "`"
+	message := fmt.Sprintf(`
+To configure your project to send notifications, go to https://gitlab.com/%s/-/settings/integrations and add a new webhook.
+For “URL”, enter %s%s/gitlabbot/webhook%s.
+For “Secret Token”, enter %s%s%s.
+Remember to check all the triggers you would like me to update you on.
+Note that I currently support the following Webhook Events: Push, Issues, Merge Request, Pipeline
 
-	project, res, err := client.Projects.GetProject(repo, &gitlab.GetProjectOptions{})
-	if err != nil || res.StatusCode != http.StatusOK {
-		return nil, err
-	}
-
-	return project, nil
+Happy coding!`,
+		repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
+	return message
 }
 
 // keybase IDing

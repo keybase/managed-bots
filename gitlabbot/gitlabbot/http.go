@@ -11,11 +11,10 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
-	"golang.org/x/oauth2"
 )
 
 type HTTPSrv struct {
-	*base.OAuthHTTPSrv
+	*base.HTTPSrv
 
 	kbc     *kbchat.API
 	db      *DB
@@ -24,15 +23,14 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, handler *Handler, requests *base.OAuthRequests, config *oauth2.Config, secret string) *HTTPSrv {
+	db *DB, handler *Handler, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, config, requests, h.db, h.handler.HandleAuth,
-		"gitlabbot", base.Images["logo"], "/gitlabbot")
+	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
 	http.HandleFunc("/gitlabbot", h.handleHealthCheck)
 	http.HandleFunc("/gitlabbot/webhook", h.handleWebhook)
 	return h

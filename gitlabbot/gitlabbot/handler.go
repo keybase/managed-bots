@@ -2,16 +2,12 @@ package gitlabbot
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/kballard/go-shellquote"
-	"github.com/xanzy/go-gitlab"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"golang.org/x/oauth2"
 )
 
 type Handler struct {
@@ -19,8 +15,6 @@ type Handler struct {
 
 	kbc        *kbchat.API
 	db         *DB
-	requests   *base.OAuthRequests
-	config     *oauth2.Config
 	httpPrefix string
 	secret     string
 }
@@ -28,13 +22,11 @@ type Handler struct {
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, requests *base.OAuthRequests, config *oauth2.Config, httpPrefix string, secret string) *Handler {
+	db *DB, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
-		requests:    requests,
-		config:      config,
 		httpPrefix:  httpPrefix,
 		secret:      secret,
 	}
@@ -59,33 +51,16 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	identifier := base.IdentifierFromMsg(msg)
-	tc, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
-		base.GetOAuthOpts{
-			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitLab notifications.",
-		})
-	if err != nil || tc == nil {
-		return err
-	}
-
-	token, err := h.db.GetToken(identifier)
-	if err != nil {
-		h.Errorf("error getting token from db")
-		return err
-	}
-
-	client := gitlab.NewOAuthClient(tc, token.AccessToken)
-
 	switch {
 	case strings.HasPrefix(cmd, "!gitlab subscribe"):
-		return h.handleSubscribe(cmd, msg, true, client)
+		return h.handleSubscribe(cmd, msg, true)
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
-		return h.handleSubscribe(cmd, msg, false, client)
+		return h.handleSubscribe(cmd, msg, false)
 	}
 	return nil
 }
 
-func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *gitlab.Client) (err error) {
+func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) (err error) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -97,7 +72,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 	// Check if command is subscribing to a branch
 	if len(toks) == 4 {
-		return h.handleSubscribeToBranch(cmd, msg, create, client)
+		return h.handleSubscribeToBranch(cmd, msg, create)
 	}
 
 	var message string
@@ -121,44 +96,18 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 	if create {
 		if !alreadyExists {
-			project, err := getProject(args[0], client)
-			if err != nil {
-				return fmt.Errorf("error getting gitlab project: %s", err)
-			}
+			defaultBranch := "master"
 
-			webhookURL := h.httpPrefix + "/gitlabbot/webhook"
-			eventsFlag := true
-			token := base.MakeSecret(args[0], msg.ConvID, h.secret)
-			defaultBranch := project.DefaultBranch
-
-			hook, res, err := client.Projects.AddProjectHook(args[0], &gitlab.AddProjectHookOptions{
-				URL:                      &webhookURL,
-				PushEvents:               &eventsFlag,
-				IssuesEvents:             &eventsFlag,
-				ConfidentialIssuesEvents: &eventsFlag,
-				MergeRequestsEvents:      &eventsFlag,
-				PipelineEvents:           &eventsFlag,
-				EnableSSLVerification:    nil,
-				Token:                    &token,
-			})
-
-			if err != nil {
-				switch res.StatusCode {
-				case http.StatusNotFound:
-					message = "I couldn't subscribe to updates on %s, do you have the right permissions?"
-					return nil
-				case http.StatusUnprocessableEntity:
-					message = "I couldn't create a webhook on %s, try deleting Keybase webhooks in your project's settings and try again."
-					return nil
-				default:
-					return fmt.Errorf("error: %s", err)
-				}
-			}
-			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, int64(hook.ID), base.IdentifierFromMsg(msg))
+			err = h.db.CreateSubscription(msg.ConvID, args[0], defaultBranch, base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
-			message = "Okay, you'll receive updates for %s here."
+
+			_, err = h.kbc.SendMessageByConvID(msg.ConvID, formatSetupInstructions(args[0], msg, h.httpPrefix, h.secret))
+			if err != nil {
+				return fmt.Errorf("error sending message: %s", err)
+			}
+
 			return nil
 		}
 
@@ -167,16 +116,6 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	}
 
 	if alreadyExists {
-		hookID, err := h.db.GetHookIDForRepo(msg.ConvID, args[0])
-		if err != nil {
-			return fmt.Errorf("error getting hook ID for subscription: %s", err)
-		}
-
-		_, err = client.Projects.DeleteProjectHook(args[0], int(hookID))
-		if err != nil {
-			return fmt.Errorf("error deleting webhook: %s", err)
-		}
-
 		err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, args[0])
 		if err != nil {
 			return fmt.Errorf("error deleting subscriptions: %s", err)
@@ -189,7 +128,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, create bool, client *gitlab.Client) (err error) {
+func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, create bool) (err error) {
 	toks, err := shellquote.Split(cmd)
 	if err != nil {
 		return fmt.Errorf("error splitting command: %s", err)
@@ -209,11 +148,7 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 		return fmt.Errorf("bad args for subscribe to branch: %v", args)
 	}
 
-	project, err := getProject(args[0], client)
-	if err != nil {
-		return fmt.Errorf("error getting gitlab project: %s", err)
-	}
-	var defaultBranch = project.DefaultBranch
+	defaultBranch := "master"
 
 	if exists, err := h.db.GetSubscriptionExists(msg.ConvID, args[0], defaultBranch); !exists {
 		if err != nil {
@@ -233,12 +168,7 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 	}
 
 	if create {
-		hookID, err := h.db.GetHookIDForRepo(msg.ConvID, args[0])
-		if err != nil {
-			return fmt.Errorf("error getting hook ID for subscription: %s", err)
-		}
-
-		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], hookID, base.IdentifierFromMsg(msg))
+		err = h.db.CreateSubscription(msg.ConvID, args[0], args[1], base.IdentifierFromMsg(msg))
 		if err != nil {
 			return fmt.Errorf("error creating subscription: %s", err)
 		}
