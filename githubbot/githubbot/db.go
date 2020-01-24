@@ -155,7 +155,7 @@ type Features struct {
 func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT INTO features 
+			INSERT INTO features
 			(conv_id, repo, issues, pull_requests, commits, statuses)
 			VALUES
 			(?, ?, ?, ?, ?, ?)
