@@ -245,6 +245,9 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 	if err != nil {
 		return fmt.Errorf("Error getting current features: %s", err)
 	}
+	if currentFeatures == nil {
+		currentFeatures = &Features{}
+	}
 	// "issues", "pulls", "statuses", "commits"
 	switch feature {
 	case "issues":
