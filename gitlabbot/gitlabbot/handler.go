@@ -105,7 +105,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
 
-			_, err = h.kbc.SendMessageByConvID(msg.ConvID, formatSetupInstructions(args[0], msg, h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(args[0], msg, h.httpPrefix, h.secret))
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
