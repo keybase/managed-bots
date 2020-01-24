@@ -29,21 +29,21 @@ In order to run the GitHub bot, you will need
 
 - Remember to configure the permissions for your GitHub app. The bot expects
   *read-only* access to the Repository Permissions:
-  ```
-    - checks
-    - contents
-    - issues
-    - pull requests
-    - commit statuses
-```
-As well as the webhook events for:
-```
-    - check runs
-    - pushes
-    - statuses
-    - issues
-    - pull requests
-```
+    ```
+        - checks
+        - contents
+        - issues
+        - pull requests
+        - commit statuses
+    ```
+    As well as the webhook events for:
+    ```
+        - check runs
+        - pushes
+        - statuses
+        - issues
+        - pull requests
+    ```
 
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
