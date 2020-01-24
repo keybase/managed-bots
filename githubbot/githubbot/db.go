@@ -2,6 +2,7 @@ package githubbot
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -38,7 +39,7 @@ func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ?)
+			WHERE conv_id = ? AND repo = ?
 		`, convID, repo)
 		return err
 	})
@@ -60,7 +61,7 @@ func (d *DB) UnwatchBranch(convID chat1.ConvIDStr, repo string, branch string) e
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ? AND branch = ?)
+			WHERE conv_id = ? AND repo = ? AND branch = ?
 		`, convID, repo, branch)
 		return err
 	})
@@ -70,7 +71,7 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) err
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ?)
+			WHERE conv_id = ? AND repo = ?
 		`, convID, repo)
 		return err
 	})
@@ -80,7 +81,7 @@ func (d *DB) DeleteBranchesForRepo(convID chat1.ConvIDStr, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ?)
+			WHERE conv_id = ? AND repo = ?
 		`, convID, repo)
 		return err
 	})
@@ -90,7 +91,7 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 	rows, err := d.DB.Query(`
 		SELECT conv_id
 		FROM subscriptions
-		WHERE (repo = ? AND installation_id = ?)
+		WHERE repo = ? AND installation_id = ?
 		GROUP BY conv_id
 	`, repo, installationID)
 	if err != nil {
@@ -110,7 +111,7 @@ func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string,
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM branches
-	WHERE (conv_id = ? AND repo = ? AND branch = ?)
+	WHERE conv_id = ? AND repo = ? AND branch = ?
 	GROUP BY conv_id
 	`, convID, repo, branch)
 	var rowRes string
@@ -129,7 +130,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	row := d.DB.QueryRow(`
 	SELECT 1
 	FROM subscriptions
-	WHERE (conv_id = ? AND repo = ?)
+	WHERE conv_id = ? AND repo = ?
 	`, convID, repo)
 	var rowRes string
 	err = row.Scan(&rowRes)
@@ -152,6 +153,31 @@ type Features struct {
 	Statuses     bool
 }
 
+func (f *Features) String() string {
+	if f == nil {
+		return "all events"
+	}
+	var res []string
+	if f.Issues {
+		res = append(res, "issues")
+	}
+	if f.PullRequests {
+		res = append(res, "pull requests")
+	}
+	if f.Commits {
+		res = append(res, "commits")
+	}
+	if f.Statuses {
+		res = append(res, "status")
+	}
+	if len(res) == 0 {
+		return "no events"
+	} else if len(res) == 4 {
+		return "all events"
+	}
+	return strings.Join(res, ", ")
+}
+
 func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
@@ -172,7 +198,7 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error) {
 	row := d.DB.QueryRow(`SELECT issues, pull_requests, commits, statuses
 		FROM features
-		WHERE (conv_id = ? AND repo = ?)`, convID, repo)
+		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	features := &Features{}
 	err := row.Scan(&features.Issues, &features.PullRequests, &features.Commits, &features.Statuses)
 	switch err {
@@ -185,11 +211,32 @@ func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error)
 	}
 }
 
+func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features, error) {
+	rows, err := d.DB.Query(`SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
+		COALESCE(commits, true), COALESCE(statuses, true)
+		FROM subscriptions
+		LEFT JOIN features USING(conv_id, repo)
+		WHERE conv_id = ?`, convID)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]Features)
+	for rows.Next() {
+		var repo string
+		var features Features
+		if err := rows.Scan(&repo, &features.Issues, &features.PullRequests, &features.Commits, &features.Statuses); err != nil {
+			return nil, err
+		}
+		res[repo] = features
+	}
+	return res, nil
+}
+
 func (d *DB) DeleteFeaturesForRepo(convID chat1.ConvIDStr, repo string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM features
-			WHERE (conv_id = ? AND repo = ?)
+			WHERE conv_id = ? AND repo = ?
 		`, convID, repo)
 		return err
 	})
@@ -245,7 +292,7 @@ type UserPreferences struct {
 func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserPreferences, error) {
 	row := d.DB.QueryRow(`SELECT mention
 		FROM user_prefs
-		WHERE (username = ? AND conv_id = ?)`, username, convID)
+		WHERE username = ? AND conv_id = ?`, username, convID)
 	prefs := &UserPreferences{}
 	err := row.Scan(&prefs.Mention)
 	switch err {

@@ -2,6 +2,7 @@ package githubbot
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -85,15 +86,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) (err error) {
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
-	if err != nil {
-		return fmt.Errorf("Error getting admin status: %s", err)
-	}
-	if !isAdmin {
-		h.ChatEcho(msg.ConvID, "You must be an admin to configure me!")
-		return nil
-	}
-
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
@@ -102,13 +94,32 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	args := toks[2:]
+	var list bool
+	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
+	flags.BoolVar(&list, "list", false, "")
+	if err := flags.Parse(toks[2:]); err != nil {
+		return fmt.Errorf("failed to parse poll command: %s", err)
+	}
+	if list {
+		return h.handleListSubscriptions(msg)
+	}
+
+	args := flags.Args()
 	if len(args) < 1 {
 		if create {
 			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github subscribe <owner/repo>`")
 		} else {
 			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github unsubscribe <owner/repo>`")
 		}
+		return nil
+	}
+
+	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	if err != nil {
+		return fmt.Errorf("Error getting admin status: %s", err)
+	}
+	if !isAdmin {
+		h.ChatEcho(msg.ConvID, "You must be an admin to configure me!")
 		return nil
 	}
 
@@ -122,6 +133,9 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		if !alreadyExists {
 			if create {
 				if err := h.handleNewSubscription(repo, msg, client); err != nil {
+					if _, ok := err.(base.OAuthRequiredError); ok {
+						return nil
+					}
 					return err
 				}
 			} else {
@@ -144,6 +158,9 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		}
 		err := h.handleNewSubscription(repo, msg, client)
 		if err != nil {
+			if _, ok := err.(base.OAuthRequiredError); ok {
+				return nil
+			}
 			return err
 		}
 		h.ChatEcho(msg.ConvID, "Okay, you'll receive updates for `%s` here.", repo)
@@ -171,6 +188,25 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return fmt.Errorf("error deleting features: %s", err)
 	}
 	h.ChatEcho(msg.ConvID, "Okay, you won't receive updates for `%s` here.", repo)
+	return nil
+}
+
+func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
+	features, err := h.db.GetFeaturesForAllRepos(msg.ConvID)
+	if err != nil {
+		return fmt.Errorf("Error getting current features: %s", err)
+	}
+
+	if len(features) == 0 {
+		h.ChatEcho(msg.ConvID, "Not subscribed to any repos yet.")
+		return nil
+	}
+
+	var res string
+	for repo, f := range features {
+		res += fmt.Sprintf("- *%s* (%s)\n", repo, &f)
+	}
+	h.ChatEcho(msg.ConvID, res)
 	return nil
 }
 
