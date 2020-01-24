@@ -2,6 +2,8 @@ package gcalbot
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
@@ -107,4 +109,63 @@ func FormatTimeRange(
 				start.Format("MST")), nil
 		}
 	}
+}
+
+type ReminderDurationUnit string
+
+const (
+	ReminderDurationUnitMinutes ReminderDurationUnit = "minutes"
+	ReminderDurationUnitHours   ReminderDurationUnit = "hours"
+	ReminderDurationUnitDays    ReminderDurationUnit = "days"
+	ReminderDurationUnitWeeks   ReminderDurationUnit = "weeks"
+)
+
+type ReminderDuration struct {
+	Length int
+	Unit   ReminderDurationUnit
+}
+
+func (rd ReminderDuration) String() string {
+	unit := string(rd.Unit)
+	if rd.Length == 1 {
+		unit = strings.TrimSuffix(unit, "s")
+	}
+	return fmt.Sprintf("%d %s", rd.Length, unit)
+}
+
+func ParseReminderDuration(length, unit string) (reminderDuration *ReminderDuration, userErrorMessage string, err error) {
+	// length
+	durationLength, err := strconv.Atoi(length)
+	switch err {
+	case nil:
+	case strconv.ErrSyntax, strconv.ErrRange:
+		return nil, fmt.Sprintf("Error parsing duration before start of event: %s", err.Error()), nil
+	default:
+		return nil, "", err
+	}
+	if durationLength < 0 {
+		return nil, "Duration cannot be negative", nil
+	}
+
+	// unit
+	var durationUnit ReminderDurationUnit
+	switch unit {
+	case "m", "min", "mins", "minute", "minutes":
+		durationUnit = ReminderDurationUnitMinutes
+	case "h", "hr", "hrs", "hour", "hours":
+		durationUnit = ReminderDurationUnitHours
+	case "d", "day", "days":
+		durationUnit = ReminderDurationUnitDays
+	case "w", "wk", "wks", "week", "weeks":
+		durationUnit = ReminderDurationUnitWeeks
+	default:
+		userErrorMessage = fmt.Sprintf(
+			"Unit of time not recognized: %s. Should be one of 'minutes', 'hours', 'days' or 'weeks'.", unit)
+		return nil, userErrorMessage, nil
+	}
+
+	return &ReminderDuration{
+		Length: durationLength,
+		Unit:   durationUnit,
+	}, "", nil
 }

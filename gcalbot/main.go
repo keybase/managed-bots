@@ -75,7 +75,7 @@ Examples:%s
 !gcal calendars list work%s`,
 		back, back, backs, backs)
 
-	invitesSubscribeDesc := fmt.Sprintf(`Subscribes to event invites for the primary calendar of a Google account given the account connection's nickname.
+	invitesSubscribeDesc := fmt.Sprintf(`Subscribes to event invites over direct message for the primary calendar of a Google account given the account connection's nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
@@ -91,7 +91,7 @@ Examples:%s
 !gcal invites unsubscribe work%s`,
 		back, back, backs, backs)
 
-	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders for the primary calendar of a Google account given the account connection's nickname.
+	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders over direct message for the primary calendar of a Google account given the account connection's nickname.
 You can configure multiple event reminders per account.
 View your connected Google accounts using %s!gcal accounts list%s
 View existing reminder configurations using %s!gcal reminders list%s
@@ -163,7 +163,7 @@ Examples:%s
 
 		{
 			Name:        "gcal invites subscribe",
-			Description: "Subscribe to event invites for your primary calendar",
+			Description: "Subscribe to event invites over direct message for your primary calendar",
 			Usage:       "<account nickname>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       "*!gcal invites subscribe* <account nickname>",
@@ -184,7 +184,7 @@ Examples:%s
 
 		{
 			Name:        "gcal reminders subscribe",
-			Description: "Subscribe to event reminders for your primary calendar",
+			Description: "Subscribe to event reminders over direct message for your primary calendar",
 			Usage:       "<account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       "*!gcal reminders subscribe* <account nickname> <duration before start of event> [minute(s)|hour(s)|day(s)|week(s)]",

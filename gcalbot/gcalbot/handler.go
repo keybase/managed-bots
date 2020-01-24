@@ -80,6 +80,12 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleInvitesSubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal invites unsubscribe"):
 		return h.handleInvitesUnsubscribe(msg, tokens[3:])
+	case strings.HasPrefix(cmd, "!gcal reminders subscribe"):
+		return h.handleRemindersSubscribe(msg, tokens[3:])
+	case strings.HasPrefix(cmd, "!gcal reminders unsubscribe"):
+		return h.handleRemindersUnsubscribe(msg, tokens[3:])
+	case strings.HasPrefix(cmd, "!gcal reminders list"):
+		return h.handleRemindersList(msg, tokens[3:])
 	default:
 		h.ChatEcho(msg.ConvID, "Unknown command.")
 		return nil
