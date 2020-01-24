@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"golang.org/x/sync/errgroup"
@@ -240,9 +239,12 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	toks, err := shellquote.Split(msg.Content.Text.Body)
+	toks, userErr, err := SplitTokens(msg.Content.Text.Body)
 	if err != nil {
 		return err
+	} else if userErr != "" {
+		s.ChatEcho(msg.ConvID, userErr)
+		return nil
 	}
 	if len(toks) <= 1 {
 		s.Errorf("must specify 'trace', 'cpu' or 'heap'. Try `!pprof cpu -d 5m`")

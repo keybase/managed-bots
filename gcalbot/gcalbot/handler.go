@@ -1,10 +1,7 @@
 package gcalbot
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/kballard/go-shellquote"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -62,19 +59,12 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	tokens, err := shellquote.Split(cmd)
-	switch err {
-	case nil:
-	case shellquote.UnterminatedSingleQuoteError,
-		shellquote.UnterminatedDoubleQuoteError,
-		shellquote.UnterminatedEscapeError:
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID, "Error in command: %s", strings.ToLower(err.Error()))
-		if err != nil {
-			h.Debug("error sending message: %s", err)
-		}
+	tokens, userErr, err := base.SplitTokens(cmd)
+	if err != nil {
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(msg.ConvID, userErr)
 		return nil
-	default:
-		return fmt.Errorf("error splitting command string: %s", err)
 	}
 
 	switch {

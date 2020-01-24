@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strings"
+
+	"github.com/kballard/go-shellquote"
 
 	"github.com/keybase/go-codec/codec"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -261,4 +264,18 @@ func SendByConvNameOrID(kbc *kbchat.API, name, msg string, args ...interface{}) 
 	}
 	_, err := kbc.SendMessageByTeamName(name, nil, msg, args...)
 	return err
+}
+
+func SplitTokens(cmd string) (tokens []string, userErrorMessage string, err error) {
+	tokens, err = shellquote.Split(cmd)
+	switch err {
+	case nil:
+		return tokens, "", nil
+	case shellquote.UnterminatedSingleQuoteError,
+		shellquote.UnterminatedDoubleQuoteError,
+		shellquote.UnterminatedEscapeError:
+		return nil, fmt.Sprintf("Error in command: %s", strings.ToLower(err.Error())), nil
+	default:
+		return nil, "", fmt.Errorf("error splitting command string: %s", err)
+	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/bradleyfalzon/ghinstallation"
 
 	"github.com/google/go-github/v28/github"
-	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -100,9 +99,12 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return err
 	}
 
-	toks, err := shellquote.Split(cmd)
+	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
-		return fmt.Errorf("error splitting command: %s", err)
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(msg.ConvID, userErr)
+		return nil
 	}
 
 	args := toks[2:]
@@ -355,9 +357,12 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 		}
 	}()
 
-	toks, err := shellquote.Split(cmd)
+	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
-		return fmt.Errorf("error splitting command: %s", err)
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(msg.ConvID, userErr)
+		return nil
 	}
 	args := toks[2:]
 	if len(args) != 1 || (args[0] != "disable" && args[0] != "enable") {
