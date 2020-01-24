@@ -33,6 +33,7 @@ CREATE TABLE `features` (
 
 CREATE TABLE `user_prefs` (
   `username` varchar(128) NOT NULL,
+  `conv_id` char(64) NOT NULL,
   `mention` tinyint(1) NOT NULL,
-  PRIMARY KEY (`username`)
+  UNIQUE KEY unique_prefs (`username`, `conv_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

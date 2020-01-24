@@ -371,15 +371,15 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	}
 
 	allowMentions := args[0] == "enable"
-	err = h.db.SetUserPreferences(msg.Sender.Username, &UserPreferences{Mention: allowMentions})
+	err = h.db.SetUserPreferences(msg.Sender.Username, msg.ConvID, &UserPreferences{Mention: allowMentions})
 	if err != nil {
 		return fmt.Errorf("error setting user preference: %s", err)
 	}
 
 	if allowMentions {
-		message = "Okay, you'll be mentioned in GitHub events involving your linked GitHub account."
+		message = "Okay, you'll be mentioned for GitHub events involving your linked GitHub account in this conversation."
 	} else {
-		message = "Okay, you won't be mentioned in future GitHub events."
+		message = "Okay, you won't be mentioned in future GitHub events in this conversation."
 	}
 
 	return

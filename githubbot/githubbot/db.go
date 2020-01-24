@@ -248,10 +248,10 @@ type UserPreferences struct {
 	Mention bool
 }
 
-func (d *DB) GetUserPreferences(username string) (*UserPreferences, error) {
+func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserPreferences, error) {
 	row := d.DB.QueryRow(`SELECT mention
 		FROM user_prefs
-		WHERE username = ?`, username)
+		WHERE (username = ? AND conv_id = ?)`, username, convID)
 	prefs := &UserPreferences{}
 	err := row.Scan(&prefs.Mention)
 	switch err {
@@ -267,14 +267,14 @@ func (d *DB) GetUserPreferences(username string) (*UserPreferences, error) {
 	}
 }
 
-func (d *DB) SetUserPreferences(username string, prefs *UserPreferences) error {
+func (d *DB) SetUserPreferences(username string, convID chat1.ConvIDStr, prefs *UserPreferences) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`INSERT INTO user_prefs 
-		(username, mention)
-		VALUES (?, ?)
+		(username, conv_id, mention)
+		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		mention=VALUES(mention)
-	`, username, prefs.Mention)
+	`, username, convID, prefs.Mention)
 		return err
 	})
 	return err
