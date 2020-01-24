@@ -245,9 +245,9 @@ class JiraMetadata {
   private statusesArray: Array<string>
 
   // lowercased => original
-  private issueTypesSet: Map<string, string>
-  private projectsSet: Map<string, string>
-  private statusesSet: Map<string, string>
+  private issueTypesMap: Map<string, string>
+  private projectsMap: Map<string, string>
+  private statusesMap: Map<string, string>
 
   constructor(data: {
     issueTypes: Array<string>
@@ -257,19 +257,19 @@ class JiraMetadata {
     this.issueTypesArray = [...data.issueTypes]
     this.projectsArray = [...data.projects]
     this.statusesArray = [...data.statuses]
-    this.issueTypesSet = new Map(data.issueTypes.map(s => [s.toLowerCase(), s]))
-    this.projectsSet = new Map(data.projects.map(s => [s.toLowerCase(), s]))
-    this.statusesSet = new Map(data.statuses.map(s => [s.toLowerCase(), s]))
+    this.issueTypesMap = new Map(data.issueTypes.map(s => [s.toLowerCase(), s]))
+    this.projectsMap = new Map(data.projects.map(s => [s.toLowerCase(), s]))
+    this.statusesMap = new Map(data.statuses.map(s => [s.toLowerCase(), s]))
   }
 
   normalizeIssueType(issueType: string): undefined | string {
-    return this.issueTypesSet.get(issueType.toLowerCase())
+    return this.issueTypesMap.get(issueType.toLowerCase())
   }
   normalizeProject(projectKey: string): undefined | string {
-    return this.projectsSet.get(projectKey.toLowerCase())
+    return this.projectsMap.get(projectKey.toLowerCase())
   }
   normalizeStatus(status: string): undefined | string {
-    return this.statusesSet.get(status.toLowerCase())
+    return this.statusesMap.get(status.toLowerCase())
   }
 
   issueTypes(): Array<string> {
@@ -280,6 +280,15 @@ class JiraMetadata {
   }
   statuses(): Array<string> {
     return [...this.statusesArray]
+  }
+
+  defaultIssueType(): string {
+    return (
+      this.issueTypesMap.get('story') ||
+      this.issueTypesMap.get('bug') ||
+      this.issueTypesArray?.[0] ||
+      ''
+    )
   }
 }
 

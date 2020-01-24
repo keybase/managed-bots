@@ -63,18 +63,19 @@ export default async (
       return Errors.makeError(undefined)
     }
     const jiraMetadata = jiraMetadataRet.result
+
+    const issueType = parsedMessage.issueType || jiraMetadata.defaultIssueType()
     const url = await jira.createIssue({
       assigneeJira,
       project: parsedMessage.project,
       name: parsedMessage.name,
       description: parsedMessage.description,
-      issueType:
-        parsedMessage.issueType || jiraMetadata.issueTypes()?.[0] || '',
+      issueType,
     })
     await Utils.replyToMessageContext(
       context,
       parsedMessage.context,
-      'Ticket created' +
+      `Ticket (${issueType}) created` +
         (parsedMessage.assignee ? ` for @${parsedMessage.assignee}` : '') +
         `: ${url}`
     )
