@@ -31,7 +31,7 @@ const (
 	ResponseStatusAccepted    ResponseStatus = "accepted"
 )
 
-func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) error {
 	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
@@ -90,7 +90,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	return nil
 }
 
-func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) error {
 	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil

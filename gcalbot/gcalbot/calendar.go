@@ -11,7 +11,7 @@ import (
 	"github.com/keybase/managed-bots/base"
 )
 
-func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
