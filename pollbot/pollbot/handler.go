@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -97,9 +96,12 @@ func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, pr
 }
 
 func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.MessageID) error {
-	toks, err := shellquote.Split(cmd)
+	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to parse poll command: %s", err)
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(convID, userErr)
+		return nil
 	}
 	var anonymous bool
 	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kballard/go-shellquote"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -61,9 +60,12 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) (err error) {
-	toks, err := shellquote.Split(cmd)
+	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
-		return fmt.Errorf("error splitting command: %s", err)
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(msg.ConvID, userErr)
+		return nil
 	}
 	args := toks[2:]
 	if len(args) < 1 {
@@ -129,9 +131,12 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 }
 
 func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, create bool) (err error) {
-	toks, err := shellquote.Split(cmd)
+	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
-		return fmt.Errorf("error splitting command: %s", err)
+		return err
+	} else if userErr != "" {
+		h.ChatEcho(msg.ConvID, userErr)
+		return nil
 	}
 	args := toks[2:]
 	var message string
