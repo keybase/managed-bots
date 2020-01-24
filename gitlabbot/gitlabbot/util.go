@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/xanzy/go-gitlab"
-	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -69,19 +68,6 @@ Note that I currently support the following Webhook Events: Push, Issues, Merge 
 Happy coding!`,
 		repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
 	return message
-}
-
-func getProject(repo string, client *gitlab.Client) (*gitlab.Project, error) {
-	if client == nil {
-		return nil, fmt.Errorf("getDefaultBranch: client is nil")
-	}
-
-	project, res, err := client.Projects.GetProject(repo, &gitlab.GetProjectOptions{})
-	if err != nil || res.StatusCode != http.StatusOK {
-		return nil, err
-	}
-
-	return project, nil
 }
 
 // keybase IDing
