@@ -15,6 +15,12 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type OAuthRequiredError struct{}
+
+func (e OAuthRequiredError) Error() string {
+	return "OAuth is required for this, permission requested."
+}
+
 type OAuthStorage interface {
 	GetToken(identifier string) (*oauth2.Token, error)
 	PutToken(identifier string, token *oauth2.Token) error
@@ -216,7 +222,7 @@ func GetOAuthClient(
 			}
 		}
 
-		return nil, nil
+		return nil, OAuthRequiredError{}
 	}
 
 	return config.Client(context.Background(), token), nil

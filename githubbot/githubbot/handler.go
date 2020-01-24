@@ -125,7 +125,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 					return err
 				}
 			} else {
-				h.ChatEcho("You aren't subscribed to notifications for %s!", repo)
+				h.ChatEcho("You aren't subscribed to notifications for `%s`!", repo)
 				return nil
 			}
 		}
@@ -139,15 +139,20 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 	if create {
 		if alreadyExists {
-			h.ChatEcho(msg.ConvID, "You're already receiving notifications for %s here!", repo)
+			h.ChatEcho(msg.ConvID, "You're already receiving notifications for `%s` here!", repo)
 			return nil
 		}
-		return h.handleNewSubscription(repo, msg, client)
+		err := h.handleNewSubscription(repo, msg, client)
+		if err != nil {
+			return err
+		}
+		h.ChatEcho(msg.ConvID, "Okay, you'll receive updates for `%s` here.", repo)
+		return nil
 	}
 
 	// unsubscribing
 	if !alreadyExists {
-		h.ChatEcho("You aren't subscribed to updates for %s!", repo)
+		h.ChatEcho("You aren't subscribed to updates for `%s`!", repo)
 		return nil
 	}
 
@@ -165,7 +170,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if err != nil {
 		return fmt.Errorf("error deleting features: %s", err)
 	}
-	h.ChatEcho(msg.ConvID, "Okay, you won't receive updates for %s here.", repo)
+	h.ChatEcho(msg.ConvID, "Okay, you won't receive updates for `%s` here.", repo)
 	return nil
 }
 
@@ -179,7 +184,7 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	if err != nil {
 		switch res.StatusCode {
 		case http.StatusNotFound:
-			h.ChatEcho(msg.ConvID, "I couldn't subscribe to updates on %s! Make sure the app is installed on your repository, and that the repository exists.", repo)
+			h.ChatEcho(msg.ConvID, "I couldn't subscribe to updates on `%s`! Make sure the app is installed on your repository, and that the repository exists.", repo)
 			return nil
 		default:
 			return fmt.Errorf("error getting installation: %s", err)
@@ -210,7 +215,7 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	}
 
 	if !hasPermission {
-		h.ChatEcho(msg.ConvID, "You don't have permission to subscribe to %s.", repo)
+		h.ChatEcho(msg.ConvID, "You don't have permission to subscribe to `%s`.", repo)
 		return fmt.Errorf("unauthorized for subscription")
 	}
 
@@ -219,7 +224,6 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	if err != nil {
 		return fmt.Errorf("error creating subscription: %s", err)
 	}
-	h.ChatEcho(msg.ConvID, "Okay, you'll receive updates for %s here.", repo)
 	return nil
 }
 
@@ -232,7 +236,7 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		if enable {
 			h.ChatEcho(msg.ConvID, "You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", repo)
 		} else {
-			h.ChatEcho("You aren't subscribed to notifications for %s!", repo)
+			h.ChatEcho("You aren't subscribed to notifications for `%s`!", repo)
 		}
 		return nil
 	}
@@ -261,9 +265,9 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		return fmt.Errorf("Error setting features: %s", err)
 	}
 	if enable {
-		h.ChatEcho(msg.ConvID, "Okay, you'll receive notifications for %s on %s!", repo, feature)
+		h.ChatEcho(msg.ConvID, "Okay, you'll receive notifications for `%s` on `%s`!", feature, repo)
 	} else {
-		h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for %s for %s.", repo, feature)
+		h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for `%s` for `%s`.", repo, feature)
 	}
 	return nil
 }
@@ -277,7 +281,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		if create {
 			h.ChatEcho(msg.ConvID, "You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", repo)
 		} else {
-			h.ChatEcho(msg.ConvID, "You aren't subscribed to notifications for %s!", repo)
+			h.ChatEcho(msg.ConvID, "You aren't subscribed to notifications for `%s`!", repo)
 		}
 		return nil
 	}
@@ -288,7 +292,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 			return fmt.Errorf("error creating branch subscription: %s", err)
 		}
 
-		h.ChatEcho(msg.ConvID, "Now subscribed to commits on %s/%s.", repo, branch)
+		h.ChatEcho(msg.ConvID, "Now subscribed to commits on `%s/%s`.", repo, branch)
 		return nil
 	}
 	err = h.db.UnwatchBranch(msg.ConvID, repo, branch)
@@ -296,7 +300,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		return fmt.Errorf("error deleting branch subscription: %s", err)
 	}
 
-	h.ChatEcho("Okay, you won't receive notifications for commits in %s/%s.", repo, branch)
+	h.ChatEcho("Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
 	return nil
 }
 
