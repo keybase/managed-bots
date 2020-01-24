@@ -108,27 +108,3 @@ func FormatTimeRange(
 		}
 	}
 }
-
-// TODO(marcel): implement backoff for api calls
-//func GoogleAPIBackoff(operation func() error) error {
-//	var operationErr error
-//	err := backoff.Retry(func() error {
-//		operationErr = operation()
-//		switch err := operationErr.(type) {
-//		case *googleapi.Error:
-//			switch err.Code {
-//			case 403, 404, 500:
-//				return err // fail (keep trying)
-//			}
-//			return nil // retrying won't fix the error, return
-//		default:
-//			return operationErr // fail (keep trying)
-//		}
-//	}, backoff.NewExponentialBackOff())
-//	if err != nil {
-//		return err
-//	}
-//	return operationErr
-//}
-
-// TODO(marcel): sanitize method for kb messages
