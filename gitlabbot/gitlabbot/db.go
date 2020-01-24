@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"database/sql"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
 	"github.com/keybase/managed-bots/base"
@@ -25,10 +26,9 @@ func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch stri
 		_, err := tx.Exec(`
 			INSERT INTO subscriptions
 			(conv_id, repo, branch, oauth_identifier)
-			VALUES
+			VALUES (?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 			oauth_identifier=VALUES(oauth_identifier)
-			(?, ?, ?, ?)
 		`, convID, repo, branch, oauthIdentifier)
 		return err
 	})

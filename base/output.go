@@ -58,7 +58,7 @@ func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...inte
 
 func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	d.Errorf(msg, args...)
-	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
+	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil {
 		d.Debug("ChatErrorf: failed to send error message: %s", err)
 	}
 }
