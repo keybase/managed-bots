@@ -47,7 +47,7 @@ func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string) error {
 func (d *DB) WatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT IGNORE INTO branches 
+			INSERT IGNORE INTO branches
 			(conv_id, repo, branch)
 			VALUES
 			(?, ?, ?)
@@ -155,7 +155,7 @@ type Features struct {
 func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT INTO features 
+			INSERT INTO features
 			(conv_id, repo, issues, pull_requests, commits, statuses)
 			VALUES
 			(?, ?, ?, ?, ?, ?)
@@ -179,13 +179,7 @@ func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error)
 	case nil:
 		return features, nil
 	case sql.ErrNoRows:
-		// if we don't have features saved for a user, return default feature set
-		return &Features{
-			Issues:       true,
-			PullRequests: true,
-			Commits:      true,
-			Statuses:     true,
-		}, nil
+		return nil, nil
 	default:
 		return nil, err
 	}
@@ -269,7 +263,7 @@ func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserP
 
 func (d *DB) SetUserPreferences(username string, convID chat1.ConvIDStr, prefs *UserPreferences) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO user_prefs 
+		_, err := tx.Exec(`INSERT INTO user_prefs
 		(username, conv_id, mention)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
