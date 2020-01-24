@@ -26,6 +26,8 @@ func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch stri
 			INSERT INTO subscriptions
 			(conv_id, repo, branch, oauth_identifier)
 			VALUES
+			ON DUPLICATE KEY UPDATE
+			oauth_identifier=VALUES(oauth_identifier)
 			(?, ?, ?, ?)
 		`, convID, repo, branch, oauthIdentifier)
 		return err

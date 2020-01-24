@@ -8,7 +8,6 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"golang.org/x/oauth2"
 )
 
 type Handler struct {
@@ -16,8 +15,6 @@ type Handler struct {
 
 	kbc        *kbchat.API
 	db         *DB
-	requests   *base.OAuthRequests
-	config     *oauth2.Config
 	httpPrefix string
 	secret     string
 }
@@ -25,13 +22,11 @@ type Handler struct {
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, requests *base.OAuthRequests, config *oauth2.Config, httpPrefix string, secret string) *Handler {
+	db *DB, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
-		requests:    requests,
-		config:      config,
 		httpPrefix:  httpPrefix,
 		secret:      secret,
 	}
@@ -110,7 +105,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 
 			_, err = h.kbc.SendMessageByConvID(msg.ConvID, formatSetupInstructions(args[0], msg, h.httpPrefix, h.secret))
 			if err != nil {
-				err = fmt.Errorf("error sending message: %s", err)
+				return fmt.Errorf("error sending message: %s", err)
 			}
 
 			return nil

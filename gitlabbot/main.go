@@ -15,8 +15,6 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"golang.org/x/oauth2"
-	oauth2gitlab "golang.org/x/oauth2/gitlab"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -100,9 +98,9 @@ Unsubscribe from a specific branch:%s
 	}
 }
 
-func (s *BotServer) getConfig() (webhookSecret string, clientID string, clientSecret string, err error) {
-	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
-		return s.opts.WebhookSecret, s.opts.OAuthClientID, s.opts.OAuthClientSecret, nil
+func (s *BotServer) getConfig() (webhookSecret string, err error) {
+	if s.opts.WebhookSecret != "" {
+		return s.opts.WebhookSecret, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
 	cmd := s.opts.Command("fs", "read", path)
@@ -110,20 +108,18 @@ func (s *BotServer) getConfig() (webhookSecret string, clientID string, clientSe
 	cmd.Stdout = &out
 	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
-		return "", "", "", err
+		return "", err
 	}
 
 	var j struct {
 		WebhookSecret string `json:"webhook_secret"`
-		ClientID      string `json:"client_id"`
-		ClientSecret  string `json:"client_secret"`
 	}
 
 	if err := json.Unmarshal(out.Bytes(), &j); err != nil {
-		return "", "", "", err
+		return "", err
 	}
 
-	return j.WebhookSecret, j.ClientID, j.ClientSecret, nil
+	return j.WebhookSecret, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -131,7 +127,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	secret, clientID, clientSecret, err := s.getConfig()
+	secret, err := s.getConfig()
 	if err != nil {
 		s.Errorf("failed to get configuration: %s", err)
 		return
@@ -151,19 +147,9 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to announce self: %s", err)
 	}
 
-	// If changing scopes, wipe tokens from DB
-	config := &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Scopes:       []string{"api"},
-		Endpoint:     oauth2gitlab.Endpoint,
-		RedirectURL:  s.opts.HTTPPrefix + "/gitlabbot/oauth",
-	}
-
-	requests := &base.OAuthRequests{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := gitlabbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix, secret)
-	httpSrv := gitlabbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, secret)
+	handler := gitlabbot.NewHandler(s.kbc, debugConfig, db, s.opts.HTTPPrefix, secret)
+	httpSrv := gitlabbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, secret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
@@ -185,8 +171,6 @@ func mainInner() int {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	fs.StringVar(&opts.WebhookSecret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
-	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitLab OAuth2 client ID")
-	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitLab OAuth2 client secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}
