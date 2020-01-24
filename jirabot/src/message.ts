@@ -129,7 +129,7 @@ const getProject = async (
 >> => {
   const teamChannelConfigRet = await context.configs.getTeamChannelConfig(
     messageContext.teamName,
-    messageContext.channelName
+    messageContext.conversationId
   )
   let teamChannelConfig: Configs.TeamChannelConfig
   if (teamChannelConfigRet.type === Errors.ReturnType.Error) {
