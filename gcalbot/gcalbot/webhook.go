@@ -118,6 +118,75 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(200)
 }
 
+func (h *Handler) createSubscription(
+	srv *calendar.Service, subscription Subscription,
+) (exists bool, err error) {
+	exists, err = h.db.ExistsSubscription(subscription)
+	if err != nil || exists {
+		// if no error, subscription exists, short circuit
+		return exists, err
+	}
+
+	err = h.createEventChannel(srv, subscription.AccountID, subscription.CalendarID)
+	if err != nil {
+		return exists, err
+	}
+
+	err = h.db.InsertSubscription(subscription)
+	if err != nil {
+		return exists, err
+	}
+
+	return false, nil
+}
+
+func (h *Handler) removeSubscription(
+	srv *calendar.Service, subscription Subscription,
+) (exists bool, err error) {
+	exists, err = h.db.DeleteSubscription(subscription)
+	if err != nil || !exists {
+		// if no error, subscription doesn't exist, short circuit
+		return exists, err
+	}
+
+	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(subscription.AccountID, subscription.CalendarID)
+	if err != nil {
+		return exists, err
+	}
+
+	if subscriptionCount == 0 {
+		// if there are no more subscriptions for this account + calendar, remove the channel
+		channel, err := h.db.GetChannelByAccountAndCalendarID(subscription.AccountID, subscription.CalendarID)
+		if err != nil {
+			return exists, err
+		}
+
+		if channel != nil {
+			err = srv.Channels.Stop(&calendar.Channel{
+				Id:         channel.ChannelID,
+				ResourceId: channel.ResourceID,
+			}).Do()
+			switch err := err.(type) {
+			case nil:
+			case *googleapi.Error:
+				if err.Code != 404 {
+					return exists, err
+				}
+				// if the channel wasn't found, don't return
+			default:
+				return exists, err
+			}
+
+			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
+			if err != nil {
+				return exists, err
+			}
+		}
+	}
+
+	return true, nil
+}
+
 func (h *Handler) createEventChannel(
 	srv *calendar.Service,
 	accountID, calendarID string,

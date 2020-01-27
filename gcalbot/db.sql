@@ -40,10 +40,12 @@ CREATE TABLE `channel` (
 DROP TABLE IF EXISTS `subscription`;
 
 CREATE TABLE `subscription` (
-    `account_id` varchar(128) NOT NULL,         -- id for kb & google account (references account table)
-    `calendar_id` varchar(128) NOT NULL,        -- google calendar id that this subscription is for
-    `type` ENUM ('invite'),                     -- type of subscription
-    PRIMARY KEY (`account_id`, `calendar_id`),
+    `account_id` varchar(128) NOT NULL,             -- id for kb & google account (references account table)
+    `calendar_id` varchar(128) NOT NULL,            -- google calendar id that this subscription is for
+    `keybase_channel` varchar(128) NOT NULL,        -- channel that is subscribed to notifications
+    `minutes_before` int(11) NOT NULL DEFAULT 0,    -- minutes until event that a notification should be sent (for reminder)
+    `type` ENUM ('invite', 'reminder'),             -- type of subscription
+    PRIMARY KEY (`account_id`, `calendar_id`, `keybase_channel`, `minutes_before`, `type`),
     FOREIGN KEY (`account_id`) REFERENCES account(`account_id`),
     FOREIGN KEY (`account_id`, `calendar_id`) REFERENCES channel(`account_id`, `calendar_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

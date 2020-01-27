@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/api/googleapi"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
@@ -42,9 +40,9 @@ func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
-	accountID := GetAccountID(username, accountNickname)
+	accountID := GetAccountID(keybaseUsername, accountNickname)
 
 	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.requests, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
@@ -63,25 +61,15 @@ func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	subscription := Subscription{
-		AccountID:  accountID,
-		CalendarID: primaryCalendar.Id,
-		Type:       SubscriptionTypeInvite,
-	}
-
-	exists, err := h.db.ExistsSubscription(subscription)
+	exists, err := h.createSubscription(srv, Subscription{
+		AccountID:      accountID,
+		CalendarID:     primaryCalendar.Id,
+		KeybaseChannel: keybaseUsername,
+		MinutesBefore:  0,
+		Type:           SubscriptionTypeInvite,
+	})
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
-		return err
-	}
-
-	err = h.createEventChannel(srv, accountID, primaryCalendar.Id)
-	if err != nil {
-		return err
-	}
-
-	err = h.db.InsertSubscription(subscription)
-	if err != nil {
 		return err
 	}
 
@@ -122,49 +110,16 @@ func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) 
 		return err
 	}
 
-	exists, err := h.db.DeleteSubscription(Subscription{
-		AccountID:  accountID,
-		CalendarID: primaryCalendar.Id,
-		Type:       SubscriptionTypeInvite,
+	exists, err := h.removeSubscription(srv, Subscription{
+		AccountID:      accountID,
+		CalendarID:     primaryCalendar.Id,
+		KeybaseChannel: keybaseUsername,
+		MinutesBefore:  0,
+		Type:           SubscriptionTypeInvite,
 	})
 	if err != nil || !exists {
 		// if no error, subscription doesn't exist, short circuit
 		return err
-	}
-
-	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(accountID, primaryCalendar.Id)
-	if err != nil {
-		return err
-	}
-
-	if subscriptionCount == 0 {
-		// if there are no more subscriptions for this account + calendar, remove the channel
-		channel, err := h.db.GetChannelByAccountAndCalendarID(accountID, primaryCalendar.Id)
-		if err != nil {
-			return err
-		}
-
-		if channel != nil {
-			err = srv.Channels.Stop(&calendar.Channel{
-				Id:         channel.ChannelID,
-				ResourceId: channel.ResourceID,
-			}).Do()
-			switch err := err.(type) {
-			case nil:
-			case *googleapi.Error:
-				if err.Code != 404 {
-					return err
-				}
-				// if the channel wasn't found, don't return
-			default:
-				return err
-			}
-
-			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	h.ChatEcho(msg.ConvID,
