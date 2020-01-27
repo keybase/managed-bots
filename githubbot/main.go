@@ -57,6 +57,9 @@ const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
+	
+Running this command without a branch or event type will subscribe you to all events on the specified repository's default branch.
+
 Event type must be one of %sissues, pulls, commits, statuses%s
 
 Examples:%s
@@ -65,7 +68,10 @@ Examples:%s
 !github subscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
-	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
+	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation. 
+	
+Running this command without a branch or event type will unsubscribe you from all events on the specified repository.
+
 Event type must be one of %sissues, pulls, commits, statuses%s
 
 Examples:%s
@@ -102,7 +108,7 @@ Examples:%s
 		},
 		{
 			Name:        "github mentions",
-			Description: "Enable or disable mentions in GitHub events for your username.",
+			Description: "Enable or disable mentions in GitHub events for your username in the current conversation.",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       `*!github mentions* <disable/enable>`,
 				DesktopBody: mentionsExtended,
