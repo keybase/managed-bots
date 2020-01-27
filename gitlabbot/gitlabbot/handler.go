@@ -32,7 +32,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hi! I can notify you whenever something happens on a GitLab repository. To get started, set up a repository by sending `!gitlab subscribe <username/repo>`"
+	welcomeMsg := "Hi! I can notify you whenever something happens on a GitLab repository. To get started, set up a repository by sending `!gitlab subscribe <owner/repo>`"
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 

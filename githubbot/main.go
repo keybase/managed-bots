@@ -86,7 +86,7 @@ Examples:%s
 			Name:        "github subscribe",
 			Description: "Enable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github subscribe* <username/repo> [branch or event type]`,
+				Title:       `*!github subscribe* <owner/repo> [branch or event type]`,
 				DesktopBody: subExtended,
 				MobileBody:  subExtended,
 			},
@@ -95,7 +95,7 @@ Examples:%s
 			Name:        "github unsubscribe",
 			Description: "Disable updates from GitHub repos",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!github unsubscribe* <username/repo> [branch or event type]`,
+				Title:       `*!github unsubscribe* <owner/repo> [branch or event type]`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
 			},
