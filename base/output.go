@@ -43,6 +43,7 @@ func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
 		d.Debug("Errorf: Unable to report error to chat, errReportConv: %v, kbc: %v",
 			d.config.ErrReportConv, d.config.KBC)
 	} else {
+		msg = fmt.Sprintf("```%s```", msg)
 		if err := SendByConvNameOrID(d.config.KBC, d.config.ErrReportConv, msg, args...); err != nil {
 			d.Debug("Errorf: failed to send error message: %s", err)
 		}
