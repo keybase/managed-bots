@@ -146,7 +146,7 @@ func (s *session) getToken(forceAPI bool) (token string, err error) {
 		err = errForceAPI
 	}
 	if err != nil {
-		s.Errorf("getToken: failed to get token from DB: %s", err)
+		s.Debug("getToken: failed to get token from DB: %s", err)
 		if token, err = s.getAPIToken(); err != nil {
 			s.ChatErrorf(s.convID, "getToken: failed to get token from API: %s", err)
 			return "", err
