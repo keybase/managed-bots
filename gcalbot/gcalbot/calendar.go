@@ -2,7 +2,6 @@ package gcalbot
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"google.golang.org/api/calendar/v3"
@@ -14,10 +13,7 @@ import (
 
 func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
-		_, err := h.kbc.SendMessageByConvID(msg.ConvID, "Invalid number of arguments.")
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
+		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
 	}
 
@@ -42,11 +38,8 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 	}
 
 	if len(calendarList) == 0 {
-		_, err = h.kbc.SendMessageByConvID(msg.ConvID,
+		h.ChatEcho(msg.ConvID,
 			"There are no calendars associated with the account '%s'.", accountNickname)
-		if err != nil {
-			return fmt.Errorf("error sending message: %s", err)
-		}
 		return nil
 	}
 
@@ -60,10 +53,7 @@ func (h *Handler) handleListCalendars(msg chat1.MsgSummary, args []string) error
 	}
 
 	calendarListMessage := "Here are the calendars associated with the account '%s':" + strings.Repeat("\n• %s", len(calendarList))
-	_, err = h.kbc.SendMessageByConvID(msg.ConvID, calendarListMessage, data...)
-	if err != nil {
-		return fmt.Errorf("error sending message: %s", err)
-	}
+	h.ChatEcho(msg.ConvID, calendarListMessage, data...)
 	return nil
 }
 
