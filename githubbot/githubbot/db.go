@@ -168,7 +168,7 @@ func (f *Features) String() string {
 		res = append(res, "commits")
 	}
 	if f.Statuses {
-		res = append(res, "status")
+		res = append(res, "commit statuses")
 	}
 	if len(res) == 0 {
 		return "no events"
