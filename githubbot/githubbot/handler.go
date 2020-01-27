@@ -46,7 +46,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := fmt.Sprintf(
-		"Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <username/repo>`\n\ngithub.com/apps/%s/installations/new",
+		"Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <owner/repo>`\n\ngithub.com/apps/%s/installations/new",
 		h.appName,
 	)
 	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
@@ -105,9 +105,9 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	args := toks[2:]
 	if len(args) < 1 {
 		if create {
-			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github subscribe <username/repo>`")
+			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github subscribe <owner/repo>`")
 		} else {
-			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github unsubscribe <username/repo>`")
+			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github unsubscribe <owner/repo>`")
 		}
 		return nil
 	}
@@ -177,14 +177,14 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, client *github.Client) (err error) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
-		h.ChatEcho(msg.ConvID, "`%s` doesn't look like a repository to me! Try sending `!github subscribe <username/repo>`", repo)
+		h.ChatEcho(msg.ConvID, "`%s` doesn't look like a repository to me! Try sending `!github subscribe <owner/repo>`", repo)
 		return nil
 	}
 	repoInstallation, res, err := client.Apps.FindRepositoryInstallation(context.TODO(), parsedRepo[0], parsedRepo[1])
 	if err != nil {
 		switch res.StatusCode {
 		case http.StatusNotFound:
-			h.ChatEcho(msg.ConvID, "I couldn't subscribe to updates on `%s`! Make sure the app is installed on your repository, and that the repository exists.", repo)
+			h.ChatEcho(msg.ConvID, "I couldn't subscribe to updates on `%s`! Make sure the Keybase integration is installed on your repository, and that the repository exists.\n\ngithub.com/apps/%s/installations/new", repo, h.appName)
 			return nil
 		default:
 			return fmt.Errorf("error getting installation: %s", err)
