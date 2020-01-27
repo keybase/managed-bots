@@ -65,7 +65,8 @@ Event type must be one of %sissues, pulls, commits, statuses%s
 Examples:%s
 !github subscribe keybase/client
 !github subscribe microsoft/typescript pulls
-!github subscribe facebook/react gh-pages%s`,
+!github subscribe facebook/react gh-pages
+!github subscribe --list%s`,
 		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation. 
@@ -80,7 +81,7 @@ Examples:%s
 !github unsubscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
-	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username. 
+	mentionsExtended := fmt.Sprintf(`Enables or disables mentions in GitHub events that involve your proven GitHub username.
 
 Examples:%s
 !github mentions disable
