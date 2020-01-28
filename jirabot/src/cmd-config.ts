@@ -64,8 +64,11 @@ const replyChat = async (
   }
 }
 
-const channelConfigToMessageBody = (channelConfig: Configs.TeamChannelConfig) =>
-  `Current config for this channel:
+const channelConfigToMessageBody = (
+  channelConfig: Configs.TeamChannelConfig,
+  opening: string
+) =>
+  `${opening}
 
 *defaultNewIssueProject:* ${channelConfig.defaultNewIssueProject ||
     '<undefined>'}
@@ -83,7 +86,7 @@ const handleChannelConfig = async (
   loop: for (let attempt = 0; attempt < 2; ++attempt) {
     const oldConfigRet = await context.configs.getTeamChannelConfig(
       parsedMessage.context.teamName,
-      parsedMessage.context.channelName
+      parsedMessage.context.conversationId
     )
     let oldCachedConfig = undefined
     let newConfigBase = undefined
@@ -108,12 +111,23 @@ const handleChannelConfig = async (
     }
 
     if (!parsedMessage.toSet) {
-      oldCachedConfig &&
-        replyChat(
-          context,
-          parsedMessage,
-          channelConfigToMessageBody(oldCachedConfig.config)
-        )
+      oldCachedConfig
+        ? replyChat(
+            context,
+            parsedMessage,
+            channelConfigToMessageBody(
+              oldCachedConfig.config,
+              'Current config for this channel:'
+            )
+          )
+        : replyChat(
+            context,
+            parsedMessage,
+            channelConfigToMessageBody(
+              Configs.emptyTeamChannelConfig,
+              'You do not have any configuration specific to this channel yet. Available configurations:'
+            )
+          )
       return Errors.makeResult(undefined)
     }
 
@@ -132,12 +146,13 @@ const handleChannelConfig = async (
       )
       return Errors.makeError(undefined)
     }
+    const newConfig = newConfigRet.result
 
     const updateRet = await context.configs.updateTeamChannelConfig(
       parsedMessage.context.teamName,
-      parsedMessage.context.channelName,
+      parsedMessage.context.conversationId,
       oldCachedConfig,
-      newConfigRet.result
+      newConfig
     )
     if (updateRet.type === Errors.ReturnType.Error) {
       switch (updateRet.error.type) {
@@ -154,6 +169,14 @@ const handleChannelConfig = async (
           let _: never = updateRet.error
       }
     } else {
+      replyChat(
+        context,
+        parsedMessage,
+        channelConfigToMessageBody(
+          newConfig,
+          'Channel configuration successfully updated. Current configuration for this channel:'
+        )
+      )
       return Errors.makeResult(undefined)
     }
   }

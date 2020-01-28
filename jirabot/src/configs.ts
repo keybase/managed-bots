@@ -1,6 +1,7 @@
 import Bot from 'keybase-bot'
 import {BotConfig} from './bot-config'
 import * as Errors from './errors'
+import * as ChatTypes from 'keybase-bot/lib/types/chat1'
 
 // namespace: jirabot-v1-team-[teamname]; key: jiraConfig
 export type TeamJiraConfig = Readonly<{
@@ -19,7 +20,7 @@ export type TeamUserConfig = Readonly<{
   tokenSecret: string
 }>
 
-// namespace: jirabot-v1-team-[teamname]; key: channel-[channelname]
+// namespace: jirabot-v1-team-[teamname]; key: channel-[conversationId]
 export type TeamChannelConfig = Readonly<{
   defaultNewIssueProject?: string
 }>
@@ -31,8 +32,8 @@ export const emptyTeamChannelConfig: TeamChannelConfig = {
 const getNamespace = (teamname: string): string => `jirabot-v1-team-${teamname}`
 const jiraConfigKey = 'jiraConfig'
 const getTeamUserConfigKey = (username: string) => `user-${username}`
-const getTeamChannelConfigKey = (channelName: string) =>
-  `channel-${channelName}`
+const getTeamChannelConfigKey = (conversationId: ChatTypes.ConvIDStr) =>
+  `channel-${conversationId}`
 
 const jsonToTeamJiraConfig = (
   objectFromJson: any
@@ -261,7 +262,7 @@ export default class Configs {
 
   async getTeamChannelConfig(
     teamname: string,
-    channelName: string
+    conversationId: ChatTypes.ConvIDStr
   ): Promise<
     Errors.ResultOrError<
       CachedConfig<TeamChannelConfig>,
@@ -271,7 +272,7 @@ export default class Configs {
     return await this.getFromCacheOrKVStore(
       this.cache.teamChannelConfigs,
       getNamespace(teamname),
-      getTeamChannelConfigKey(channelName),
+      getTeamChannelConfigKey(conversationId),
       jsonToTeamChannelConfig
     )
   }
@@ -317,7 +318,7 @@ export default class Configs {
 
   async updateTeamChannelConfig(
     teamname: string,
-    channelName: string,
+    conversationId: ChatTypes.ConvIDStr,
     oldConfig: CachedConfig<TeamChannelConfig> | undefined,
     newConfig: TeamChannelConfig
   ): Promise<
@@ -329,7 +330,7 @@ export default class Configs {
     return await this.updateToCacheAndKVStore(
       this.cache.teamChannelConfigs,
       getNamespace(teamname),
-      getTeamChannelConfigKey(channelName),
+      getTeamChannelConfigKey(conversationId),
       oldConfig,
       newConfig
     )
