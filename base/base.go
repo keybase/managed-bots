@@ -162,7 +162,10 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 			}
 		}
 
-		if err := handler.HandleCommand(msg); err != nil {
+		err = handler.HandleCommand(msg)
+		switch err := err.(type) {
+		case nil, OAuthRequiredError:
+		default:
 			s.ChatErrorf(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
 		}
 	}

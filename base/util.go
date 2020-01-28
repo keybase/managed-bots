@@ -280,8 +280,18 @@ func SplitTokens(cmd string) (tokens []string, userErrorMessage string, err erro
 	}
 }
 
-func IsDirectPrivateMessage(msg chat1.MsgSummary) bool {
-	return msg.Channel.MembersType != "team" &&
-		(msg.Sender.Username == msg.Channel.Name ||
-			len(strings.Split(msg.Channel.Name, ",")) == 2)
+func IsDirectPrivateMessage(ownUsername string, msg chat1.MsgSummary) bool {
+	if msg.Channel.MembersType == "team" {
+		return false
+	}
+	if msg.Sender.Username == msg.Channel.Name {
+		return true
+	}
+	if len(strings.Split(msg.Channel.Name, ",")) == 2 {
+		if strings.Contains(msg.Channel.Name, ownUsername+",") ||
+			strings.Contains(msg.Channel.Name, ","+ownUsername) {
+			return true
+		}
+	}
+	return false
 }

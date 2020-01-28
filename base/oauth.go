@@ -213,7 +213,7 @@ func GetOAuthClient(
 		}
 
 		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-		if !IsDirectPrivateMessage(callbackMsg) {
+		if !IsDirectPrivateMessage(kbc.GetUsername(), callbackMsg) {
 			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", callbackMsg.Sender.Username)
 			if err != nil {

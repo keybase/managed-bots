@@ -32,7 +32,7 @@ const (
 )
 
 func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) error {
-	if !base.IsDirectPrivateMessage(msg) {
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
 	}
@@ -91,7 +91,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 }
 
 func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) error {
-	if !base.IsDirectPrivateMessage(msg) {
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
 	}

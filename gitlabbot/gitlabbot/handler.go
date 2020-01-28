@@ -98,7 +98,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
-			if !base.IsDirectPrivateMessage(msg) {
+			if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 				h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 			}
 			return nil
@@ -146,7 +146,7 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
-			if !base.IsDirectPrivateMessage(msg) {
+			if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 				h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 			}
 		} else {
