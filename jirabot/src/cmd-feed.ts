@@ -71,7 +71,9 @@ const subscribe = async (
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
-      Errors.makeUnknownError(err).error
+      err.statusCode === 403
+        ? {type: Errors.ErrorType.JiraNoPermission}
+        : Errors.makeUnknownError(err).error
     )
     return Errors.makeError(undefined)
   }
@@ -122,7 +124,9 @@ const unsubscribe = async (
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
-      Errors.makeUnknownError(err).error
+      err.statusCode === 403
+        ? {type: Errors.ErrorType.JiraNoPermission}
+        : Errors.makeUnknownError(err).error
     )
     return Errors.makeError(undefined)
   }
