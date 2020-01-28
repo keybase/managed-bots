@@ -49,6 +49,31 @@ const updateTeamJiraSubscriptions = async (
   return Errors.makeUnknownError('update kvstore failed')
 }
 
+const reportJiraError = (
+  context: Context,
+  messageContext: Message.MessageContext,
+  err: any
+) => {
+  let statusCode = undefined
+  if (typeof err.statusCode === 'number') {
+    statusCode = err.statusCode
+  } else {
+    try {
+      const obj = JSON.parse(err)
+      if (typeof obj.statusCode === 'number') {
+        statusCode = obj.statusCode
+      }
+    } catch {}
+  }
+  Errors.reportErrorAndReplyChat(
+    context,
+    messageContext,
+    statusCode === 403
+      ? {type: Errors.ErrorType.JiraNoPermission}
+      : Errors.makeUnknownError(err).error
+  )
+}
+
 const subscribe = async (
   context: Context,
   parsedMessage: Message.FeedSubscribeMessage,
@@ -68,13 +93,7 @@ const subscribe = async (
       `${context.botConfig.httpAddressPrefix}${Constants.jiraWebhookPathname}?team=${parsedMessage.context.teamName}&urlToken=${urlToken}`
     )
   } catch (err) {
-    Errors.reportErrorAndReplyChat(
-      context,
-      parsedMessage.context,
-      err.statusCode === 403
-        ? {type: Errors.ErrorType.JiraNoPermission}
-        : Errors.makeUnknownError(err).error
-    )
+    reportJiraError(context, parsedMessage.context, err)
     return Errors.makeError(undefined)
   }
 
@@ -121,13 +140,7 @@ const unsubscribe = async (
   try {
     await jira.unsubscribe(parsedMessage.webhookID)
   } catch (err) {
-    Errors.reportErrorAndReplyChat(
-      context,
-      parsedMessage.context,
-      err.statusCode === 403
-        ? {type: Errors.ErrorType.JiraNoPermission}
-        : Errors.makeUnknownError(err).error
-    )
+    reportJiraError(context, parsedMessage.context, err)
     return Errors.makeError(undefined)
   }
   const updateRet = await updateTeamJiraSubscriptions(
