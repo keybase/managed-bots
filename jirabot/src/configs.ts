@@ -29,11 +29,24 @@ export const emptyTeamChannelConfig: TeamChannelConfig = {
   defaultNewIssueProject: undefined,
 }
 
+type TeamJiraSubscription = {
+  conversationId: string
+  urlToken: string
+  jql: string
+}
+export type TeamJiraSubscriptions = Readonly<
+  Map<
+    number, // webhookID
+    TeamJiraSubscription
+  >
+>
+
 const getNamespace = (teamname: string): string => `jirabot-v1-team-${teamname}`
 const jiraConfigKey = 'jiraConfig'
 const getTeamUserConfigKey = (username: string) => `user-${username}`
 const getTeamChannelConfigKey = (conversationId: ChatTypes.ConvIDStr) =>
   `channel-${conversationId}`
+const jiraSubscriptionsKey = 'jiraSubscriptions'
 
 const jsonToTeamJiraConfig = (
   objectFromJson: any
@@ -90,6 +103,36 @@ const jsonToTeamChannelConfig = (
   } as TeamChannelConfig
 }
 
+const jsonToTeamJiraSubscriptions = (
+  objectFromJson: any
+): TeamJiraSubscriptions | undefined => {
+  if (!Array.isArray(objectFromJson)) {
+    return undefined
+  }
+  const subscriptions = new Map<number, TeamJiraSubscription>()
+  objectFromJson.forEach(([key, value]) => {
+    if (
+      typeof key !== 'number' ||
+      typeof value !== 'object' ||
+      typeof value.conversationId !== 'string' ||
+      typeof value.urlToken !== 'string' ||
+      typeof value.jql !== 'string'
+    ) {
+      return
+    }
+    subscriptions.set(key, {
+      conversationId: value.conversationId,
+      urlToken: value.urlToken,
+      jql: value.jql,
+    } as TeamJiraSubscription)
+  })
+  return subscriptions
+}
+
+const teamJiraSubscriptionsToJson = (
+  teamJiraSubscriptions: TeamJiraSubscriptions
+): string => JSON.stringify([...teamJiraSubscriptions.entries()])
+
 export type CachedConfig<T> = Readonly<{
   _revision: number
   _timestamp: number
@@ -111,6 +154,10 @@ export default class Configs {
     teamJiraConfigs: new Map<string, CachedConfig<TeamJiraConfig>>(),
     teamUserConfigs: new Map<string, CachedConfig<TeamUserConfig>>(),
     teamChannelConfigs: new Map<string, CachedConfig<TeamChannelConfig>>(),
+    teamJiraSubscriptions: new Map<
+      string,
+      CachedConfig<TeamJiraSubscriptions>
+    >(),
   }
   private bot: Bot
   private botConfig: BotConfig
@@ -181,7 +228,8 @@ export default class Configs {
     namespace: string,
     entryKey: string,
     oldConfig: CachedConfig<T> | undefined,
-    newConfig: T
+    newConfig: T,
+    configSerializer?: (config: T) => string
   ): Promise<
     Errors.ResultOrError<
       undefined,
@@ -189,7 +237,9 @@ export default class Configs {
     >
   > {
     try {
-      const entryValue = JSON.stringify(newConfig)
+      const entryValue = configSerializer
+        ? configSerializer(newConfig)
+        : JSON.stringify(newConfig)
       const res = await this.bot.kvstore.put(
         `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`,
         namespace,
@@ -277,6 +327,22 @@ export default class Configs {
     )
   }
 
+  async getTeamJiraSubscriptions(
+    teamname: string
+  ): Promise<
+    Errors.ResultOrError<
+      CachedConfig<TeamJiraSubscriptions>,
+      Errors.KVStoreNotFoundError | Errors.UnknownError
+    >
+  > {
+    return await this.getFromCacheOrKVStore(
+      this.cache.teamJiraSubscriptions,
+      getNamespace(teamname),
+      jiraSubscriptionsKey,
+      jsonToTeamJiraSubscriptions
+    )
+  }
+
   async updateTeamJiraConfig(
     teamname: string,
     oldConfig: CachedConfig<TeamJiraConfig> | undefined,
@@ -333,6 +399,26 @@ export default class Configs {
       getTeamChannelConfigKey(conversationId),
       oldConfig,
       newConfig
+    )
+  }
+
+  async updateTeamJiraSubscriptions(
+    teamname: string,
+    oldConfig: CachedConfig<TeamJiraSubscriptions> | undefined,
+    newConfig: TeamJiraSubscriptions
+  ): Promise<
+    Errors.ResultOrError<
+      undefined,
+      Errors.KVStoreRevisionError | Errors.UnknownError
+    >
+  > {
+    return await this.updateToCacheAndKVStore(
+      this.cache.teamJiraSubscriptions,
+      getNamespace(teamname),
+      jiraSubscriptionsKey,
+      oldConfig,
+      newConfig,
+      teamJiraSubscriptionsToJson
     )
   }
 }

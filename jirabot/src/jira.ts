@@ -16,7 +16,21 @@ export type Issue = {
   url: string
 }
 
-class JiraClientWrapper {
+export enum JiraSubscriptionEvents {
+  Unknown = 'unknown',
+  IssueCreated = 'jira:issue_created',
+  IssueUpdated = 'jira:issue_updated',
+  // disabled events:
+  //
+  // IssueDeleted = 'jira:issue_deleted',
+  // CommentCreated = 'comment_created',
+  // CommentUpdated = 'comment_updated',
+  // CommentDeleted = 'comment_deleted',
+  // IssuePropertySet = 'issue_property_set',
+  // IssuePropertyDeleted = 'issue_property_deleted',
+}
+
+export class JiraClientWrapper {
   private jiraClient: JiraClient
   private jiraHost: string
 
@@ -143,7 +157,36 @@ class JiraClientWrapper {
       .getAllStatuses()
       .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
   }
+
+  subscribe(
+    jqlFilter: string,
+    events: Array<JiraSubscriptionEvents>,
+    url: string
+  ): Promise<number> {
+    logger.debug({
+      msg: 'subscribe',
+    })
+    return this.jiraClient.webhook
+      .createWebhook({
+        url,
+        webhooks: {
+          jqlFilter,
+          events,
+        },
+      })
+      .then(
+        (res?: {webhookRegistrationResult?: {createdWebhookId?: number}}) =>
+          res &&
+          res.webhookRegistrationResult &&
+          res.webhookRegistrationResult.createdWebhookId
+      )
+  }
+  unsubscribe(webhookId: number): Promise<any> {
+    return this.jiraClient.webhook.deleteWebhook({webhookId})
+  }
 }
+
+export const projectToJqlFilter = (project: string) => `project = ${project}`
 
 const jiraClientCacheTimeout = 60 * 1000 // 1min
 

@@ -7,6 +7,7 @@ import CmdAuth from './cmd-auth'
 import reacji from './reacji'
 import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
+import CmdFeed from './cmd-feed'
 import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
@@ -107,6 +108,14 @@ const onMessage = async (
           : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
+      case Message.BotMessageType.Feed: {
+        reactAck(context, parsedMessage.context, kbMessage.id)
+        const {type} = await CmdFeed(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
+        return
+      }
       default:
         let _: never = parsedMessage
     }
@@ -164,6 +173,17 @@ const commands = [
     description: `Connect Jirabot to your Jira account`,
     usage: ``,
     title: 'Jira Authorization',
+  },
+  {
+    name: 'jira feed',
+    description: `Subscribe to Jira feed and receive messages on Keybase about Jira activities.`,
+    usage: `list | subscribe <project> | unsubscribe <id>`,
+    title: 'Subscribe to Jira feed',
+    body:
+      'Examples:\n\n' +
+      '!jira list' +
+      '!jira subscribe design' +
+      '!jira unsubscribe 1000',
   },
 ]
 

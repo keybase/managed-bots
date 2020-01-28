@@ -4,6 +4,7 @@ import * as Constants from './constants'
 import * as Errors from './errors'
 import * as Configs from './configs'
 import {Context} from './context'
+import * as Utils from './utils'
 
 export type OauthResult = Readonly<{
   accessToken: string
@@ -188,11 +189,7 @@ export const generateNewJiraLinkDetails = async (): Promise<Errors.ResultOrError
         }
       )
     ),
-    new Promise<string>((resolve, reject) =>
-      crypto.randomBytes(16, (err, buf) => {
-        err ? reject(err) : resolve(`keybase-jirabot-${buf.toString('hex')}`)
-      })
-    ),
+    Utils.randomString('keybase-jirabot'),
   ])
     .then(([{privateKey, publicKey}, consumerKey]) =>
       Errors.makeResult({
