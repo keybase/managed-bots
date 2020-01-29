@@ -174,7 +174,6 @@ const unsubscribe = async (
     } else {
       //
     }
-    console.log({songgao: 'getSubRet error', error: getSubRet.error})
     Errors.reportErrorAndReplyChat(
       context,
       parsedMessage.context,
@@ -184,7 +183,6 @@ const unsubscribe = async (
   }
   const subscription = getSubRet.result.config.get(parsedMessage.subscriptionID)
   if (!subscription) {
-    console.log({songgao: '!subscription'})
     // TODO better error
     return Errors.makeError(undefined)
   }
