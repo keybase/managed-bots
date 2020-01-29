@@ -109,6 +109,7 @@ export type FeedListMessage = Readonly<{
   context: MessageContext
   type: BotMessageType.Feed
   feedMessageType: FeedMessageType.List
+  allChannelsInTeam: boolean
 }>
 
 export type FeedMessage =
@@ -552,10 +553,19 @@ export const parseMessage = async (
       switch (fields[2]) {
         case undefined:
         case 'list':
+          if (fields[3] === 'all') {
+            return {
+              context: messageContext,
+              type: BotMessageType.Feed,
+              feedMessageType: FeedMessageType.List,
+              allChannelsInTeam: true,
+            }
+          }
           return {
             context: messageContext,
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.List,
+            allChannelsInTeam: false,
           }
         case 'subscribe':
           const getProjectRet = await getProject(

@@ -185,7 +185,7 @@ export default async (
       }
       context.bot.chat.send(subscription.conversationId, {
         body:
-          `${issue.issueKey} was updated ${issue.url} | [${issue.type}] ${issue.summary}\n` +
+          `Updated: [${issue.type}] ${issue.summary} | ${issue.url}\n` +
           changelogItems
             .map(item => {
               switch (item.type) {
