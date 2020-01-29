@@ -14,7 +14,6 @@ const healthCheck = (_: http.IncomingMessage, res: http.ServerResponse) => {
 
 const jiraOauthCallback = (
   parsedUrl: url.UrlWithParsedQuery,
-  req: http.IncomingMessage,
   res: http.ServerResponse
 ) => {
   const {oauth_token, oauth_verifier} = parsedUrl.query
@@ -46,6 +45,7 @@ const jiraWebhook = async (
 ) => {
   const {urlToken} = parsedUrl.query
   if (typeof urlToken !== 'string') {
+    logger.warn({msg: 'jiraWebhook', error: 'urlToken !== string'})
     res.writeHead(400)
     res.end('unexpected callback data')
     return
@@ -54,10 +54,12 @@ const jiraWebhook = async (
   const fromIndexRet = await context.configs.getJiraSubscriptionIndex(urlToken)
   if (fromIndexRet.type === Errors.ReturnType.Error) {
     if (fromIndexRet.error.type === Errors.ErrorType.KVStoreNotFound) {
+      logger.warn({msg: 'jiraWebhook', error: 'subscription index not found'})
       res.writeHead(400)
       res.end('unexpected callback data')
       return
     } else {
+      logger.warn({msg: 'jiraWebhook', error: fromIndexRet.error})
       res.writeHead(500)
       res.end()
       return
@@ -70,10 +72,12 @@ const jiraWebhook = async (
   )
   if (getSubRet.type === Errors.ReturnType.Error) {
     if (getSubRet.error.type === Errors.ErrorType.KVStoreNotFound) {
+      logger.warn({msg: 'jiraWebhook', error: 'subscription not found'})
       res.writeHead(400)
       res.end('unexpected callback data')
       return
     } else {
+      logger.warn({msg: 'jiraWebhook', error: getSubRet.error})
       res.writeHead(500)
       res.end()
       return
@@ -83,23 +87,29 @@ const jiraWebhook = async (
 
   const subscription = subscriptions.get(fromIndex.id)
   if (!subscription) {
+    logger.warn({msg: 'jiraWebhook', error: 'subscription ID not found'})
     res.writeHead(400)
     res.end('unexpected callback data')
     return
   }
-
-  console.log({songgao: 'jiraWebhook', subscription})
 
   const json = await readAll(req)
   let payload = undefined
   try {
     payload = JSON.parse(json)
-  } catch (err) {
+  } catch (error) {
+    logger.warn({msg: 'jiraWebhook', error})
     res.writeHead(400)
     res.end('unexpected callback data')
     return
   }
-  handleWebhookEvent(context, fromIndex.teamname, subscription, payload)
+
+  await handleWebhookEvent(context, fromIndex.teamname, subscription, payload)
+
+  // If it's a legit payload, just return 200 no matter we can handle it or
+  // not. This way Jira won't retry the same notification.
+  res.writeHead(200)
+  res.end()
 }
 
 export default (context: Context) =>
@@ -115,7 +125,7 @@ export default (context: Context) =>
             healthCheck(req, res)
             return
           case Constants.jiraOauthCallbackPathname:
-            jiraOauthCallback(parsedUrl, req, res)
+            jiraOauthCallback(parsedUrl, res)
             return
           case Constants.jiraWebhookPathname:
             jiraWebhook(context, parsedUrl, req, res)
