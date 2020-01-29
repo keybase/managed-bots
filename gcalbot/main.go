@@ -110,9 +110,9 @@ View your connected Google accounts using %s!gcal accounts list%s
 View existing reminder configurations using %s!gcal reminders list%s
 
 Examples:%s
-!gcal reminders subscribe personal 0
-!gcal reminders subscribe family 5
-!gcal reminders subscribe work 60%s`,
+!gcal reminders unsubscribe personal 0
+!gcal reminders unsubscribe family 5
+!gcal reminders unsubscribe work 60%s`,
 		back, back, back, back, backs, backs)
 
 	remindersListDesc := fmt.Sprintf(`Lists event reminders configured for the primary calendar of a Google account given the account connection's nickname.
