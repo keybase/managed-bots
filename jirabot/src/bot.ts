@@ -181,8 +181,8 @@ const commands = [
     title: 'Subscribe to Jira feed',
     body:
       'Examples:\n\n' +
-      '!jira list' +
-      '!jira subscribe design' +
+      '!jira list\n' +
+      '!jira subscribe design\n' +
       '!jira unsubscribe https://example.atlassian.net/rest/webhooks/1.0/webhook/123',
   },
 ]
