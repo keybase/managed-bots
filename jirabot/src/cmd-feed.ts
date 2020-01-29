@@ -264,7 +264,7 @@ const list = async (
       parsedMessage.context,
       `You have ${subscriptions.length || 'no'} active subscription${
         subscriptions.length > 1 ? 's' : ''
-      } in *this team*. Note that some of them might not be for this channel. Use \`!jira feed subscribe|unsubscribe\` to make changes.` +
+      } in *this team*. Note that some of them might not be for this channel.` +
         subscriptions.reduce(
           (str, [subscriptionID, sub]) =>
             str + `\n${subscriptionID}: ${sub.jql}`,
@@ -291,7 +291,7 @@ const list = async (
               otherChannelSubscriptions > 1 ? 's' : ''
             } in other channels of this team. Use \`!jira feed list all\` to view all.`
           : ''
-      } Use \`!jira feed subscribe|unsubscribe\` to make changes.` +
+      }` +
         channelSubscriptions.reduce(
           (str, [subscriptionID, sub]) =>
             str + `\n${subscriptionID}: ${sub.jql}`,
