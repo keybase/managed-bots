@@ -6,28 +6,13 @@ import (
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 )
 
-// reference: https://stackoverflow.com/a/39295990
-type ReminderTicker struct {
-	*time.Timer
-}
-
-func NewReminderTicker() *ReminderTicker {
-	return &ReminderTicker{time.NewTimer(getNextTickDuration())}
-}
-
-func (rt *ReminderTicker) Update() {
-	rt.Reset(getNextTickDuration())
-}
-
-func getNextTickDuration() time.Duration {
-	now := time.Now()
-	// the next tick is the following minute from now
-	nextTick := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, time.Local)
-	return nextTick.Sub(now)
-}
-
 func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
-	ticker := NewReminderTicker()
+	// sleep until the next minute so that the loop executes at the beginning of each minute
+	now := time.Now()
+	nextMinute := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, time.Local)
+	time.Sleep(nextMinute.Sub(now))
+
+	ticker := time.NewTicker(time.Minute)
 	defer func() {
 		ticker.Stop()
 		r.Debug("shutting down sendReminderLoop")
@@ -42,7 +27,6 @@ func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
 			if sendDuration.Seconds() > 15 {
 				r.Errorf("sending reminders took %s", sendDuration.String())
 			}
-			ticker.Update()
 		}
 	}
 }
