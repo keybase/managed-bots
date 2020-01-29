@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/keybase/managed-bots/gcalbot/gcalbot/reminderscheduler"
+
 	"golang.org/x/oauth2"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -276,11 +278,13 @@ func (s *BotServer) Go() (err error) {
 	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
+	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
 	eg.Go(renewScheduler.Run)
-	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler) })
+	eg.Go(reminderScheduler.Run)
+	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

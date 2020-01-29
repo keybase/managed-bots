@@ -5,16 +5,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
-	"golang.org/x/sync/errgroup"
-
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
-
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 )
 
 func (h *Handler) handleRemindersSubscribe(msg chat1.MsgSummary, args []string) error {
@@ -53,11 +48,11 @@ func (h *Handler) handleRemindersSubscribe(msg chat1.MsgSummary, args []string) 
 	}
 
 	exists, err := h.createSubscription(srv, Subscription{
-		AccountID:      accountID,
-		CalendarID:     primaryCalendar.Id,
-		KeybaseChannel: keybaseUsername,
-		MinutesBefore:  minutesBefore,
-		Type:           SubscriptionTypeReminder,
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		MinutesBefore: minutesBefore,
+		Type:          SubscriptionTypeReminder,
 	})
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
@@ -65,7 +60,7 @@ func (h *Handler) handleRemindersSubscribe(msg chat1.MsgSummary, args []string) 
 	}
 
 	h.ChatEcho(msg.ConvID, "OK, you will be reminded of events %s before they happen for your primary calendar '%s'.",
-		minutesBeforeString(minutesBefore), primaryCalendar.Id)
+		MinutesBeforeString(minutesBefore), primaryCalendar.Id)
 
 	return nil
 }
@@ -106,11 +101,11 @@ func (h *Handler) handleRemindersUnsubscribe(msg chat1.MsgSummary, args []string
 	}
 
 	exists, err := h.removeSubscription(srv, Subscription{
-		AccountID:      accountID,
-		CalendarID:     primaryCalendar.Id,
-		KeybaseChannel: keybaseUsername,
-		MinutesBefore:  minutesBefore,
-		Type:           SubscriptionTypeReminder,
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		MinutesBefore: minutesBefore,
+		Type:          SubscriptionTypeReminder,
 	})
 	if err != nil || !exists {
 		// if no error, subscription doesn't exist, short circuit
@@ -118,7 +113,7 @@ func (h *Handler) handleRemindersUnsubscribe(msg chat1.MsgSummary, args []string
 	}
 
 	h.ChatEcho(msg.ConvID, "OK, you will no longer be reminded of events %s before they happen for your primary calendar '%s'.",
-		minutesBeforeString(minutesBefore), primaryCalendar.Id)
+		MinutesBeforeString(minutesBefore), primaryCalendar.Id)
 
 	return nil
 }
@@ -150,7 +145,7 @@ func (h *Handler) handleRemindersList(msg chat1.MsgSummary, args []string) error
 		return err
 	}
 
-	minutesBeforeList, err := h.db.GetReminderMinutesBeforeList(accountID, primaryCalendar.Id, keybaseUsername)
+	minutesBeforeList, err := h.db.GetReminderMinutesBeforeList(accountID, primaryCalendar.Id, msg.ConvID)
 	if err != nil {
 		return err
 	}
@@ -163,7 +158,7 @@ func (h *Handler) handleRemindersList(msg chat1.MsgSummary, args []string) error
 
 	data := []interface{}{primaryCalendar.Summary, accountNickname}
 	for _, minutesBefore := range minutesBeforeList {
-		data = append(data, minutesBeforeString(minutesBefore))
+		data = append(data, MinutesBeforeString(minutesBefore))
 	}
 
 	calendarListMessage := "Here are the reminders associated with calendar '%s' for account '%s':" +
@@ -197,97 +192,10 @@ func parseMinutes(arg string) (minutes int, userErrorMessage string, err error) 
 	return minutesBefore, "", nil
 }
 
-func minutesBeforeString(minutesBefore int) string {
+func MinutesBeforeString(minutesBefore int) string {
 	if minutesBefore == 1 {
 		return "1 minute"
 	} else {
 		return fmt.Sprintf("%d minutes", minutesBefore)
-	}
-}
-
-type ReminderEvent struct {
-	EventID string
-}
-
-type Reminder struct {
-	Event         *ReminderEvent
-	MinutesBefore int
-}
-
-type ReminderScheduler struct {
-	*base.DebugOutput
-	sync.Mutex
-
-	shutdownCh chan struct{}
-
-	events    map[string]*ReminderEvent
-	reminders map[string][]Reminder
-}
-
-func NewReminderScheduler(
-	debugConfig *base.ChatDebugOutputConfig,
-) *ReminderScheduler {
-	return &ReminderScheduler{
-		DebugOutput: base.NewDebugOutput("ReminderScheduler", debugConfig),
-		shutdownCh:  make(chan struct{}),
-		events:      make(map[string]*ReminderEvent),
-		reminders:   make(map[string][]Reminder),
-	}
-}
-
-func (r *ReminderScheduler) Run() error {
-	r.Lock()
-	shutdownCh := r.shutdownCh
-	r.Unlock()
-	var eg errgroup.Group
-	eg.Go(func() error { return r.eventSyncLoop(shutdownCh) })
-	eg.Go(func() error { return r.sendReminderLoop(shutdownCh) })
-	if err := eg.Wait(); err != nil {
-		r.Debug("wait error: %s", err)
-		return err
-	}
-	r.Debug("shut down")
-	return nil
-}
-
-func (r *ReminderScheduler) Shutdown() error {
-	r.Lock()
-	defer r.Unlock()
-	if r.shutdownCh != nil {
-		close(r.shutdownCh)
-		r.shutdownCh = nil
-	}
-	return nil
-}
-
-func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
-	ticker := time.NewTicker(time.Hour)
-	defer func() {
-		ticker.Stop()
-		r.Debug("shutting down eventSyncLoop")
-	}()
-	for {
-		select {
-		case <-shutdownCh:
-			return nil
-		case <-ticker.C:
-			// do something
-		}
-	}
-}
-
-func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
-	ticker := time.NewTicker(time.Minute)
-	defer func() {
-		ticker.Stop()
-		r.Debug("shutting down sendReminderLoop")
-	}()
-	for {
-		select {
-		case <-shutdownCh:
-			return nil
-		case <-ticker.C:
-			// do something
-		}
 	}
 }

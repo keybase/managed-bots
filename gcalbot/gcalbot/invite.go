@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -62,11 +61,11 @@ func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) er
 	}
 
 	exists, err := h.createSubscription(srv, Subscription{
-		AccountID:      accountID,
-		CalendarID:     primaryCalendar.Id,
-		KeybaseChannel: keybaseUsername,
-		MinutesBefore:  0,
-		Type:           SubscriptionTypeInvite,
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		MinutesBefore: 0,
+		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
@@ -111,11 +110,11 @@ func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) 
 	}
 
 	exists, err := h.removeSubscription(srv, Subscription{
-		AccountID:      accountID,
-		CalendarID:     primaryCalendar.Id,
-		KeybaseChannel: keybaseUsername,
-		MinutesBefore:  0,
-		Type:           SubscriptionTypeInvite,
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		MinutesBefore: 0,
+		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || !exists {
 		// if no error, subscription doesn't exist, short circuit
@@ -129,9 +128,6 @@ func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) 
 
 func (h *Handler) sendEventInvite(srv *calendar.Service, channel *Channel, event *calendar.Event) error {
 	message := `You've been invited to %s: %s
-> What: *%s*
-> When: %s%s%s%s%s
-> Calendar: %s
 Awaiting your response. *Are you going?*`
 
 	var eventType string
@@ -141,12 +137,6 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	// strip protocol to skip unfurl prompt
-	url := strings.TrimPrefix(event.HtmlLink, "https://")
-
-	what := event.Summary
-
-	// TODO(marcel): better date formatting for recurring events
 	timezone, err := srv.Settings.Get("timezone").Do()
 	if err != nil {
 		return err
@@ -159,49 +149,6 @@ Awaiting your response. *Are you going?*`
 	if err != nil {
 		return err
 	}
-	when, err := FormatTimeRange(event.Start, event.End, timezone.Value, format24HourTime)
-	if err != nil {
-		return err
-	}
-
-	var where string
-	if event.Location != "" {
-		where = fmt.Sprintf("\n> Where: %s", event.Location)
-	}
-
-	var organizer string
-	if event.Organizer.DisplayName != "" && event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
-	} else if event.Organizer.DisplayName != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
-	} else if event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
-	}
-
-	var conferenceData string
-	if event.ConferenceData != nil {
-		for _, entryPoint := range event.ConferenceData.EntryPoints {
-			uri := strings.TrimPrefix(entryPoint.Uri, "https://")
-			switch entryPoint.EntryPointType {
-			case "video", "more":
-				conferenceData += fmt.Sprintf("\n> Join online: %s", uri)
-			case "phone":
-				conferenceData += fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label)
-				if entryPoint.Pin != "" {
-					conferenceData += fmt.Sprintf(" PIN: %s", entryPoint.Pin)
-				}
-			case "sip":
-				conferenceData += fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label)
-			}
-		}
-	}
-
-	// note: description can contain HTML
-	var description string
-	if event.Description != "" {
-		description = fmt.Sprintf("\n> Description: %s", event.Description)
-	}
-
 	account, err := h.db.GetAccountByAccountID(channel.AccountID)
 	if err != nil {
 		return err
@@ -210,10 +157,12 @@ Awaiting your response. *Are you going?*`
 	if err != nil {
 		return err
 	}
-	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
+	eventContent, err := FormatEvent(event, account.AccountNickname, invitedCalendar.Summary, timezone.Value, format24HourTime)
+	if err != nil {
+		return err
+	}
 
-	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		eventType, url, what, when, where, conferenceData, organizer, description, accountCalendar)
+	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message, eventType, eventContent)
 	if err != nil {
 		return err
 	}
