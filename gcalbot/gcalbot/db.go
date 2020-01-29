@@ -2,7 +2,13 @@ package gcalbot
 
 import (
 	"database/sql"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+
+	"golang.org/x/oauth2"
 
 	"github.com/keybase/managed-bots/base"
 )
@@ -272,31 +278,44 @@ func (d *DB) UpdateChannelNextSyncToken(channelID, nextSyncToken string) error {
 type SubscriptionType string
 
 const (
-	SubscriptionTypeInvite SubscriptionType = "invite"
+	SubscriptionTypeInvite   SubscriptionType = "invite"
+	SubscriptionTypeReminder SubscriptionType = "reminder"
 )
 
 type Subscription struct {
-	AccountID  string
-	CalendarID string
-	Type       SubscriptionType
+	AccountID      string
+	CalendarID     string
+	KeybaseConvID  chat1.ConvIDStr
+	DurationBefore time.Duration
+	Type           SubscriptionType
+}
+
+type AggregatedReminderSubscription struct {
+	Subscription
+	Account        Account
+	DurationBefore []time.Duration // aggregate MinutesBefore into an array
+	Token          *oauth2.Token
 }
 
 func (d *DB) InsertSubscription(subscription Subscription) error {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT into subscription
-				(account_id, calendar_id, type)
-				VALUES (?, ?, ?)
-		`, subscription.AccountID, subscription.CalendarID, subscription.Type)
+				(account_id, calendar_id, keybase_conv_id, minutes_before, type)
+				VALUES (?, ?, ?, ?, ?)
+		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
+			minutesBefore, subscription.Type)
 		return err
 	})
 }
 
 func (d *DB) ExistsSubscription(subscription Subscription) (exists bool, err error) {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(
-		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND type = ?
-	)`, subscription.AccountID, subscription.CalendarID, subscription.Type)
+		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
+	)`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID, minutesBefore, subscription.Type)
 	err = row.Scan(&exists)
 	return exists, err
 }
@@ -309,12 +328,78 @@ func (d *DB) CountSubscriptionsByAccountAndCalID(accountID, calendarID string) (
 	return count, err
 }
 
+func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedReminderSubscription, err error) {
+	row, err := d.DB.Query(`
+		SELECT
+		       keybase_username, account_nickname, -- account
+		       access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry)), -- token
+		       subscription.account_id, calendar_id, keybase_conv_id, GROUP_CONCAT(minutes_before), type -- subscription
+		FROM subscription
+		JOIN oauth ON subscription.account_id = oauth.identifier
+		JOIN account ON subscription.account_id = account.account_id
+		WHERE subscription.type = ?
+		GROUP BY subscription.calendar_id
+	`, SubscriptionTypeReminder)
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var reminder AggregatedReminderSubscription
+		reminder.Token = &oauth2.Token{}
+		var expiry int64
+		var minutesBeforeBytes []byte
+		err = row.Scan(&reminder.Account.KeybaseUsername, &reminder.Account.AccountNickname,
+			&reminder.Token.AccessToken, &reminder.Token.TokenType, &reminder.Token.RefreshToken, &expiry,
+			&reminder.AccountID, &reminder.CalendarID, &reminder.KeybaseConvID, &minutesBeforeBytes, &reminder.Type)
+		if err != nil {
+			return nil, err
+		}
+		// parse MinutesBefore from GROUP_CONCAT bytes
+		minutesBeforeStrings := strings.Split(string(minutesBeforeBytes), ",")
+		reminder.DurationBefore = make([]time.Duration, len(minutesBeforeStrings))
+		for index, minutesBeforeItem := range minutesBeforeStrings {
+			minutesBefore, err := strconv.Atoi(minutesBeforeItem)
+			if err != nil {
+				return nil, err
+			}
+			reminder.DurationBefore[index] = GetDurationFromMinutes(minutesBefore)
+		}
+		reminder.Account.AccountID = reminder.AccountID
+		reminder.Token.Expiry = time.Unix(expiry, 0)
+		reminders = append(reminders, &reminder)
+	}
+	return reminders, nil
+}
+
+func (d *DB) GetReminderDurationBeforeList(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (durationBeforeList []time.Duration, err error) {
+	rows, err := d.DB.Query(`
+		SELECT minutes_before
+			FROM subscription
+			WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND type = ?
+			ORDER BY minutes_before
+	`, accountID, calendarID, keybaseConvID, SubscriptionTypeReminder)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var minutesBefore int
+		err = rows.Scan(&minutesBefore)
+		if err != nil {
+			return nil, err
+		}
+		durationBeforeList = append(durationBeforeList, GetDurationFromMinutes(minutesBefore))
+	}
+	return durationBeforeList, nil
+}
+
 func (d *DB) DeleteSubscription(subscription Subscription) (exists bool, err error) {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	err = d.RunTxn(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`
 			DELETE from subscription
-				WHERE account_id = ? AND calendar_id = ? AND type = ?
-		`, subscription.AccountID, subscription.CalendarID, subscription.Type)
+				WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
+		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
+			minutesBefore, subscription.Type)
 		if err != nil {
 			return err
 		}

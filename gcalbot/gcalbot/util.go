@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
@@ -9,7 +10,8 @@ import (
 
 func FormatTimeRange(
 	startDateTime, endDateTime *calendar.EventDateTime,
-	timezoneID string, format24HourTime bool,
+	timezone *time.Location,
+	format24HourTime bool,
 ) (timeRange string, err error) {
 	// For normal events:
 	//	If the year, month and day are the same: Wed Jan 1, 2020 6:30pm - 7:30pm (EST)
@@ -35,13 +37,8 @@ func FormatTimeRange(
 		if err != nil {
 			return "", err
 		}
-		// set timezone
-		location, err := time.LoadLocation(timezoneID)
-		if err != nil {
-			return "", err
-		}
-		start = start.In(location)
-		end = end.In(location)
+		start = start.In(timezone)
+		end = end.In(timezone)
 	} else if startDateTime.Date != "" && endDateTime.Date != "" {
 		// this is an all day event
 		isAllDay = true
@@ -107,4 +104,28 @@ func FormatTimeRange(
 				start.Format("MST")), nil
 		}
 	}
+}
+
+func GetUserTimezone(srv *calendar.Service) (timezone *time.Location, err error) {
+	timezoneSetting, err := srv.Settings.Get("timezone").Do()
+	if err != nil {
+		return nil, err
+	}
+	return time.LoadLocation(timezoneSetting.Value)
+}
+
+func GetUserFormat24HourTime(srv *calendar.Service) (format24HourTime bool, err error) {
+	format24HourTimeSetting, err := srv.Settings.Get("format24HourTime").Do()
+	if err != nil {
+		return false, err
+	}
+	return strconv.ParseBool(format24HourTimeSetting.Value)
+}
+
+func GetMinutesFromDuration(duration time.Duration) int {
+	return int(duration.Minutes())
+}
+
+func GetDurationFromMinutes(minutes int) time.Duration {
+	return time.Duration(minutes) * time.Minute
 }

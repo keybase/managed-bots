@@ -3,10 +3,6 @@ package gcalbot
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
-
-	"google.golang.org/api/googleapi"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -31,7 +27,7 @@ const (
 	ResponseStatusAccepted    ResponseStatus = "accepted"
 )
 
-func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) error {
 	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
@@ -42,9 +38,9 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
-	accountID := GetAccountID(username, accountNickname)
+	accountID := GetAccountID(keybaseUsername, accountNickname)
 
 	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.requests, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
@@ -63,25 +59,14 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	subscription := Subscription{
-		AccountID:  accountID,
-		CalendarID: primaryCalendar.Id,
-		Type:       SubscriptionTypeInvite,
-	}
-
-	exists, err := h.db.ExistsSubscription(subscription)
+	exists, err := h.createSubscription(srv, Subscription{
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		Type:          SubscriptionTypeInvite,
+	})
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
-		return err
-	}
-
-	err = h.createEventChannel(srv, accountID, primaryCalendar.Id)
-	if err != nil {
-		return err
-	}
-
-	err = h.db.InsertSubscription(subscription)
-	if err != nil {
 		return err
 	}
 
@@ -90,7 +75,7 @@ func (h *Handler) handleSubscribeInvites(msg chat1.MsgSummary, args []string) er
 	return nil
 }
 
-func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) error {
 	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
 		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
 		return nil
@@ -122,49 +107,15 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 		return err
 	}
 
-	exists, err := h.db.DeleteSubscription(Subscription{
-		AccountID:  accountID,
-		CalendarID: primaryCalendar.Id,
-		Type:       SubscriptionTypeInvite,
+	exists, err := h.removeSubscription(srv, Subscription{
+		AccountID:     accountID,
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: msg.ConvID,
+		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || !exists {
 		// if no error, subscription doesn't exist, short circuit
 		return err
-	}
-
-	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(accountID, primaryCalendar.Id)
-	if err != nil {
-		return err
-	}
-
-	if subscriptionCount == 0 {
-		// if there are no more subscriptions for this account + calendar, remove the channel
-		channel, err := h.db.GetChannelByAccountAndCalendarID(accountID, primaryCalendar.Id)
-		if err != nil {
-			return err
-		}
-
-		if channel != nil {
-			err = srv.Channels.Stop(&calendar.Channel{
-				Id:         channel.ChannelID,
-				ResourceId: channel.ResourceID,
-			}).Do()
-			switch err := err.(type) {
-			case nil:
-			case *googleapi.Error:
-				if err.Code != 404 {
-					return err
-				}
-				// if the channel wasn't found, don't return
-			default:
-				return err
-			}
-
-			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	h.ChatEcho(msg.ConvID,
@@ -174,9 +125,6 @@ func (h *Handler) handleUnsubscribeInvites(msg chat1.MsgSummary, args []string) 
 
 func (h *Handler) sendEventInvite(srv *calendar.Service, channel *Channel, event *calendar.Event) error {
 	message := `You've been invited to %s: %s
-> What: *%s*
-> When: %s%s%s%s%s
-> Calendar: %s
 Awaiting your response. *Are you going?*`
 
 	var eventType string
@@ -186,67 +134,14 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	// strip protocol to skip unfurl prompt
-	url := strings.TrimPrefix(event.HtmlLink, "https://")
-
-	what := event.Summary
-
-	// TODO(marcel): better date formatting for recurring events
-	timezone, err := srv.Settings.Get("timezone").Do()
+	timezone, err := GetUserTimezone(srv)
 	if err != nil {
 		return err
 	}
-	format24HourTimeSetting, err := srv.Settings.Get("format24HourTime").Do()
+	format24HourTime, err := GetUserFormat24HourTime(srv)
 	if err != nil {
 		return err
 	}
-	format24HourTime, err := strconv.ParseBool(format24HourTimeSetting.Value)
-	if err != nil {
-		return err
-	}
-	when, err := FormatTimeRange(event.Start, event.End, timezone.Value, format24HourTime)
-	if err != nil {
-		return err
-	}
-
-	var where string
-	if event.Location != "" {
-		where = fmt.Sprintf("\n> Where: %s", event.Location)
-	}
-
-	var organizer string
-	if event.Organizer.DisplayName != "" && event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
-	} else if event.Organizer.DisplayName != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
-	} else if event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
-	}
-
-	var conferenceData string
-	if event.ConferenceData != nil {
-		for _, entryPoint := range event.ConferenceData.EntryPoints {
-			uri := strings.TrimPrefix(entryPoint.Uri, "https://")
-			switch entryPoint.EntryPointType {
-			case "video", "more":
-				conferenceData += fmt.Sprintf("\n> Join online: %s", uri)
-			case "phone":
-				conferenceData += fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label)
-				if entryPoint.Pin != "" {
-					conferenceData += fmt.Sprintf(" PIN: %s", entryPoint.Pin)
-				}
-			case "sip":
-				conferenceData += fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label)
-			}
-		}
-	}
-
-	// note: description can contain HTML
-	var description string
-	if event.Description != "" {
-		description = fmt.Sprintf("\n> Description: %s", event.Description)
-	}
-
 	account, err := h.db.GetAccountByAccountID(channel.AccountID)
 	if err != nil {
 		return err
@@ -255,10 +150,12 @@ Awaiting your response. *Are you going?*`
 	if err != nil {
 		return err
 	}
-	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
+	eventContent, err := FormatEvent(event, account.AccountNickname, invitedCalendar.Summary, timezone, format24HourTime)
+	if err != nil {
+		return err
+	}
 
-	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message,
-		eventType, url, what, when, where, conferenceData, organizer, description, accountCalendar)
+	sendRes, err := h.kbc.SendMessageByTlfName(account.KeybaseUsername, message, eventType, eventContent)
 	if err != nil {
 		return err
 	}

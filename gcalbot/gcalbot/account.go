@@ -49,7 +49,7 @@ func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error)
 	return nil
 }
 
-func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
+func (h *Handler) handleAccountsList(msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
 	accounts, err := h.db.GetAccountNicknameListForUsername(username)
 	if err != nil {
@@ -71,7 +71,7 @@ func (h *Handler) accountsListHandler(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleAccountsConnect(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
@@ -106,7 +106,7 @@ func (h *Handler) accountsConnectHandler(msg chat1.MsgSummary, args []string) er
 	return nil
 }
 
-func (h *Handler) accountsDisconnectHandler(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleAccountsDisconnect(msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil

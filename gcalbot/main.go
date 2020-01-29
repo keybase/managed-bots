@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/keybase/managed-bots/gcalbot/gcalbot/reminderscheduler"
+
 	"golang.org/x/oauth2"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -67,28 +69,58 @@ Examples:%s
 !gcal accounts disconnect work%s`,
 		back, back, backs, backs)
 
-	listCalendarsDesc := fmt.Sprintf(`Lists calendars associated with a Google account given the account connection's nickname.
+	calendarsListDesc := fmt.Sprintf(`Lists calendars associated with a Google account given the account connection's nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
-!gcal list-calendars personal
-!gcal list-calendars work%s`,
+!gcal calendars list personal
+!gcal calendars list work%s`,
 		back, back, backs, backs)
 
-	subscribeInvitesDesc := fmt.Sprintf(`Subscribes to invites for the primary calendar of a Google account given the account connection's nickname.
+	invitesSubscribeDesc := fmt.Sprintf(`Subscribes to event invites over direct message for the primary calendar of a Google account given the account connection's nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
-!gcal subscribe invites personal
-!gcal subscribe invites work%s`,
+!gcal invites subscribe personal
+!gcal invites subscribe work%s`,
 		back, back, backs, backs)
 
-	unsubscribeInvitesDesc := fmt.Sprintf(`Unsubscribes from invites for the primary calendar of a Google account given the account connection's nickname.
+	invitesUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event invites for the primary calendar of a Google account given the account connection's nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
 Examples:%s
-!gcal unsubscribe invites personal
-!gcal unsubscribe invites work%s`,
+!gcal invites unsubscribe personal
+!gcal invites unsubscribe work%s`,
+		back, back, backs, backs)
+
+	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders over direct message for the primary calendar of a Google account given the account connection's nickname.
+Reminders can be set for 0 minutes up to 60 minutes before the start of an event.
+You can configure multiple event reminders per account.
+View your connected Google accounts using %s!gcal accounts list%s
+View existing reminder configurations using %s!gcal reminders list%s
+
+Examples:%s
+!gcal reminders subscribe personal 0
+!gcal reminders subscribe family 5
+!gcal reminders subscribe work 60%s`,
+		back, back, back, back, backs, backs)
+
+	remindersUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event reminders for the primary calendar of a Google account given the account connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+View existing reminder configurations using %s!gcal reminders list%s
+
+Examples:%s
+!gcal reminders unsubscribe personal 0
+!gcal reminders unsubscribe family 5
+!gcal reminders unsubscribe work 60%s`,
+		back, back, back, back, backs, backs)
+
+	remindersListDesc := fmt.Sprintf(`Lists event reminders configured for the primary calendar of a Google account given the account connection's nickname.
+View your connected Google accounts using %s!gcal accounts list%s
+
+Examples:%s
+!gcal reminders list personal
+!gcal reminders list work%s`,
 		back, back, backs, backs)
 
 	commands := []chat1.UserBotCommandInput{
@@ -118,34 +150,65 @@ Examples:%s
 		},
 
 		{
-			Name:        "gcal list-calendars",
+			Name:        "gcal calendars list",
 			Description: "List calendars that a Google account is subscribed to",
 			Usage:       "<account nickname>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal list-calendars* <account nickname>",
-				DesktopBody: listCalendarsDesc,
-				MobileBody:  listCalendarsDesc,
+				Title:       "*!gcal calendars list* <account nickname>",
+				DesktopBody: calendarsListDesc,
+				MobileBody:  calendarsListDesc,
 			},
 		},
 
 		{
-			Name:        "gcal subscribe invites",
-			Description: "Subscribe to event invites for your primary calendar.",
+			Name:        "gcal invites subscribe",
+			Description: "Subscribe to event invites over direct message for your primary calendar",
 			Usage:       "<account nickname>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal subscribe invites* <account nickname>",
-				DesktopBody: subscribeInvitesDesc,
-				MobileBody:  subscribeInvitesDesc,
+				Title:       "*!gcal invites subscribe* <account nickname>",
+				DesktopBody: invitesSubscribeDesc,
+				MobileBody:  invitesSubscribeDesc,
 			},
 		},
 		{
-			Name:        "gcal unsubscribe invites",
-			Description: "Unsubscribe from event invites for your primary calendar.",
+			Name:        "gcal invites unsubscribe",
+			Description: "Unsubscribe from event invites for your primary calendar",
 			Usage:       "<account nickname>",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal unsubscribe invites* <account nickname>",
-				DesktopBody: unsubscribeInvitesDesc,
-				MobileBody:  unsubscribeInvitesDesc,
+				Title:       "*!gcal invites unsubscribe* <account nickname>",
+				DesktopBody: invitesUnsubscribeDesc,
+				MobileBody:  invitesUnsubscribeDesc,
+			},
+		},
+
+		{
+			Name:        "gcal reminders subscribe",
+			Description: "Subscribe to event reminders over direct message for your primary calendar",
+			Usage:       "<account nickname> <minutes before start of event>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal reminders subscribe* <account nickname> <minutes before start of event>",
+				DesktopBody: remindersSubscribeDesc,
+				MobileBody:  remindersSubscribeDesc,
+			},
+		},
+		{
+			Name:        "gcal reminders unsubscribe",
+			Description: "Unsubscribe from event reminders for your primary calendar",
+			Usage:       "<account nickname> <minutes before start of event>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal reminders unsubscribe* <account nickname> <minutes before start of event>",
+				DesktopBody: remindersUnsubscribeDesc,
+				MobileBody:  remindersUnsubscribeDesc,
+			},
+		},
+		{
+			Name:        "gcal reminders list",
+			Description: "List event reminder configurations for your primary calendar",
+			Usage:       "<account nickname>",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       "*!gcal reminders list* <account nickname>",
+				DesktopBody: remindersListDesc,
+				MobileBody:  remindersListDesc,
 			},
 		},
 	}
@@ -215,11 +278,13 @@ func (s *BotServer) Go() (err error) {
 	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
+	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
 	eg.Go(renewScheduler.Run)
-	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler) })
+	eg.Go(reminderScheduler.Run)
+	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
