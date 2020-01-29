@@ -283,37 +283,39 @@ const (
 )
 
 type Subscription struct {
-	AccountID     string
-	CalendarID    string
-	KeybaseConvID chat1.ConvIDStr
-	MinutesBefore int
-	Type          SubscriptionType
+	AccountID      string
+	CalendarID     string
+	KeybaseConvID  chat1.ConvIDStr
+	DurationBefore time.Duration
+	Type           SubscriptionType
 }
 
 type AggregatedReminderSubscription struct {
 	Subscription
-	Account       Account
-	MinutesBefore []int // aggregate MinutesBefore into an array
-	Token         *oauth2.Token
+	Account        Account
+	DurationBefore []time.Duration // aggregate MinutesBefore into an array
+	Token          *oauth2.Token
 }
 
 func (d *DB) InsertSubscription(subscription Subscription) error {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT into subscription
 				(account_id, calendar_id, keybase_conv_id, minutes_before, type)
 				VALUES (?, ?, ?, ?, ?)
 		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
-			subscription.MinutesBefore, subscription.Type)
+			minutesBefore, subscription.Type)
 		return err
 	})
 }
 
 func (d *DB) ExistsSubscription(subscription Subscription) (exists bool, err error) {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(
 		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
-	)`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID, subscription.MinutesBefore, subscription.Type)
+	)`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID, minutesBefore, subscription.Type)
 	err = row.Scan(&exists)
 	return exists, err
 }
@@ -354,13 +356,13 @@ func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedRemind
 		}
 		// parse MinutesBefore from GROUP_CONCAT bytes
 		minutesBeforeStrings := strings.Split(string(minutesBeforeBytes), ",")
-		reminder.MinutesBefore = make([]int, len(minutesBeforeStrings))
+		reminder.DurationBefore = make([]time.Duration, len(minutesBeforeStrings))
 		for index, minutesBeforeItem := range minutesBeforeStrings {
 			minutesBefore, err := strconv.Atoi(minutesBeforeItem)
 			if err != nil {
 				return nil, err
 			}
-			reminder.MinutesBefore[index] = minutesBefore
+			reminder.DurationBefore[index] = GetDurationFromMinutes(minutesBefore)
 		}
 		reminder.Account.AccountID = reminder.AccountID
 		reminder.Token.Expiry = time.Unix(expiry, 0)
@@ -369,7 +371,7 @@ func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedRemind
 	return reminders, nil
 }
 
-func (d *DB) GetReminderMinutesBeforeList(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (minutesBeforeList []int, err error) {
+func (d *DB) GetReminderDurationBeforeList(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (durationBeforeList []time.Duration, err error) {
 	rows, err := d.DB.Query(`
 		SELECT minutes_before
 			FROM subscription
@@ -385,18 +387,19 @@ func (d *DB) GetReminderMinutesBeforeList(accountID, calendarID string, keybaseC
 		if err != nil {
 			return nil, err
 		}
-		minutesBeforeList = append(minutesBeforeList, minutesBefore)
+		durationBeforeList = append(durationBeforeList, GetDurationFromMinutes(minutesBefore))
 	}
-	return minutesBeforeList, nil
+	return durationBeforeList, nil
 }
 
 func (d *DB) DeleteSubscription(subscription Subscription) (exists bool, err error) {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	err = d.RunTxn(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`
 			DELETE from subscription
 				WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
 		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
-			subscription.MinutesBefore, subscription.Type)
+			minutesBefore, subscription.Type)
 		if err != nil {
 			return err
 		}

@@ -2,10 +2,10 @@ package reminderscheduler
 
 import "time"
 
-func getReminderTimestamp(start time.Time, minutesBefore int) string {
+func getReminderTimestamp(start time.Time, durationBefore time.Duration) string {
 	return start.
 		UTC().
-		Add(-time.Duration(minutesBefore) * time.Minute).
+		Add(-durationBefore).
 		Round(time.Minute).
 		Format(time.RFC3339)
 }

@@ -17,9 +17,9 @@ type ReminderEvent struct {
 }
 
 type ReminderEventSubscriptions struct {
-	KeybaseConvID chat1.ConvIDStr
-	Timestamp     string
-	MinutesBefore int
+	KeybaseConvID  chat1.ConvIDStr
+	Timestamp      string
+	DurationBefore time.Duration
 }
 
 // Map of eventID (string) -> ReminderEvent (locking)

@@ -121,3 +121,11 @@ func GetUserFormat24HourTime(srv *calendar.Service) (format24HourTime bool, err 
 	}
 	return strconv.ParseBool(format24HourTimeSetting.Value)
 }
+
+func GetMinutesFromDuration(duration time.Duration) int {
+	return int(duration.Minutes())
+}
+
+func GetDurationFromMinutes(minutes int) time.Duration {
+	return time.Duration(minutes) * time.Minute
+}

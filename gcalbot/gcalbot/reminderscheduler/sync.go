@@ -131,7 +131,7 @@ func (r *ReminderScheduler) updateOrCreateReminderEvent(
 					}
 				})
 				// add new reminder
-				newTimestamp := getReminderTimestamp(newStartTime, subscription.MinutesBefore)
+				newTimestamp := getReminderTimestamp(newStartTime, subscription.DurationBefore)
 				r.reminderSchedule.AddReminderToMinute(newTimestamp, reminderEvent)
 				r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, newTimestamp)
 				// update subscription
@@ -142,15 +142,15 @@ func (r *ReminderScheduler) updateOrCreateReminderEvent(
 		reminderEvent.MsgContent = eventMsgContent
 	} else {
 		r.eventMap.Set(event.Id, reminderEvent)
-		for _, minutesBefore := range subscriptionSet.MinutesBefore {
-			if newStartTime.Add(-time.Duration(minutesBefore) * time.Minute).Before(time.Now()) {
+		for _, durationBefore := range subscriptionSet.DurationBefore {
+			if newStartTime.Add(-durationBefore).Before(time.Now()) {
 				continue
 			}
-			timestamp := getReminderTimestamp(newStartTime, minutesBefore)
+			timestamp := getReminderTimestamp(newStartTime, durationBefore)
 			reminderEvent.Subscriptions = append(reminderEvent.Subscriptions, &ReminderEventSubscriptions{
-				KeybaseConvID: subscriptionSet.KeybaseConvID,
-				Timestamp:     timestamp,
-				MinutesBefore: minutesBefore,
+				KeybaseConvID:  subscriptionSet.KeybaseConvID,
+				Timestamp:      timestamp,
+				DurationBefore: durationBefore,
 			})
 			r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, timestamp)
 			r.reminderSchedule.AddReminderToMinute(timestamp, reminderEvent)

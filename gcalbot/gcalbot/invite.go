@@ -63,7 +63,6 @@ func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) er
 		AccountID:     accountID,
 		CalendarID:    primaryCalendar.Id,
 		KeybaseConvID: msg.ConvID,
-		MinutesBefore: 0,
 		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || exists {
@@ -112,7 +111,6 @@ func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) 
 		AccountID:     accountID,
 		CalendarID:    primaryCalendar.Id,
 		KeybaseConvID: msg.ConvID,
-		MinutesBefore: 0,
 		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || !exists {

@@ -39,11 +39,12 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 		for _, subscription := range event.Subscriptions {
 			if subscription.Timestamp == timestamp {
 				// TODO(marcel): check if the user still has this reminder set
-				if subscription.MinutesBefore == 0 {
+				minutesBefore := gcalbot.GetMinutesFromDuration(subscription.DurationBefore)
+				if minutesBefore == 0 {
 					r.ChatEcho(subscription.KeybaseConvID, "An event is starting now: %s", event.MsgContent)
 				} else {
 					r.ChatEcho(subscription.KeybaseConvID, "An event is starting in %s: %s",
-						gcalbot.MinutesBeforeString(subscription.MinutesBefore), event.MsgContent)
+						gcalbot.MinutesBeforeString(minutesBefore), event.MsgContent)
 				}
 			}
 		}

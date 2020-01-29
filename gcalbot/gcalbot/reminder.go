@@ -48,11 +48,11 @@ func (h *Handler) handleRemindersSubscribe(msg chat1.MsgSummary, args []string) 
 	}
 
 	exists, err := h.createSubscription(srv, Subscription{
-		AccountID:     accountID,
-		CalendarID:    primaryCalendar.Id,
-		KeybaseConvID: msg.ConvID,
-		MinutesBefore: minutesBefore,
-		Type:          SubscriptionTypeReminder,
+		AccountID:      accountID,
+		CalendarID:     primaryCalendar.Id,
+		KeybaseConvID:  msg.ConvID,
+		DurationBefore: GetDurationFromMinutes(minutesBefore),
+		Type:           SubscriptionTypeReminder,
 	})
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
@@ -101,11 +101,11 @@ func (h *Handler) handleRemindersUnsubscribe(msg chat1.MsgSummary, args []string
 	}
 
 	exists, err := h.removeSubscription(srv, Subscription{
-		AccountID:     accountID,
-		CalendarID:    primaryCalendar.Id,
-		KeybaseConvID: msg.ConvID,
-		MinutesBefore: minutesBefore,
-		Type:          SubscriptionTypeReminder,
+		AccountID:      accountID,
+		CalendarID:     primaryCalendar.Id,
+		KeybaseConvID:  msg.ConvID,
+		DurationBefore: GetDurationFromMinutes(minutesBefore),
+		Type:           SubscriptionTypeReminder,
 	})
 	if err != nil || !exists {
 		// if no error, subscription doesn't exist, short circuit
@@ -145,7 +145,7 @@ func (h *Handler) handleRemindersList(msg chat1.MsgSummary, args []string) error
 		return err
 	}
 
-	minutesBeforeList, err := h.db.GetReminderMinutesBeforeList(accountID, primaryCalendar.Id, msg.ConvID)
+	minutesBeforeList, err := h.db.GetReminderDurationBeforeList(accountID, primaryCalendar.Id, msg.ConvID)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func (h *Handler) handleRemindersList(msg chat1.MsgSummary, args []string) error
 
 	data := []interface{}{primaryCalendar.Summary, accountNickname}
 	for _, minutesBefore := range minutesBeforeList {
-		data = append(data, MinutesBeforeString(minutesBefore))
+		data = append(data, MinutesBeforeString(GetMinutesFromDuration(minutesBefore)))
 	}
 
 	calendarListMessage := "Here are the reminders associated with calendar '%s' for account '%s':" +
