@@ -102,7 +102,7 @@ const subscribe = async (
     context,
     parsedMessage.context.teamName,
     (oldSubscriptions?: Configs.TeamJiraSubscriptions) => {
-      const oldEntries = [...oldSubscriptions?.entries()] || []
+      const oldEntries = [...(oldSubscriptions?.entries() || [])]
       id =
         oldEntries.reduce(
           (max: number, [current]) => (max = current > max ? current : max),
