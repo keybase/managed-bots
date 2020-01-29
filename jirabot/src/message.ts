@@ -596,7 +596,7 @@ export const parseMessage = async (
             context: messageContext,
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.Subscribe,
-            project: fields[3],
+            project,
           }
         case 'unsubscribe':
           if (!fields[3]) {
