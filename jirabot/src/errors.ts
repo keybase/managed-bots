@@ -27,6 +27,7 @@ export enum ErrorType {
   KVStoreRevision = 'kvstore-revision',
   KVStoreNotFound = 'kvstore-not-found',
   JirabotNotEnabled = 'jirabot-not-enabled',
+  JiraNoPermission = 'jira-no-permission',
 }
 
 export type UnknownError = {
@@ -97,6 +98,10 @@ export type JirabotNotEnabledError = Readonly<{
   notEnabledType: 'team' | 'user'
 }>
 
+export type JiraNoPermissionError = {
+  type: ErrorType.JiraNoPermission
+}
+
 export const JirabotNotEnabledForTeamError: JirabotNotEnabledError = {
   type: ErrorType.JirabotNotEnabled,
   notEnabledType: 'team',
@@ -116,6 +121,7 @@ export type Errors =
   | KVStoreNotFoundError
   | KVStoreRevisionError
   | JirabotNotEnabledError
+  | JiraNoPermissionError
 
 export const makeResult = <T>(result: T): Result<T> => ({
   type: ReturnType.Ok,
@@ -195,6 +201,12 @@ export const reportErrorAndReplyChat = (
         default:
           let _: never = error.notEnabledType
       }
+    case ErrorType.JiraNoPermission:
+      return Utils.replyToMessageContext(
+        context,
+        messageContext,
+        `You do not have permission to perform this operation on Jira. Maybe ask a Jira admin to do it?`
+      )
 
     case ErrorType.KVStoreRevision:
     case ErrorType.KVStoreNotFound:

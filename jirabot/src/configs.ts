@@ -29,11 +29,33 @@ export const emptyTeamChannelConfig: TeamChannelConfig = {
   defaultNewIssueProject: undefined,
 }
 
+export type TeamJiraSubscription = {
+  conversationId: string
+  webhookURI: string // needed for unsubscribing
+  urlToken: string
+  jql: string
+}
+
+export type TeamJiraSubscriptions = Readonly<
+  Map<
+    number, // subscription ID that has nothing to do with webhookId
+    TeamJiraSubscription
+  >
+>
+
+// this is the value. key is urlToken
+export type JiraSubscriptionIndex = Readonly<{
+  teamname: string
+  id: number
+}>
+
 const getNamespace = (teamname: string): string => `jirabot-v1-team-${teamname}`
+const jiraSubscriptionIndexNamespace = 'jirabot-v1-subscription-index'
 const jiraConfigKey = 'jiraConfig'
 const getTeamUserConfigKey = (username: string) => `user-${username}`
 const getTeamChannelConfigKey = (conversationId: ChatTypes.ConvIDStr) =>
   `channel-${conversationId}`
+const jiraSubscriptionsKey = 'jiraSubscriptions'
 
 const jsonToTeamJiraConfig = (
   objectFromJson: any
@@ -90,6 +112,51 @@ const jsonToTeamChannelConfig = (
   } as TeamChannelConfig
 }
 
+const jsonToTeamJiraSubscriptions = (
+  objectFromJson: any
+): TeamJiraSubscriptions | undefined => {
+  if (!Array.isArray(objectFromJson)) {
+    return undefined
+  }
+  const subscriptions = new Map<number, TeamJiraSubscription>()
+  objectFromJson.forEach(([key, value]) => {
+    if (
+      typeof key !== 'number' ||
+      typeof value !== 'object' ||
+      typeof value.conversationId !== 'string' ||
+      typeof value.webhookURI !== 'string' ||
+      typeof value.urlToken !== 'string' ||
+      typeof value.jql !== 'string'
+    ) {
+      return
+    }
+    subscriptions.set(key, {
+      conversationId: value.conversationId,
+      webhookURI: value.webhookURI,
+      urlToken: value.urlToken,
+      jql: value.jql,
+    })
+  })
+  return subscriptions
+}
+
+const jsonToJiraSubscriptionIndex = (
+  objectFromJson: any
+): JiraSubscriptionIndex | undefined => {
+  const {teamname, id} = objectFromJson
+  if (typeof teamname !== 'string' || typeof id !== 'number') {
+    return undefined
+  }
+  return {
+    teamname,
+    id,
+  } as JiraSubscriptionIndex
+}
+
+const teamJiraSubscriptionsToJson = (
+  teamJiraSubscriptions: TeamJiraSubscriptions
+): string => JSON.stringify([...teamJiraSubscriptions.entries()])
+
 export type CachedConfig<T> = Readonly<{
   _revision: number
   _timestamp: number
@@ -111,6 +178,15 @@ export default class Configs {
     teamJiraConfigs: new Map<string, CachedConfig<TeamJiraConfig>>(),
     teamUserConfigs: new Map<string, CachedConfig<TeamUserConfig>>(),
     teamChannelConfigs: new Map<string, CachedConfig<TeamChannelConfig>>(),
+    teamJiraSubscriptions: new Map<
+      string,
+      CachedConfig<TeamJiraSubscriptions>
+    >(),
+
+    jiraSubscriptionIndex: new Map<
+      string,
+      CachedConfig<JiraSubscriptionIndex>
+    >(),
   }
   private bot: Bot
   private botConfig: BotConfig
@@ -181,7 +257,8 @@ export default class Configs {
     namespace: string,
     entryKey: string,
     oldConfig: CachedConfig<T> | undefined,
-    newConfig: T
+    newConfig: T,
+    configSerializer?: (config: T) => string
   ): Promise<
     Errors.ResultOrError<
       undefined,
@@ -189,7 +266,9 @@ export default class Configs {
     >
   > {
     try {
-      const entryValue = JSON.stringify(newConfig)
+      const entryValue = configSerializer
+        ? configSerializer(newConfig)
+        : JSON.stringify(newConfig)
       const res = await this.bot.kvstore.put(
         `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`,
         namespace,
@@ -277,6 +356,38 @@ export default class Configs {
     )
   }
 
+  async getTeamJiraSubscriptions(
+    teamname: string
+  ): Promise<
+    Errors.ResultOrError<
+      CachedConfig<TeamJiraSubscriptions>,
+      Errors.KVStoreNotFoundError | Errors.UnknownError
+    >
+  > {
+    return await this.getFromCacheOrKVStore(
+      this.cache.teamJiraSubscriptions,
+      getNamespace(teamname),
+      jiraSubscriptionsKey,
+      jsonToTeamJiraSubscriptions
+    )
+  }
+
+  async getJiraSubscriptionIndex(
+    urlToken: string
+  ): Promise<
+    Errors.ResultOrError<
+      CachedConfig<JiraSubscriptionIndex>,
+      Errors.KVStoreNotFoundError | Errors.UnknownError
+    >
+  > {
+    return await this.getFromCacheOrKVStore(
+      this.cache.jiraSubscriptionIndex,
+      jiraSubscriptionIndexNamespace,
+      urlToken,
+      jsonToJiraSubscriptionIndex
+    )
+  }
+
   async updateTeamJiraConfig(
     teamname: string,
     oldConfig: CachedConfig<TeamJiraConfig> | undefined,
@@ -334,5 +445,56 @@ export default class Configs {
       oldConfig,
       newConfig
     )
+  }
+
+  async updateTeamJiraSubscriptions(
+    teamname: string,
+    oldConfig: CachedConfig<TeamJiraSubscriptions> | undefined,
+    newConfig: TeamJiraSubscriptions
+  ): Promise<
+    Errors.ResultOrError<
+      undefined,
+      Errors.KVStoreRevisionError | Errors.UnknownError
+    >
+  > {
+    return await this.updateToCacheAndKVStore(
+      this.cache.teamJiraSubscriptions,
+      getNamespace(teamname),
+      jiraSubscriptionsKey,
+      oldConfig,
+      newConfig,
+      teamJiraSubscriptionsToJson
+    )
+  }
+
+  async setOrDeleteJiraSubscriptionIndex(
+    urlToken: string,
+    index?: JiraSubscriptionIndex // set to undefined to delete
+  ): Promise<Errors.ResultOrError<undefined, Errors.UnknownError>> {
+    if (!index) {
+      try {
+        await this.bot.kvstore.delete(
+          `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`,
+          jiraSubscriptionIndexNamespace,
+          urlToken
+        )
+      } catch (err) {
+        return Errors.makeUnknownError(err)
+      }
+    } else {
+      try {
+        await this.bot.kvstore.put(
+          `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`,
+          jiraSubscriptionIndexNamespace,
+          urlToken,
+          JSON.stringify(index)
+        )
+      } catch (err) {
+        return Errors.makeUnknownError(err)
+      }
+    }
+    // either way delete from the cache
+    this.cache.jiraSubscriptionIndex.delete(urlToken)
+    return Errors.makeResult(undefined)
   }
 }

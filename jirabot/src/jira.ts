@@ -16,7 +16,21 @@ export type Issue = {
   url: string
 }
 
-class JiraClientWrapper {
+export enum JiraSubscriptionEvents {
+  Unknown = 'unknown',
+  IssueCreated = 'jira:issue_created',
+  IssueUpdated = 'jira:issue_updated',
+  // disabled events:
+  //
+  // IssueDeleted = 'jira:issue_deleted',
+  // CommentCreated = 'comment_created',
+  // CommentUpdated = 'comment_updated',
+  // CommentDeleted = 'comment_deleted',
+  // IssuePropertySet = 'issue_property_set',
+  // IssuePropertyDeleted = 'issue_property_deleted',
+}
+
+export class JiraClientWrapper {
   private jiraClient: JiraClient
   private jiraHost: string
 
@@ -143,7 +157,34 @@ class JiraClientWrapper {
       .getAllStatuses()
       .then((resp: Array<{name: string}>) => resp.map(({name}) => name))
   }
+
+  subscribe(
+    jqlFilter: string,
+    events: Array<JiraSubscriptionEvents>,
+    url: string
+  ): Promise<string> {
+    logger.debug({
+      msg: 'subscribe',
+    })
+    return this.jiraClient.webhook
+      .createWebhook({
+        name: `jirabot-webhook-${new Date().toJSON()}`,
+        url,
+        filters: {'issue-related-events-section': jqlFilter},
+        events,
+      })
+      .then((res?: {self?: string}) => {
+        console.log({songgao: 'subscribe res', res})
+        return res && res.self
+      })
+  }
+
+  unsubscribe(webhookURI: string): Promise<any> {
+    return this.jiraClient.webhook.deleteWebhook({webhookURI})
+  }
 }
+
+export const projectToJqlFilter = (project: string) => `project = ${project}`
 
 const jiraClientCacheTimeout = 60 * 1000 // 1min
 

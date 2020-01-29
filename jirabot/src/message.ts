@@ -14,6 +14,7 @@ export enum BotMessageType {
   Reacji = 'reacji',
   Config = 'config',
   Auth = 'auth',
+  Feed = 'feed',
 }
 
 export type MessageContext = Readonly<{
@@ -84,6 +85,37 @@ export type AuthMessage = Readonly<{
   type: BotMessageType.Auth
 }>
 
+export enum FeedMessageType {
+  Subscribe = 'subscribe',
+  Unsubscribe = 'unsubscribe',
+  List = 'list',
+}
+
+export type FeedSubscribeMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Feed
+  feedMessageType: FeedMessageType.Subscribe
+  project: string
+}>
+
+export type FeedUnsubscribeMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Feed
+  feedMessageType: FeedMessageType.Unsubscribe
+  subscriptionID?: number // subscirbe all if undefined
+}>
+
+export type FeedListMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Feed
+  feedMessageType: FeedMessageType.List
+}>
+
+export type FeedMessage =
+  | FeedSubscribeMessage
+  | FeedUnsubscribeMessage
+  | FeedListMessage
+
 export type Message =
   | UnknownMessage
   | SearchMessage
@@ -92,6 +124,7 @@ export type Message =
   | CreateMessage
   | ConfigMessage
   | AuthMessage
+  | FeedMessage
 
 const getTextMessage = (message: ChatTypes.MsgSummary): string | undefined => {
   if (!message || !message.content) {
@@ -512,6 +545,76 @@ export const parseMessage = async (
               name: toSetName,
               value: toSetValue,
             },
+          }
+      }
+    }
+    case 'feed': {
+      switch (fields[2]) {
+        case undefined:
+        case 'list':
+          return {
+            context: messageContext,
+            type: BotMessageType.Feed,
+            feedMessageType: FeedMessageType.List,
+          }
+        case 'subscribe':
+          const getProjectRet = await getProject(
+            context,
+            messageContext,
+            fields[3],
+            true
+          )
+          if (getProjectRet.type === Errors.ReturnType.Error) {
+            Errors.reportErrorAndReplyChat(
+              context,
+              messageContext,
+              getProjectRet.error
+            )
+            return undefined
+          }
+          const project = getProjectRet.result
+
+          if (!project) {
+            return {
+              context: messageContext,
+              type: BotMessageType.Unknown,
+              error: `subscribe command requires a project name`,
+            }
+          }
+
+          return {
+            context: messageContext,
+            type: BotMessageType.Feed,
+            feedMessageType: FeedMessageType.Subscribe,
+            project: fields[3],
+          }
+        case 'unsubscribe':
+          if (!fields[3]) {
+            return {
+              context: messageContext,
+              type: BotMessageType.Unknown,
+              error: `subscribe command requires a ID. Use \`!jira feed list\` to see active subscriptions.`,
+            }
+          }
+          const subscriptionID = Number.parseInt(fields[3])
+          if (subscriptionID === NaN) {
+            return {
+              context: messageContext,
+              type: BotMessageType.Unknown,
+              error: `unexpected ID: ${fields[3]}. ID should be a whole number.`,
+            }
+          }
+          return {
+            context: messageContext,
+            type: BotMessageType.Feed,
+            feedMessageType: FeedMessageType.Unsubscribe,
+            subscriptionID: subscriptionID,
+          }
+        default:
+          return {
+            context: messageContext,
+            type: BotMessageType.Unknown,
+            error: `unknown feed command ${fields[2]}`,
           }
       }
     }

@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import {Context} from './context'
 import {MessageContext} from './message'
 import * as Errors from './errors'
@@ -95,3 +96,10 @@ export const getJiraAccountID = async (
     return Errors.makeError(assigneeUserConfigRet.error)
   }
 }
+
+export const randomString = (prefix: string): Promise<string> =>
+  new Promise<string>((resolve, reject) =>
+    crypto.randomBytes(16, (err, buf) => {
+      err ? reject(err) : resolve(`${prefix}-${buf.toString('hex')}`)
+    })
+  )
