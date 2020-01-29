@@ -102,7 +102,7 @@ export type FeedUnsubscribeMessage = Readonly<{
   context: MessageContext
   type: BotMessageType.Feed
   feedMessageType: FeedMessageType.Unsubscribe
-  webhookID?: number // subscirbe all if undefined
+  subscriptionID?: number // subscirbe all if undefined
 }>
 
 export type FeedListMessage = Readonly<{
@@ -596,8 +596,8 @@ export const parseMessage = async (
               error: `subscribe command requires a ID. Use \`!jira feed list\` to see active subscriptions.`,
             }
           }
-          const webhookID = Number.parseInt(fields[3])
-          if (webhookID === NaN) {
+          const subscriptionID = Number.parseInt(fields[3])
+          if (subscriptionID === NaN) {
             return {
               context: messageContext,
               type: BotMessageType.Unknown,
@@ -608,7 +608,7 @@ export const parseMessage = async (
             context: messageContext,
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.Unsubscribe,
-            webhookID: webhookID,
+            subscriptionID: subscriptionID,
           }
         default:
           return {

@@ -162,27 +162,25 @@ export class JiraClientWrapper {
     jqlFilter: string,
     events: Array<JiraSubscriptionEvents>,
     url: string
-  ): Promise<number> {
+  ): Promise<string> {
     logger.debug({
       msg: 'subscribe',
     })
     return this.jiraClient.webhook
       .createWebhook({
+        name: `jirabot-webhook-${new Date().toJSON()}`,
         url,
-        webhooks: {
-          jqlFilter,
-          events,
-        },
+        filters: {'issue-related-events-section': jqlFilter},
+        events,
       })
-      .then(
-        (res?: {webhookRegistrationResult?: {createdWebhookId?: number}}) =>
-          res &&
-          res.webhookRegistrationResult &&
-          res.webhookRegistrationResult.createdWebhookId
-      )
+      .then((res?: {self?: string}) => {
+        console.log({songgao: 'subscribe res', res})
+        return res && res.self
+      })
   }
-  unsubscribe(webhookId: number): Promise<any> {
-    return this.jiraClient.webhook.deleteWebhook({webhookId})
+
+  unsubscribe(webhookURI: string): Promise<any> {
+    return this.jiraClient.webhook.deleteWebhook({webhookURI})
   }
 }
 

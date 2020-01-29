@@ -82,36 +82,45 @@ const subscribe = async (
   const urlToken = await Utils.randomString('jira-subscription')
   const jql = Jira.projectToJqlFilter(parsedMessage.project)
 
-  let webhookID: number
+  let webhookURI: string
   try {
-    webhookID = await jira.subscribe(
+    webhookURI = await jira.subscribe(
       jql,
       [
         Jira.JiraSubscriptionEvents.IssueCreated,
         Jira.JiraSubscriptionEvents.IssueUpdated,
       ],
-      `${context.botConfig.httpAddressPrefix}${Constants.jiraWebhookPathname}?team=${parsedMessage.context.teamName}&urlToken=${urlToken}`
+      `${context.botConfig.httpAddressPrefix}${Constants.jiraWebhookPathname}?urlToken=${urlToken}`
     )
   } catch (err) {
     reportJiraError(context, parsedMessage.context, err)
     return Errors.makeError(undefined)
   }
 
+  let id = 0
   const updateRet = await updateTeamJiraSubscriptions(
     context,
     parsedMessage.context.teamName,
-    (oldSubscriptions: Configs.TeamJiraSubscriptions) =>
-      new Map([
-        ...(oldSubscriptions?.entries() || []),
+    (oldSubscriptions?: Configs.TeamJiraSubscriptions) => {
+      const oldEntries = [...oldSubscriptions?.entries()] || []
+      id =
+        oldEntries.reduce(
+          (max: number, [current]) => (max = current > max ? current : max),
+          0
+        ) + 1
+      return new Map([
+        ...oldEntries,
         [
-          webhookID,
+          id,
           {
             conversationId: parsedMessage.context.conversationId,
+            webhookURI,
             urlToken,
             jql,
           },
         ],
       ])
+    }
   )
   if (updateRet.type === Errors.ReturnType.Error) {
     Errors.reportErrorAndReplyChat(
@@ -121,10 +130,27 @@ const subscribe = async (
     )
     return Errors.makeError(undefined)
   }
+
+  const setIndexRet = await context.configs.setOrDeleteJiraSubscriptionIndex(
+    urlToken,
+    {
+      teamname: parsedMessage.context.teamName,
+      id,
+    }
+  )
+  if (setIndexRet.type === Errors.ReturnType.Error) {
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      setIndexRet.error
+    )
+    return Errors.makeError(undefined)
+  }
+
   Utils.replyToMessageContext(
     context,
     parsedMessage.context,
-    `Subscribed to ${parsedMessage.project}:\n${webhookID}: ${jql}`
+    `Subscribed to ${parsedMessage.project}:\n${id}: \`${jql}\``
   )
   return Errors.makeResult(undefined)
 }
@@ -134,15 +160,42 @@ const unsubscribe = async (
   parsedMessage: Message.FeedUnsubscribeMessage,
   jira: Jira.JiraClientWrapper
 ): Promise<Errors.ResultOrError<undefined, undefined>> => {
-  if (!parsedMessage.webhookID) {
+  if (!parsedMessage.subscriptionID) {
+    // TODO we don't support subscribing from all yet
     return Errors.makeError(undefined)
   }
+
+  const getSubRet = await context.configs.getTeamJiraSubscriptions(
+    parsedMessage.context.teamName
+  )
+  if (getSubRet.type === Errors.ReturnType.Error) {
+    if (getSubRet.error.type === Errors.ErrorType.KVStoreNotFound) {
+      // TODO better error
+    } else {
+      //
+    }
+    console.log({songgao: 'getSubRet error', error: getSubRet.error})
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      getSubRet.error
+    )
+    return Errors.makeError(undefined)
+  }
+  const subscription = getSubRet.result.config.get(parsedMessage.subscriptionID)
+  if (!subscription) {
+    console.log({songgao: '!subscription'})
+    // TODO better error
+    return Errors.makeError(undefined)
+  }
+
   try {
-    await jira.unsubscribe(parsedMessage.webhookID)
+    await jira.unsubscribe(subscription.webhookURI)
   } catch (err) {
     reportJiraError(context, parsedMessage.context, err)
     return Errors.makeError(undefined)
   }
+
   const updateRet = await updateTeamJiraSubscriptions(
     context,
     parsedMessage.context.teamName,
@@ -150,7 +203,8 @@ const unsubscribe = async (
       oldSubscriptions
         ? new Map(
             [...oldSubscriptions.entries()].filter(
-              ([webhookID]) => webhookID !== parsedMessage.webhookID
+              ([subscriptionID]) =>
+                subscriptionID !== parsedMessage.subscriptionID
             )
           )
         : (new Map() as Configs.TeamJiraSubscriptions)
@@ -163,10 +217,23 @@ const unsubscribe = async (
     )
     return Errors.makeError(undefined)
   }
+
+  const deleteIndexRet = await context.configs.setOrDeleteJiraSubscriptionIndex(
+    subscription.urlToken
+  )
+  if (deleteIndexRet.type === Errors.ReturnType.Error) {
+    Errors.reportErrorAndReplyChat(
+      context,
+      parsedMessage.context,
+      deleteIndexRet.error
+    )
+    return Errors.makeError(undefined)
+  }
+
   Utils.replyToMessageContext(
     context,
     parsedMessage.context,
-    `Unsubscribed ${parsedMessage.webhookID}.`
+    `Unsubscribed ${parsedMessage.subscriptionID}.`
   )
   return Errors.makeResult(undefined)
 }
@@ -197,7 +264,7 @@ const list = async (
     `You have ${oldSubscriptions?.config.size ||
       'no'} active subscriptions. Use !jira feed subscribe|unsubscribe to make changes.` +
       [...(oldSubscriptions?.config?.entries() || [])].reduce(
-        (str, [webhookID, sub]) => str + `\n${webhookID}: ${sub.jql}`,
+        (str, [subscriptionID, sub]) => str + `\n${subscriptionID}: ${sub.jql}`,
         ''
       )
   )

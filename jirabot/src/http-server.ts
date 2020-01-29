@@ -4,6 +4,7 @@ import {onJiraCallback} from './jira-oauth'
 import * as Constants from './constants'
 import {Context} from './context'
 import * as Errors from './errors'
+import handleWebhookEvent from './handle-webhook-event'
 import logger from './logger'
 
 const healthCheck = (_: http.IncomingMessage, res: http.ServerResponse) => {
@@ -43,33 +44,30 @@ const jiraWebhook = async (
   req: http.IncomingMessage,
   res: http.ServerResponse
 ) => {
-  const {team, urlToken} = parsedUrl.query
-  if (typeof team !== 'string' || typeof urlToken !== 'string') {
+  const {urlToken} = parsedUrl.query
+  if (typeof urlToken !== 'string') {
     res.writeHead(400)
     res.end('unexpected callback data')
     return
   }
 
-  const json = await readAll(req)
-  console.log({songgao: 'jiraWebhook', json})
-  let payload = undefined
-  try {
-    payload = JSON.parse(json)
-  } catch (err) {
-    res.writeHead(400)
-    res.end('unexpected callback data')
-    return
+  const fromIndexRet = await context.configs.getJiraSubscriptionIndex(urlToken)
+  if (fromIndexRet.type === Errors.ReturnType.Error) {
+    if (fromIndexRet.error.type === Errors.ErrorType.KVStoreNotFound) {
+      res.writeHead(400)
+      res.end('unexpected callback data')
+      return
+    } else {
+      res.writeHead(500)
+      res.end()
+      return
+    }
   }
-  console.log({songgao: 'jiraWebhook', payload})
+  const fromIndex = fromIndexRet.result.config
 
-  if (typeof payload.id !== 'number') {
-    res.writeHead(400)
-    res.end('unexpected callback data')
-    return
-  }
-  const webhookID = payload.id
-
-  const getSubRet = await context.configs.getTeamJiraSubscriptions(team)
+  const getSubRet = await context.configs.getTeamJiraSubscriptions(
+    fromIndex.teamname
+  )
   if (getSubRet.type === Errors.ReturnType.Error) {
     if (getSubRet.error.type === Errors.ErrorType.KVStoreNotFound) {
       res.writeHead(400)
@@ -83,14 +81,25 @@ const jiraWebhook = async (
   }
   const subscriptions = getSubRet.result.config
 
-  const subscription = subscriptions.get(webhookID)
-  if (!subscription || subscription.urlToken !== urlToken) {
+  const subscription = subscriptions.get(fromIndex.id)
+  if (!subscription) {
     res.writeHead(400)
     res.end('unexpected callback data')
     return
   }
 
   console.log({songgao: 'jiraWebhook', subscription})
+
+  const json = await readAll(req)
+  let payload = undefined
+  try {
+    payload = JSON.parse(json)
+  } catch (err) {
+    res.writeHead(400)
+    res.end('unexpected callback data')
+    return
+  }
+  handleWebhookEvent(context, fromIndex.teamname, subscription, payload)
 }
 
 export default (context: Context) =>
