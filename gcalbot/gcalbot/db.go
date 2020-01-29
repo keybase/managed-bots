@@ -353,12 +353,14 @@ func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedRemind
 			return nil, err
 		}
 		// parse MinutesBefore from GROUP_CONCAT bytes
-		for _, minutesBeforeItem := range strings.Split(string(minutesBeforeBytes), ",") {
+		minutesBeforeStrings := strings.Split(string(minutesBeforeBytes), ",")
+		reminder.MinutesBefore = make([]int, len(minutesBeforeStrings))
+		for index, minutesBeforeItem := range minutesBeforeStrings {
 			minutesBefore, err := strconv.Atoi(minutesBeforeItem)
 			if err != nil {
 				return nil, err
 			}
-			reminder.MinutesBefore = append(reminder.MinutesBefore, minutesBefore)
+			reminder.MinutesBefore[index] = minutesBefore
 		}
 		reminder.Account.AccountID = reminder.AccountID
 		reminder.Token.Expiry = time.Unix(expiry, 0)
