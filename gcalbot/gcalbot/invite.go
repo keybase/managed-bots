@@ -3,7 +3,6 @@ package gcalbot
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -137,15 +136,11 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	timezone, err := srv.Settings.Get("timezone").Do()
+	timezone, err := GetUserTimezone(srv)
 	if err != nil {
 		return err
 	}
-	format24HourTimeSetting, err := srv.Settings.Get("format24HourTime").Do()
-	if err != nil {
-		return err
-	}
-	format24HourTime, err := strconv.ParseBool(format24HourTimeSetting.Value)
+	format24HourTime, err := GetUserFormat24HourTime(srv)
 	if err != nil {
 		return err
 	}
@@ -157,7 +152,7 @@ Awaiting your response. *Are you going?*`
 	if err != nil {
 		return err
 	}
-	eventContent, err := FormatEvent(event, account.AccountNickname, invitedCalendar.Summary, timezone.Value, format24HourTime)
+	eventContent, err := FormatEvent(event, account.AccountNickname, invitedCalendar.Summary, timezone, format24HourTime)
 	if err != nil {
 		return err
 	}

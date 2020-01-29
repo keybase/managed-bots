@@ -3,13 +3,15 @@ package gcalbot
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/api/calendar/v3"
 )
 
 func FormatEvent(
 	event *calendar.Event,
-	accountNickname, calendarSummary, timezone string,
+	accountNickname, calendarSummary string,
+	timezone *time.Location,
 	format24HourTime bool,
 ) (string, error) {
 	message := `%s

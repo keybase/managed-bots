@@ -3,7 +3,6 @@ package reminderscheduler
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
@@ -75,88 +74,86 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 
 func (r *ReminderScheduler) updateOrCreateReminderEvent(
 	srv *calendar.Service,
-	newCalEvent *calendar.Event,
+	event *calendar.Event,
 	subscriptionSet *gcalbot.AggregatedReminderSubscription,
 ) error {
-	if newCalEvent.Start.DateTime == "" {
+	if event.Start.DateTime == "" {
 		// TODO(marcel): notifications for all day events
 		return nil
 	}
-	newStartTime, err := time.Parse(time.RFC3339, newCalEvent.Start.DateTime)
+
+	newStartTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
 	if err != nil {
 		return fmt.Errorf("error parsing event start time: %s", err)
 	}
 
-	event, ok := r.eventMap.Get(newCalEvent.Id)
+	timezone, err := gcalbot.GetUserTimezone(srv)
+	if err != nil {
+		return err
+	}
+	format24HourTime, err := gcalbot.GetUserFormat24HourTime(srv)
+	if err != nil {
+		return err
+	}
+	subscribedCalendar, err := srv.Calendars.Get(subscriptionSet.CalendarID).Do()
+	if err != nil {
+		return err
+	}
+	eventMsgContent, err := gcalbot.FormatEvent(event, subscriptionSet.Account.AccountNickname,
+		subscribedCalendar.Summary, timezone, format24HourTime)
+	if err != nil {
+		return err
+	}
 
-	timezone, err := srv.Settings.Get("timezone").Do()
-	if err != nil {
-		return err
+	reminderEvent, ok := r.eventMap.Get(event.Id)
+	if !ok {
+		reminderEvent = &ReminderEvent{
+			EventID:    event.Id,
+			StartTime:  newStartTime,
+			MsgContent: eventMsgContent,
+		}
 	}
-	format24HourTimeSetting, err := srv.Settings.Get("format24HourTime").Do()
-	if err != nil {
-		return err
-	}
-	format24HourTime, err := strconv.ParseBool(format24HourTimeSetting.Value)
-	if err != nil {
-		return err
-	}
-	invitedCalendar, err := srv.Calendars.Get(subscriptionSet.CalendarID).Do()
-	if err != nil {
-		return err
-	}
-	eventMsgContent, err := gcalbot.FormatEvent(newCalEvent, subscriptionSet.Account.AccountNickname,
-		invitedCalendar.Summary, timezone.Value, format24HourTime)
-	if err != nil {
-		return err
-	}
+
+	reminderEvent.Lock()
+	defer reminderEvent.Unlock()
 
 	if ok {
-		event.Lock()
-		defer event.Unlock()
-		if !newStartTime.Equal(event.StartTime) {
-			event.StartTime = newStartTime
-			for index, subscription := range event.Subscriptions {
+		if !newStartTime.Equal(reminderEvent.StartTime) {
+			reminderEvent.StartTime = newStartTime
+			for index, subscription := range reminderEvent.Subscriptions {
 				// remove old reminder
-				r.reminderSchedule.ForEachReminderInMinute(subscription.Timestamp, func(reminderEvent *ReminderEvent, remove func()) {
-					reminderEvent.Lock()
-					defer reminderEvent.Unlock()
-					if event.EventID == reminderEvent.EventID {
+				r.reminderSchedule.ForEachReminderInMinute(subscription.Timestamp, func(minuteEvent *ReminderEvent, remove func()) {
+					minuteEvent.Lock()
+					defer minuteEvent.Unlock()
+					if minuteEvent.EventID == reminderEvent.EventID {
 						remove()
-						r.Debug("removed reminder for %s at %s", newCalEvent.Id, subscription.Timestamp)
+						r.Debug("removed reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, subscription.Timestamp)
 					}
 				})
 				// add new reminder
 				newTimestamp := getReminderTimestamp(newStartTime, subscription.MinutesBefore)
-				r.reminderSchedule.AddReminderToMinute(newTimestamp, event)
-				r.Debug("added reminder for %s at %s", newCalEvent.Id, newTimestamp)
+				r.reminderSchedule.AddReminderToMinute(newTimestamp, reminderEvent)
+				r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, newTimestamp)
 				// update subscription
-				event.Subscriptions[index].Timestamp = newTimestamp
-				r.Debug("updated subscription for %s to", newCalEvent.Id, newTimestamp)
+				reminderEvent.Subscriptions[index].Timestamp = newTimestamp
+				r.Debug("updated subscription for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, newTimestamp)
 			}
 		}
-		event.MsgContent = eventMsgContent
+		reminderEvent.MsgContent = eventMsgContent
 	} else {
-		newEvent := &ReminderEvent{
-			EventID:    newCalEvent.Id,
-			StartTime:  newStartTime,
-			MsgContent: eventMsgContent,
-		}
-		newEvent.Lock()
-		defer newEvent.Unlock()
-		r.eventMap.Set(newCalEvent.Id, newEvent)
+		r.eventMap.Set(event.Id, reminderEvent)
 		for _, minutesBefore := range subscriptionSet.MinutesBefore {
 			if newStartTime.Add(-time.Duration(minutesBefore) * time.Minute).Before(time.Now()) {
 				continue
 			}
 			timestamp := getReminderTimestamp(newStartTime, minutesBefore)
-			newEvent.Subscriptions = append(newEvent.Subscriptions, &ReminderEventSubscriptions{
+			reminderEvent.Subscriptions = append(reminderEvent.Subscriptions, &ReminderEventSubscriptions{
 				KeybaseConvID: subscriptionSet.KeybaseConvID,
 				Timestamp:     timestamp,
 				MinutesBefore: minutesBefore,
 			})
-			r.Debug("added reminder for %s at %s", newCalEvent.Id, timestamp)
-			r.reminderSchedule.AddReminderToMinute(timestamp, newEvent)
+			r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, timestamp)
+			r.reminderSchedule.AddReminderToMinute(timestamp, reminderEvent)
 		}
 	}
 
