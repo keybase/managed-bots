@@ -18,8 +18,8 @@ export enum BotMessageType {
 }
 
 export type MessageContext = Readonly<{
+  messageID: ChatTypes.MessageID
   chatChannel: ChatTypes.ChatChannel
-
   senderUsername: string
   teamName: string
   channelName: string
@@ -300,6 +300,7 @@ const msgSummaryToMessageContext = (
   teamName: kbMessage.channel.name,
   channelName: kbMessage.channel.topicName ?? '',
   conversationId: kbMessage.conversationId,
+  messageID: kbMessage.id,
 })
 
 const shouldProcessMessageContext = (

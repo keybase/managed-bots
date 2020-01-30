@@ -75,7 +75,16 @@ export const replyToMessageContext = (
   context: Context,
   messageContext: MessageContext,
   body: string
-): Promise<any> => context.bot.chat.send(messageContext.conversationId, {body})
+): Promise<any> =>
+  context.bot.chat.send(
+    messageContext.conversationId,
+    {
+      body,
+    },
+    {
+      replyTo: messageContext.messageID,
+    }
+  )
 
 export const getJiraAccountID = async (
   context: Context,
