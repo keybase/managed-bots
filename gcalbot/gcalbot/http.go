@@ -18,6 +18,8 @@ type HTTPSrv struct {
 
 	db      *DB
 	handler *Handler
+
+	reminderScheduler ReminderScheduler
 }
 
 func NewHTTPSrv(
@@ -27,10 +29,12 @@ func NewHTTPSrv(
 	db *DB,
 	handler *Handler,
 	oauthConfig *oauth2.Config,
+	reminderScheduler ReminderScheduler,
 ) *HTTPSrv {
 	h := &HTTPSrv{
-		db:      db,
-		handler: handler,
+		db:                db,
+		handler:           handler,
+		reminderScheduler: reminderScheduler,
 	}
 	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"gcalbot", base.Images["logo"], "/gcalbot")

@@ -17,22 +17,28 @@ func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
 		ticker.Stop()
 		r.Debug("shutting down sendReminderLoop")
 	}()
+
+	r.sendReminders(time.Now())
 	for {
 		select {
 		case <-shutdownCh:
 			return nil
 		case sendMinute := <-ticker.C:
 			r.sendReminders(sendMinute)
-			sendDuration := time.Since(sendMinute)
-			if sendDuration.Seconds() > 15 {
-				r.Errorf("sending reminders took %s", sendDuration.String())
-			}
 		}
 	}
 }
 
 func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 	timestamp := getReminderTimestamp(sendMinute, 0)
+	schedule, ok := r.reminderSchedule.get(timestamp)
+	if ok {
+		schedule.Lock()
+		r.Debug("%s: %d event notifications", timestamp, schedule.ReminderList.Len())
+		schedule.Unlock()
+	} else {
+		r.Debug("%s: 0 event notifications", timestamp)
+	}
 	r.reminderSchedule.ForEachReminderInMinute(timestamp, func(event *ReminderEvent, remove func()) {
 		event.Lock()
 		defer event.Unlock()
@@ -52,4 +58,8 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 		// TODO(marcel): remove event if this was the last reminder
 	})
 	r.reminderSchedule.Delete(timestamp)
+	sendDuration := time.Since(sendMinute)
+	if sendDuration.Seconds() > 15 {
+		r.Errorf("sending reminders took %s", sendDuration.String())
+	}
 }

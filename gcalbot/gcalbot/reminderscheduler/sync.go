@@ -18,7 +18,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 	}()
 
 	eventSync := func() {
-		subscriptions, err := r.db.GetAggregatedReminderSubscriptions()
+		subscriptions, err := r.db.GetAggregatedReminderSubscriptionsWithToken()
 		if err != nil {
 			r.Errorf("error getting reminder subscriptions to sync: %s", err)
 		}
@@ -53,7 +53,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				continue
 			}
 			for _, event := range events {
-				err = r.updateOrCreateReminderEvent(srv, event, subscription)
+				err = r.UpdateOrCreateReminderEvent(srv, event, &subscription.AggregatedSubscription)
 				if err != nil {
 					r.Errorf("error updating or creating reminder event: %s", err)
 				}
@@ -72,10 +72,10 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 	}
 }
 
-func (r *ReminderScheduler) updateOrCreateReminderEvent(
+func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	srv *calendar.Service,
 	event *calendar.Event,
-	subscriptionSet *gcalbot.AggregatedReminderSubscription,
+	subscriptionSet *gcalbot.AggregatedSubscription,
 ) error {
 	if event.Start.DateTime == "" {
 		// TODO(marcel): notifications for all day events

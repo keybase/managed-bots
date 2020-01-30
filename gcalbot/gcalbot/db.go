@@ -2,8 +2,6 @@ package gcalbot
 
 import (
 	"database/sql"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -290,11 +288,15 @@ type Subscription struct {
 	Type           SubscriptionType
 }
 
-type AggregatedReminderSubscription struct {
+type AggregatedSubscription struct {
 	Subscription
 	Account        Account
 	DurationBefore []time.Duration // aggregate MinutesBefore into an array
-	Token          *oauth2.Token
+}
+
+type AggregatedSubscriptionWithToken struct {
+	AggregatedSubscription
+	Token *oauth2.Token
 }
 
 func (d *DB) InsertSubscription(subscription Subscription) error {
@@ -328,7 +330,7 @@ func (d *DB) CountSubscriptionsByAccountAndCalID(accountID, calendarID string) (
 	return count, err
 }
 
-func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedReminderSubscription, err error) {
+func (d *DB) GetAggregatedReminderSubscriptionsWithToken() (reminders []*AggregatedSubscriptionWithToken, err error) {
 	row, err := d.DB.Query(`
 		SELECT
 		       keybase_username, account_nickname, -- account
@@ -344,7 +346,7 @@ func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedRemind
 		return nil, err
 	}
 	for row.Next() {
-		var reminder AggregatedReminderSubscription
+		var reminder AggregatedSubscriptionWithToken
 		reminder.Token = &oauth2.Token{}
 		var expiry int64
 		var minutesBeforeBytes []byte
@@ -355,20 +357,50 @@ func (d *DB) GetAggregatedReminderSubscriptions() (reminders []*AggregatedRemind
 			return nil, err
 		}
 		// parse MinutesBefore from GROUP_CONCAT bytes
-		minutesBeforeStrings := strings.Split(string(minutesBeforeBytes), ",")
-		reminder.DurationBefore = make([]time.Duration, len(minutesBeforeStrings))
-		for index, minutesBeforeItem := range minutesBeforeStrings {
-			minutesBefore, err := strconv.Atoi(minutesBeforeItem)
-			if err != nil {
-				return nil, err
-			}
-			reminder.DurationBefore[index] = GetDurationFromMinutes(minutesBefore)
+		reminder.DurationBefore, err = GetDurationBeforeFromBytes(minutesBeforeBytes)
+		if err != nil {
+			return nil, err
 		}
 		reminder.Account.AccountID = reminder.AccountID
 		reminder.Token.Expiry = time.Unix(expiry, 0)
 		reminders = append(reminders, &reminder)
 	}
 	return reminders, nil
+}
+
+func (d *DB) GetAggregatedSubscriptionsByTypeForUserAndCal(
+	accountID, calendarID string,
+	subscriptionType SubscriptionType,
+) (subscriptions []*AggregatedSubscription, err error) {
+	row, err := d.DB.Query(`
+		SELECT
+		       keybase_username, account_nickname, -- account
+		       subscription.account_id, calendar_id, keybase_conv_id, GROUP_CONCAT(minutes_before), type -- subscription
+		FROM subscription
+		JOIN account ON subscription.account_id = account.account_id
+		WHERE subscription.account_id = ? AND subscription.calendar_id = ? AND subscription.type = ?
+		GROUP BY subscription.calendar_id
+	`, accountID, calendarID, subscriptionType)
+	if err != nil {
+		return nil, err
+	}
+	for row.Next() {
+		var subscription AggregatedSubscription
+		var minutesBeforeBytes []byte
+		err = row.Scan(&subscription.Account.KeybaseUsername, &subscription.Account.AccountNickname,
+			&subscription.AccountID, &subscription.CalendarID, &subscription.KeybaseConvID, &minutesBeforeBytes, &subscription.Type)
+		if err != nil {
+			return nil, err
+		}
+		// parse MinutesBefore from GROUP_CONCAT bytes
+		subscription.DurationBefore, err = GetDurationBeforeFromBytes(minutesBeforeBytes)
+		if err != nil {
+			return nil, err
+		}
+		subscription.Account.AccountID = subscription.AccountID
+		subscriptions = append(subscriptions, &subscription)
+	}
+	return subscriptions, nil
 }
 
 func (d *DB) GetReminderDurationBeforeList(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (durationBeforeList []time.Duration, err error) {

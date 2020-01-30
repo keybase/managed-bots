@@ -52,6 +52,15 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	reminderSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeReminder)
+	if err != nil {
+		return
+	}
+	inviteSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeInvite)
+	if err != nil {
+		return
+	}
+
 	client := h.handler.config.Client(context.Background(), token)
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
@@ -83,28 +92,51 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	}
 
 	for _, event := range events {
-		if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
-			// if the event is recurring, only deal with the underlying recurring event
-			continue
-		}
 		if event.Status == "cancelled" {
 			// skip cancelled events
 			continue
 		}
-		for _, attendee := range event.Attendees {
-			if attendee.Self && !attendee.Organizer &&
-				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
-				var exists bool
-				exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
-				if err != nil {
-					return
-				}
-				if !exists {
-					// TODO(marcel): only send the invite if the user is subscribed
-					// user was recently invited to the event
-					err = h.handler.sendEventInvite(srv, channel, event)
+		if len(inviteSubscriptions) != 0 {
+			if event.Attendees == nil {
+				// the event has no attendees, the user created it! register for reminders
+				for _, subscription := range reminderSubscriptions {
+					err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
 					if err != nil {
 						return
+					}
+				}
+			}
+
+			for _, attendee := range event.Attendees {
+				responseStatus := ResponseStatus(attendee.ResponseStatus)
+				if attendee.Self && (responseStatus == ResponseStatusAccepted || responseStatus == ResponseStatusTentative) {
+					// the user has (possibly tentatively) accepted the event invite, register for reminders
+					for _, subscription := range reminderSubscriptions {
+						err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
+						if err != nil {
+							return
+						}
+					}
+				} else if attendee.Self && !attendee.Organizer && responseStatus == ResponseStatusNeedsAction {
+					// the user has not responded to the event invite, send event invites
+					if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
+						// if the event is recurring, only deal with the underlying recurring event
+						continue
+					}
+					var exists bool
+					exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
+					if err != nil {
+						return
+					}
+					if !exists {
+						// user was recently invited to the event
+						for range inviteSubscriptions {
+							// TODO(marcel): use subscription convid
+							err = h.handler.sendEventInvite(srv, channel, event)
+							if err != nil {
+								return
+							}
+						}
 					}
 				}
 			}
