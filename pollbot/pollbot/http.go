@@ -55,7 +55,7 @@ func (h *HTTPSrv) showError(w http.ResponseWriter) {
 func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bool) {
 	cookie, err := r.Cookie("auth")
 	if err != nil {
-		h.Errorf("error getting cookie: %s", err)
+		h.Debug("error getting cookie: %s", err)
 		h.showLoginInstructions(w)
 		return "", false
 	}
