@@ -51,7 +51,8 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
-		return fmt.Errorf("invalid number of arguments, must specify a name")
+		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
+		return nil
 	}
 	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
 		return err
@@ -93,9 +94,14 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
-		return fmt.Errorf("invalid number of arguments, must specify a name")
+		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
+		return nil
 	}
 	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+		if !isAdmin {
+			h.ChatEcho(convID, "only team admins can create web hooks")
+			return nil
+		}
 		return err
 	}
 
