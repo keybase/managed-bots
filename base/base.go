@@ -226,7 +226,7 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 		return err
 	}
 	if len(outputBytes) > 0 {
-		s.Errorf("log send output: ```%v```", string(outputBytes))
+		s.ChatEcho(msg.ConvID, "log send output: ```%v```", string(outputBytes))
 	}
 	if err := cmd.Wait(); err != nil {
 		s.Errorf("unable to finish command: %v", err)
