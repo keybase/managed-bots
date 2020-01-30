@@ -3,9 +3,9 @@ module github.com/keybase/managed-bots
 go 1.13
 
 require (
+	github.com/PagerDuty/go-pagerduty v0.0.0-20191110014646-e96b2a192c5d
 	github.com/aws/aws-sdk-go v1.28.1
 	github.com/bradleyfalzon/ghinstallation v1.1.0
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.7.3
