@@ -100,6 +100,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 					return
 				}
 				if !exists {
+					// TODO(marcel): only send the invite if the user is subscribed
 					// user was recently invited to the event
 					err = h.handler.sendEventInvite(srv, channel, event)
 					if err != nil {
@@ -203,9 +204,16 @@ func (h *Handler) createEventChannel(
 		return err
 	}
 
+	// TODO(marcel): possibly fill in existing invites into db
 	// get all events simply to get the NextSyncToken and begin receiving invites from there
-	// TODO(marcel): possibly page through them and fill in existing invites into db
-	events, err := srv.Events.List(calendarID).Do()
+	// request no fields so that the responses are tiny and fast
+	var nextSyncToken string
+	err = srv.Events.List(calendarID).Fields().Pages(context.Background(), func(page *calendar.Events) error {
+		if page.NextPageToken == "" {
+			nextSyncToken = page.NextSyncToken
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -226,7 +234,7 @@ func (h *Handler) createEventChannel(
 		CalendarID:    calendarID,
 		ResourceID:    res.ResourceId,
 		Expiry:        time.Unix(res.Expiration/1e3, 0),
-		NextSyncToken: events.NextSyncToken,
+		NextSyncToken: nextSyncToken,
 	})
 
 	return err
