@@ -109,7 +109,8 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.Mes
 	}
 	args := flags.Args()
 	if len(args) < 2 {
-		return fmt.Errorf("must specify a prompt and at least one option")
+		h.ChatEcho(convID, "must specify a prompt and at least one option")
+		return nil
 	}
 	prompt := args[0]
 	if anonymous {
