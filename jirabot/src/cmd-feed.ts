@@ -169,21 +169,26 @@ const unsubscribe = async (
     parsedMessage.context.teamName
   )
   if (getSubRet.type === Errors.ReturnType.Error) {
-    if (getSubRet.error.type === Errors.ErrorType.KVStoreNotFound) {
-      // TODO better error
-    } else {
-      //
-    }
-    Errors.reportErrorAndReplyChat(
-      context,
-      parsedMessage.context,
-      getSubRet.error
-    )
+    getSubRet.error.type === Errors.ErrorType.KVStoreNotFound
+      ? Utils.replyToMessageContext(
+          context,
+          parsedMessage.context,
+          `There is no active subscription in this team.`
+        )
+      : Errors.reportErrorAndReplyChat(
+          context,
+          parsedMessage.context,
+          getSubRet.error
+        )
     return Errors.makeError(undefined)
   }
   const subscription = getSubRet.result.config.get(parsedMessage.subscriptionID)
   if (!subscription) {
-    // TODO better error
+    Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      `Unknown subscription ID ${parsedMessage.subscriptionID}`
+    )
     return Errors.makeError(undefined)
   }
 
