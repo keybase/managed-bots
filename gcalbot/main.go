@@ -211,6 +211,7 @@ Examples:%s
 				MobileBody:  remindersListDesc,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement("gcalbot"),
 	}
 
 	return kbchat.Advertisement{

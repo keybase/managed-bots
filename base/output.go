@@ -37,13 +37,17 @@ func (d *DebugOutput) Debug(msg string, args ...interface{}) {
 
 func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
 	d.Debug(msg, args...)
+	msg = fmt.Sprintf("```%s```", msg)
+	d.Report(msg, args...)
+}
+
+func (d *DebugOutput) Report(msg string, args ...interface{}) {
 	if d.config == nil {
 		d.Debug("Errorf: Unable to report error to chat, errReportConv, chat debug not configured")
 	} else if d.config.ErrReportConv == "" || d.config.KBC == nil {
 		d.Debug("Errorf: Unable to report error to chat, errReportConv: %v, kbc: %v",
 			d.config.ErrReportConv, d.config.KBC)
 	} else {
-		msg = fmt.Sprintf("```%s```", msg)
 		if err := SendByConvNameOrID(d.config.KBC, d.config.ErrReportConv, msg, args...); err != nil {
 			d.Debug("Errorf: failed to send error message: %s", err)
 		}

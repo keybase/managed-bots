@@ -86,6 +86,7 @@ Unsubscribe from a specific branch:%s
 				MobileBody:  unsubExtended,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement("gitlabbot"),
 	}
 	return kbchat.Advertisement{
 		Alias: "GitLab",

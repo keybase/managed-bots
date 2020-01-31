@@ -13,7 +13,7 @@ In order to run the Trivia bot, there needs to be a running MySQL database in or
    ```
 3. To start the Trivia bot, run a command like this:
    ```
-   $GOPATH/bin/triviabot --dsn 'root@/webhookbot'
+   $GOPATH/bin/triviabot --dsn 'root@/triviabot'
    ```
 4. Run `triviabot --help` for more options.
 

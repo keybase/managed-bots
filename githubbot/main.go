@@ -69,7 +69,7 @@ Examples:%s
 !github subscribe --list%s`,
 		backs, backs, backs, backs)
 
-	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation. 
+	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
 	
 Running this command without a branch or event type will unsubscribe you from all events on the specified repository.
 
@@ -116,6 +116,7 @@ Examples:%s
 				MobileBody:  mentionsExtended,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement("githubbot"),
 	}
 	return kbchat.Advertisement{
 		Alias: "GitHub",

@@ -60,6 +60,7 @@ Start a poll`,
 				MobileBody:  pollExtended,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement("pollbot"),
 	}
 	return kbchat.Advertisement{
 		Alias: "Polling Service",
