@@ -60,7 +60,7 @@ const logSendAndExit = async (context: Context): Promise<void> => {
 export const init = async (
   botConfig: BotConfig.BotConfig
 ): Promise<Context> => {
-  var bot = new Bot()
+  var bot = new Bot({debugLogging: true})
   const context = {
     aliases: new Aliases({}),
     bot,
