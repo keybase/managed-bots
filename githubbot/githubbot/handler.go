@@ -98,7 +98,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
 	flags.BoolVar(&list, "list", false, "")
 	if err := flags.Parse(toks[2:]); err != nil {
-		return fmt.Errorf("failed to parse poll command: %s", err)
+		h.ChatEcho(msg.ConvID, "failed to parse subscribe command: %s", err)
+		return nil
 	}
 	if list {
 		return h.handleListSubscriptions(msg)
