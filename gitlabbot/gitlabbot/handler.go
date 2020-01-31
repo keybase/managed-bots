@@ -86,7 +86,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
-		h.ChatEcho(msg.ConvID, "invalid repo: %q, expected `<username/reponame>`", repo)
+		h.ChatEcho(msg.ConvID, "invalid repo: %q, expected `<owner/repo>`", repo)
 		return nil
 	}
 	if create {
