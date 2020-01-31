@@ -230,16 +230,19 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 		if err != nil {
 			h.Errorf("error getting pull requests from commit: %s", err)
 		}
-		if len(pullRequests) == 0 && len(event.Branches) >= 1 {
+
+		if len(pullRequests) >= 1 {
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pullRequests[0].GetUser().GetLogin(), convID)
+		} else if len(event.Branches) >= 1 {
 			// this is a branch test, not associated with a PR
 			branch = event.Branches[0].GetName()
 			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin(), convID)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pullRequests[0].GetUser().GetLogin(), convID)
+			h.Errorf("status event had no pull requests or branches")
+			return "", ""
 		}
 
 		return formatStatusMessage(event, pullRequests, author.String()), branch
-
 	}
 	return "", ""
 }
