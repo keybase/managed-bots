@@ -50,7 +50,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	event, err := gitlab.ParseWebhook(gitlab.WebhookEventType(r), payload)
 	if err != nil {
-		h.Errorf("could not parse webhook: %s\n", err)
+		h.Errorf("could not parse webhook: type:%v %s\n", gitlab.WebhookEventType(r), err)
 		return
 	}
 

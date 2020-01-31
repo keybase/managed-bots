@@ -57,7 +57,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	event, err := github.ParseWebHook(github.WebHookType(r), payload)
 	if err != nil {
-		h.Debug("could not parse webhook: %s\n", err)
+		h.Debug("could not parse webhook: type:%s %s\n", github.WebHookType(r), err)
 		return
 	}
 
