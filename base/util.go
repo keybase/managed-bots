@@ -14,6 +14,8 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 )
 
+const backs = "```"
+
 type ShortID string
 
 var DefaultBotAdmins = []string{
@@ -294,4 +296,23 @@ func IsDirectPrivateMessage(ownUsername string, msg chat1.MsgSummary) bool {
 		}
 	}
 	return false
+}
+
+func GetFeedbackCommandAdvertisement(prefix string) chat1.UserBotCommandInput {
+	feedbackExtended := fmt.Sprintf(`Let us know if you run into an issue or would like to see a new feature.
+
+Examples:%s
+!%s feedback I got this error but I'm not sure what I did wrong...
+!%s feedback Looking great!
+%s
+	`, backs, prefix, prefix, backs)
+	return chat1.UserBotCommandInput{
+		Name:        fmt.Sprintf("%s feedback", prefix),
+		Description: "Tell us how we're doing!",
+		ExtendedDescription: &chat1.UserBotExtendedDescription{
+			Title:       fmt.Sprintf("*!%s feedback*", prefix),
+			DesktopBody: feedbackExtended,
+			MobileBody:  feedbackExtended,
+		},
+	}
 }

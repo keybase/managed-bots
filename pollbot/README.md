@@ -15,7 +15,7 @@ In order to run the Poll bot, there needs to be a running MySQL database in orde
 4. In order for users to login to vote anonymously in a web browser, the Poll bot needs a server side secret. You must pass this in with `--login-secret`.
 5. To start the Poll bot, run a command like this:
    ```
-   $GOPATH/bin/pollbot --http-prefix 'http://localhost:8080' --dsn 'root@/webhookbot' --login-secret 'moony wormtail padfoot prongs'
+   $GOPATH/bin/pollbot --http-prefix 'http://localhost:8080' --dsn 'root@/pollbot' --login-secret 'moony wormtail padfoot prongs'
    ```
 6. Run `pollbot --help` for more options.
 

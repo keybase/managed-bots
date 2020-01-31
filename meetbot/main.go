@@ -56,6 +56,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 						Name:        "meet",
 						Description: "Get a URL for a new meet call",
 					},
+					base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 				},
 			},
 		},

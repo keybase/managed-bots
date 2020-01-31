@@ -76,6 +76,7 @@ Remove a webhook`,
 				MobileBody:  removeExtended,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 	return kbchat.Advertisement{
 		Alias: "Webhooks",

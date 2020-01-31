@@ -159,6 +159,11 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
+			case strings.HasPrefix(cmd, fmt.Sprintf("!%s feedback", s.kbc.GetUsername())):
+				if err := s.handleFeedback(msg); err != nil {
+					s.Errorf("listenForMsgs: unable to handleFeedback: %v", err)
+				}
+				continue
 			}
 		}
 
@@ -323,5 +328,12 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 	}
 	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
 	s.ChatEcho(msg.ConvID, "log output: %s", destFilePath)
+	return nil
+}
+
+func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
+	s.Report("Feedback from @%s:\n ```%s```", msg.Sender.Username, msg.Content.Text.Body)
+	s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
+		msg.Sender.Username)
 	return nil
 }

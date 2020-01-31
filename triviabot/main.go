@@ -47,6 +47,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 			Name:        "trivia reset",
 			Description: "Reset the scores leaderboard",
 		},
+		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 	return kbchat.Advertisement{
 		Alias: "Trivia",

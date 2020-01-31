@@ -211,6 +211,7 @@ Examples:%s
 				MobileBody:  remindersListDesc,
 			},
 		},
+		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 
 	return kbchat.Advertisement{
