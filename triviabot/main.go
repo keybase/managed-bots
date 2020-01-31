@@ -15,6 +15,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const botName = "triviabot"
+
 type BotServer struct {
 	*base.Server
 
@@ -24,7 +26,7 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer(botName, opts.Announcement, opts.AWSOpts),
 		opts:   opts,
 	}
 }
@@ -47,7 +49,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 			Name:        "trivia reset",
 			Description: "Reset the scores leaderboard",
 		},
-		base.GetFeedbackCommandAdvertisement("triviabot"),
+		base.GetFeedbackCommandAdvertisement(botName),
 	}
 	return kbchat.Advertisement{
 		Alias: "Trivia",

@@ -20,6 +20,8 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+const botName = "meetbot"
+
 type Options struct {
 	*base.Options
 	KBFSRoot string
@@ -40,7 +42,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer(botName, opts.Announcement, opts.AWSOpts),
 		opts:   opts,
 	}
 }
@@ -56,7 +58,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 						Name:        "meet",
 						Description: "Get a URL for a new meet call",
 					},
-					base.GetFeedbackCommandAdvertisement("meetbot"),
+					base.GetFeedbackCommandAdvertisement(botName),
 				},
 			},
 		},

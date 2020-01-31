@@ -105,7 +105,8 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.Mes
 	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
 	flags.BoolVar(&anonymous, "anonymous", false, "")
 	if err := flags.Parse(toks[1:]); err != nil {
-		return fmt.Errorf("failed to parse poll command: %s", err)
+		h.ChatEcho(convID, "failed to parse poll command: %s", err)
+		return nil
 	}
 	args := flags.Args()
 	if len(args) < 2 {

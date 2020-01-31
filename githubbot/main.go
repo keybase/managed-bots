@@ -22,6 +22,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const botName = "githubbot"
+
 type Options struct {
 	*base.Options
 	HTTPPrefix        string
@@ -48,7 +50,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer(botName, opts.Announcement, opts.AWSOpts),
 		opts:   opts,
 	}
 }
@@ -116,7 +118,7 @@ Examples:%s
 				MobileBody:  mentionsExtended,
 			},
 		},
-		base.GetFeedbackCommandAdvertisement("githubbot"),
+		base.GetFeedbackCommandAdvertisement(botName),
 	}
 	return kbchat.Advertisement{
 		Alias: "GitHub",

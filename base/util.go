@@ -298,19 +298,19 @@ func IsDirectPrivateMessage(ownUsername string, msg chat1.MsgSummary) bool {
 	return false
 }
 
-func GetFeedbackCommandAdvertisement(suffix string) chat1.UserBotCommandInput {
+func GetFeedbackCommandAdvertisement(prefix string) chat1.UserBotCommandInput {
 	feedbackExtended := fmt.Sprintf(`Let us know if you run into an issue or would like to see a new feature.
 
 Examples:%s
-!feedback-%s I got this error but I'm not sure what I did wrong...
-!feedback-%s Looking great!
+!%s-feedback I got this error but I'm not sure what I did wrong...
+!%s-feedback Looking great!
 %s
-	`, backs, suffix, suffix, backs)
+	`, backs, prefix, prefix, backs)
 	return chat1.UserBotCommandInput{
-		Name:        fmt.Sprintf("feedback-%s", suffix),
+		Name:        fmt.Sprintf("%s-feedback", prefix),
 		Description: "Tell us how we're doing!",
 		ExtendedDescription: &chat1.UserBotExtendedDescription{
-			Title:       fmt.Sprintf("*!feedback-%s*", suffix),
+			Title:       fmt.Sprintf("*!%s-feedback*", prefix),
 			DesktopBody: feedbackExtended,
 			MobileBody:  feedbackExtended,
 		},
