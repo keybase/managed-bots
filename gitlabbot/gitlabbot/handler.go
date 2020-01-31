@@ -69,7 +69,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	}
 	args := toks[2:]
 	if len(args) < 1 {
-		h.ChatDebug(msg.ConvID, "bad args for subscribe: %v", args)
+		h.ChatEcho(msg.ConvID, "bad args for subscribe: %v", args)
 		return nil
 	}
 
