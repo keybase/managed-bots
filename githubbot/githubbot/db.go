@@ -60,7 +60,7 @@ func (d *DB) WatchBranch(convID chat1.ConvIDStr, repo string, branch string) err
 func (d *DB) UnwatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			DELETE FROM subscriptions
+			DELETE FROM branches
 			WHERE conv_id = ? AND repo = ? AND branch = ?
 		`, convID, repo, branch)
 		return err
