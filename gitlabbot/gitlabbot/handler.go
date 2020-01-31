@@ -132,7 +132,8 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 	}
 	args := toks[2:]
 	if len(args) < 2 {
-		return fmt.Errorf("bad args for subscribe to branch: %v", args)
+		h.ChatEcho(msg.ConvID, "bad args for subscribe to branch: %v", args)
+		return nil
 	}
 
 	defaultBranch := "master"
