@@ -17,21 +17,19 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	kbc      *kbchat.API
-	db       *base.GoogleOAuthDB
-	requests *base.OAuthRequests
-	config   *oauth2.Config
+	kbc    *kbchat.API
+	db     *base.GoogleOAuthDB
+	config *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.GoogleOAuthDB, requests *base.OAuthRequests, config *oauth2.Config) *Handler {
+	db *base.GoogleOAuthDB, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
-		requests:    requests,
 		config:      config,
 	}
 }
@@ -75,7 +73,7 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 
 func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 	identifier := base.IdentifierFromMsg(msg)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
 			AuthMessageTemplate:    "Visit %s\n to authorize me to create events.",
 			OAuthOfflineAccessType: true,

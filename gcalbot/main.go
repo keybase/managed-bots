@@ -274,10 +274,9 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to announce self: %s", err)
 	}
 
-	requests := &base.OAuthRequests{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, requests, config, s.opts.HTTPPrefix)
-	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
+	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, config, s.opts.HTTPPrefix)
+	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
 	var eg errgroup.Group

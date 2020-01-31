@@ -14,7 +14,6 @@ type Handler struct {
 
 	kbc        *kbchat.API
 	db         *DB
-	requests   *base.OAuthRequests
 	config     *oauth2.Config
 	httpPrefix string
 }
@@ -25,7 +24,6 @@ func NewHandler(
 	kbc *kbchat.API,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
-	requests *base.OAuthRequests,
 	config *oauth2.Config,
 	httpPrefix string,
 ) *Handler {
@@ -33,7 +31,6 @@ func NewHandler(
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		db:          db,
-		requests:    requests,
 		config:      config,
 		httpPrefix:  httpPrefix,
 	}

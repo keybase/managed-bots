@@ -10,12 +10,12 @@ import (
 )
 
 type DB struct {
-	*base.DB
+	*base.BaseOAuthDB
 }
 
 func NewDB(db *sql.DB) *DB {
 	return &DB{
-		DB: base.NewDB(db),
+		BaseOAuthDB: base.NewBaseOAuthDB(db),
 	}
 }
 

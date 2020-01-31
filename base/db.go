@@ -32,13 +32,64 @@ func (d *DB) RunTxn(fn func(tx *sql.Tx) error) error {
 	return tx.Commit()
 }
 
-type GoogleOAuthDB struct {
+type BaseOAuthDB struct {
 	*DB
+}
+
+func NewBaseOAuthDB(db *sql.DB) *BaseOAuthDB {
+	return &BaseOAuthDB{
+		DB: NewDB(db),
+	}
+}
+
+func (d *BaseOAuthDB) GetState(state string) (*OAuthRequest, error) {
+	var oauthState OAuthRequest
+	row := d.DB.QueryRow(`SELECT identifier, conv_id, msg_id
+		FROM oauth_state
+		WHERE state = ?`, state)
+	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.ConvID,
+		&oauthState.MsgID)
+	switch err {
+	case nil:
+		return &oauthState, nil
+	case sql.ErrNoRows:
+		return nil, nil
+	default:
+		return nil, err
+	}
+}
+
+func (d *BaseOAuthDB) PutState(state string, oauthState *OAuthRequest) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO oauth_state
+		(state, identifier, conv_id, msg_id)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+		identifier=VALUES(identifier),
+		conv_id=VALUES(conv_id),
+		msg_id=VALUES(msg_id),
+	`, state, oauthState.TokenIdentifier, oauthState.ConvID, oauthState.MsgID)
+		return err
+	})
+	return err
+}
+
+func (d *BaseOAuthDB) DeleteState(state string) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`DELETE FROM oauth_state
+	WHERE state = ?`, state)
+		return err
+	})
+	return err
+}
+
+type GoogleOAuthDB struct {
+	*BaseOAuthDB
 }
 
 func NewGoogleOAuthDB(db *sql.DB) *GoogleOAuthDB {
 	return &GoogleOAuthDB{
-		DB: NewDB(db),
+		BaseOAuthDB: NewBaseOAuthDB(db),
 	}
 }
 

@@ -26,7 +26,6 @@ func NewHTTPSrv(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
 	handler *Handler,
-	requests *base.OAuthRequests,
 	oauthConfig *oauth2.Config,
 ) *HTTPSrv {
 	h := &HTTPSrv{
@@ -34,7 +33,7 @@ func NewHTTPSrv(
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, requests, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"gcalbot", base.Images["logo"], "/gcalbot")
 	http.HandleFunc("/gcalbot", h.healthCheckHandler)
 	http.HandleFunc("/gcalbot/home", h.homeHandler)

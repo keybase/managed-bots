@@ -110,10 +110,9 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to announce self: %s", err)
 	}
 
-	requests := &base.OAuthRequests{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := meetbot.NewHandler(s.kbc, debugConfig, db, requests, config)
-	httpSrv := meetbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config)
+	handler := meetbot.NewHandler(s.kbc, debugConfig, db, config)
+	httpSrv := meetbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

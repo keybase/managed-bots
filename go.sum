@@ -52,6 +52,10 @@ github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 h1:yg56lYPqh9suJe
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123/go.mod h1:r/eVVWCngg6TsFV/3HuS9sWhDkAzGG8mXhiuYA+Z/20=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20200123195253-a0acc0ebe9d0 h1:QfwkzilDBKA7iMOOWHtOfHbfQtAhWWbHPfgTOmbwQwc=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20200123195253-a0acc0ebe9d0/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200131221805-e2805d6bd936 h1:qUyDO0Z0hYXQpOiWVaPONmLGcVAE3BodmZX+EBMUvk4=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200131221805-e2805d6bd936/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200131223128-166378152dc8 h1:HsKokvoBYsb9AiZLzhgVLvOPesSekBDpDc0+4AQ6xAg=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200131223128-166378152dc8/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

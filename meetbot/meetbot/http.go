@@ -22,13 +22,13 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.GoogleOAuthDB, handler *Handler, requests *base.OAuthRequests, oauthConfig *oauth2.Config) *HTTPSrv {
+	db *base.GoogleOAuthDB, handler *Handler, oauthConfig *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, requests, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"meetbot", base.Images["logo"], "/meetbot")
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)
