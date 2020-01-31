@@ -22,8 +22,6 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-const botName = "gcalbot"
-
 type Options struct {
 	*base.Options
 	KBFSRoot   string
@@ -45,7 +43,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(botName, opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
 		opts:   opts,
 	}
 }
@@ -213,7 +211,7 @@ Examples:%s
 				MobileBody:  remindersListDesc,
 			},
 		},
-		base.GetFeedbackCommandAdvertisement(botName),
+		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 
 	return kbchat.Advertisement{

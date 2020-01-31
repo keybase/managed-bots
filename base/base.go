@@ -31,16 +31,14 @@ type Server struct {
 
 	shutdownCh chan struct{}
 
-	name         string
 	announcement string
 	awsOpts      *AWSOptions
 	kbc          *kbchat.API
 	botAdmins    []string
 }
 
-func NewServer(name, announcement string, awsOpts *AWSOptions) *Server {
+func NewServer(announcement string, awsOpts *AWSOptions) *Server {
 	return &Server{
-		name:         name,
 		announcement: announcement,
 		awsOpts:      awsOpts,
 		botAdmins:    DefaultBotAdmins,
@@ -161,7 +159,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
-			case strings.HasPrefix(cmd, fmt.Sprintf("!%s-feedback", s.name)):
+			case strings.HasPrefix(cmd, fmt.Sprintf("!%s feedback", s.kbc.GetUsername())):
 				if err := s.handleFeedback(msg); err != nil {
 					s.Errorf("listenForMsgs: unable to handleFeedback: %v", err)
 				}

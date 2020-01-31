@@ -302,15 +302,15 @@ func GetFeedbackCommandAdvertisement(prefix string) chat1.UserBotCommandInput {
 	feedbackExtended := fmt.Sprintf(`Let us know if you run into an issue or would like to see a new feature.
 
 Examples:%s
-!%s-feedback I got this error but I'm not sure what I did wrong...
-!%s-feedback Looking great!
+!%s feedback I got this error but I'm not sure what I did wrong...
+!%s feedback Looking great!
 %s
 	`, backs, prefix, prefix, backs)
 	return chat1.UserBotCommandInput{
-		Name:        fmt.Sprintf("%s-feedback", prefix),
+		Name:        fmt.Sprintf("%s feedback", prefix),
 		Description: "Tell us how we're doing!",
 		ExtendedDescription: &chat1.UserBotExtendedDescription{
-			Title:       fmt.Sprintf("*!%s-feedback*", prefix),
+			Title:       fmt.Sprintf("*!%s feedback*", prefix),
 			DesktopBody: feedbackExtended,
 			MobileBody:  feedbackExtended,
 		},
