@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20200131223128-166378152dc8
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20200201020447-0531f8e32450
 	github.com/stretchr/testify v1.4.0
 	github.com/xanzy/go-gitlab v0.22.3
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6

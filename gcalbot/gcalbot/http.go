@@ -16,7 +16,6 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	kbc     *kbchat.API
 	db      *DB
 	handler *Handler
 }
@@ -29,7 +28,6 @@ func NewHTTPSrv(
 	oauthConfig *oauth2.Config,
 ) *HTTPSrv {
 	h := &HTTPSrv{
-		kbc:     kbc,
 		db:      db,
 		handler: handler,
 	}

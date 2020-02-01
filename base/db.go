@@ -44,11 +44,11 @@ func NewBaseOAuthDB(db *sql.DB) *BaseOAuthDB {
 
 func (d *BaseOAuthDB) GetState(state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
-	row := d.DB.QueryRow(`SELECT identifier, conv_id, msg_id
+	row := d.DB.QueryRow(`SELECT identifier, conv_id, msg_id, is_complete
 		FROM oauth_state
 		WHERE state = ?`, state)
 	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.ConvID,
-		&oauthState.MsgID)
+		&oauthState.MsgID, &oauthState.IsComplete)
 	switch err {
 	case nil:
 		return &oauthState, nil
@@ -67,17 +67,18 @@ func (d *BaseOAuthDB) PutState(state string, oauthState *OAuthRequest) error {
 		ON DUPLICATE KEY UPDATE
 		identifier=VALUES(identifier),
 		conv_id=VALUES(conv_id),
-		msg_id=VALUES(msg_id),
+		msg_id=VALUES(msg_id)
 	`, state, oauthState.TokenIdentifier, oauthState.ConvID, oauthState.MsgID)
 		return err
 	})
 	return err
 }
 
-func (d *BaseOAuthDB) DeleteState(state string) error {
+func (d *BaseOAuthDB) CompleteState(state string) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`DELETE FROM oauth_state
-	WHERE state = ?`, state)
+		_, err := tx.Exec(`UPDATE oauth_state
+		SET is_complete=true
+		WHERE state = ?`, state)
 		return err
 	})
 	return err

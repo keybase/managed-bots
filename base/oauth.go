@@ -27,7 +27,7 @@ type OAuthStorage interface {
 
 	GetState(state string) (*OAuthRequest, error)
 	PutState(state string, req *OAuthRequest) error
-	DeleteState(state string) error
+	CompleteState(state string) error
 }
 
 type OAuthHTTPSrv struct {
@@ -75,7 +75,11 @@ func (o *OAuthHTTPSrv) getCallbackMsg(req OAuthRequest) (res chat1.MsgSummary, e
 		return res, fmt.Errorf("Unable to find msg %d in %s, got back %d messages",
 			req.MsgID, req.ConvID, len(msgs))
 	}
-	return msgs[0], nil
+	msg := msgs[0]
+	if msg.Error != nil || msg.Msg == nil {
+		return res, fmt.Errorf("invalid callback message %v", msg)
+	}
+	return *msg.Msg, nil
 }
 
 func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +106,20 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		err = fmt.Errorf("state %q not found %v", state, err)
 		return
 	}
-	if err := o.storage.DeleteState(state); err != nil {
+	defer func() {
+		if err := o.storage.CompleteState(state); err != nil {
+			return
+		}
+	}()
+
+	if req.IsComplete {
+		_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
+			`<div class="success"> Success! </div>
+		<div>You can now close this page and return to the Keybase app.</div>`,
+			o.htmlLogoSrc))
+		if err != nil {
+			o.Errorf("oauthHandler: unable to write: %v", err)
+		}
 		return
 	}
 
@@ -115,7 +132,6 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	if err = o.storage.PutToken(req.TokenIdentifier, token); err != nil {
 		return
 	}
-
 	callbackMsg, err := o.getCallbackMsg(*req)
 	if err != nil {
 		return
@@ -143,6 +159,7 @@ func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type OAuthRequest struct {
+	IsComplete      bool
 	TokenIdentifier string
 	ConvID          chat1.ConvIDStr
 	MsgID           chat1.MessageID
@@ -190,11 +207,13 @@ func GetOAuthClient(
 		if err != nil {
 			return nil, err
 		}
-		storage.PutState(state, &OAuthRequest{
+		if err := storage.PutState(state, &OAuthRequest{
 			TokenIdentifier: tokenIdentifier,
 			ConvID:          callbackMsg.ConvID,
 			MsgID:           callbackMsg.Id,
-		})
+		}); err != nil {
+			return nil, err
+		}
 
 		oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
 		if opts.OAuthOfflineAccessType {
