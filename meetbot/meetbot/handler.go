@@ -57,16 +57,25 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
-	err := h.meetHandlerInner(msg)
-	switch err.(type) {
-	case *googleapi.Error:
-		h.Errorf("unable to get service %v, deleting credentials and retrying", err)
+	retry := func() error {
 		// retry auth after nuking stored credentials
 		if err := h.db.DeleteToken(base.IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
 		return h.meetHandlerInner(msg)
+	}
+	err := h.meetHandlerInner(msg)
+	switch err.(type) {
+	case nil, base.OAuthRequiredError:
+		return nil
+	case *googleapi.Error:
+		h.Errorf("unable to get service %v, deleting credentials and retrying", err)
+		return retry()
 	default:
+		if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
+			h.Errorf("unable to get service %v, deleting credentials and retrying", err)
+			return retry()
+		}
 		return err
 	}
 }
