@@ -238,7 +238,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 			branch = event.Branches[0].GetName()
 			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin(), convID)
 		} else {
-			h.Errorf("status event had no pull requests or branches")
+			h.Debug("status event had no pull requests or branches")
 			return "", ""
 		}
 
