@@ -94,7 +94,7 @@ func (h *Handler) handleAccountsConnect(msg chat1.MsgSummary, args []string) err
 			"Visit %s to connect a Google account as '%s'.", authURL, accountNickname)
 		return err
 	}
-	_, err = base.GetOAuthClient(accountIdentifier, msg, h.kbc, h.requests, h.config, h.db,
+	_, err = base.GetOAuthClient(accountIdentifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
 			AllowNonAdminForTeamAuth: true,
 			OAuthOfflineAccessType:   true,

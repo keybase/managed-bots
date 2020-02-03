@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -25,12 +24,16 @@ type OAuthStorage interface {
 	GetToken(identifier string) (*oauth2.Token, error)
 	PutToken(identifier string, token *oauth2.Token) error
 	DeleteToken(identifier string) error
+
+	GetState(state string) (*OAuthRequest, error)
+	PutState(state string, req *OAuthRequest) error
+	CompleteState(state string) error
 }
 
 type OAuthHTTPSrv struct {
 	*HTTPSrv
+	kbc         *kbchat.API
 	oauth       *oauth2.Config
-	requests    *OAuthRequests
 	storage     OAuthStorage
 	callback    func(msg chat1.MsgSummary, identifier string) error
 	htmlTitle   string
@@ -42,7 +45,6 @@ func NewOAuthHTTPSrv(
 	kbc *kbchat.API,
 	debugConfig *ChatDebugOutputConfig,
 	oauth *oauth2.Config,
-	requests *OAuthRequests,
 	storage OAuthStorage,
 	callback func(msg chat1.MsgSummary, identifier string) error,
 	htmlTitle string,
@@ -50,8 +52,8 @@ func NewOAuthHTTPSrv(
 	urlPrefix string,
 ) *OAuthHTTPSrv {
 	o := &OAuthHTTPSrv{
+		kbc:         kbc,
 		oauth:       oauth,
-		requests:    requests,
 		storage:     storage,
 		callback:    callback,
 		htmlTitle:   htmlTitle,
@@ -62,6 +64,22 @@ func NewOAuthHTTPSrv(
 	http.HandleFunc(urlPrefix+"/oauth", o.oauthHandler)
 	http.HandleFunc(o.htmlLogoSrc, o.logoHandler)
 	return o
+}
+
+func (o *OAuthHTTPSrv) getCallbackMsg(req OAuthRequest) (res chat1.MsgSummary, err error) {
+	msgs, err := o.kbc.GetMessagesByConvID(req.ConvID, []chat1.MessageID{req.MsgID})
+	if err != nil {
+		return res, err
+	}
+	if len(msgs) != 1 {
+		return res, fmt.Errorf("Unable to find msg %d in %s, got back %d messages",
+			req.MsgID, req.ConvID, len(msgs))
+	}
+	msg := msgs[0]
+	if msg.Error != nil || msg.Msg == nil {
+		return res, fmt.Errorf("invalid callback message %v", msg)
+	}
+	return *msg.Msg, nil
 }
 
 func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,10 +101,20 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	state := query.Get("state")
 
-	req, ok := o.requests.Get(state)
-	o.requests.Delete(state)
-	if !ok {
-		err = fmt.Errorf("state %q not found %v", state, o.requests)
+	req, err := o.storage.GetState(state)
+	if err != nil || req == nil {
+		err = fmt.Errorf("state %q not found %v", state, err)
+		return
+	}
+
+	if req.IsComplete {
+		_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
+			`<div class="success"> Success! </div>
+		<div>You can now close this page and return to the Keybase app.</div>`,
+			o.htmlLogoSrc))
+		if err != nil {
+			o.Errorf("oauthHandler: unable to write: %v", err)
+		}
 		return
 	}
 
@@ -96,11 +124,18 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.storage.PutToken(req.tokenIdentifier, token); err != nil {
+	if err = o.storage.PutToken(req.TokenIdentifier, token); err != nil {
+		return
+	}
+	if err = o.storage.CompleteState(state); err != nil {
+		return
+	}
+	callbackMsg, err := o.getCallbackMsg(*req)
+	if err != nil {
 		return
 	}
 
-	if err = o.callback(req.callbackMsg, req.tokenIdentifier); err != nil {
+	if err = o.callback(callbackMsg, req.TokenIdentifier); err != nil {
 		return
 	}
 
@@ -122,29 +157,10 @@ func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type OAuthRequest struct {
-	tokenIdentifier string
-	callbackMsg     chat1.MsgSummary
-}
-
-type OAuthRequests struct {
-	sync.Map
-}
-
-func (r *OAuthRequests) Get(state string) (req *OAuthRequest, ok bool) {
-	val, ok := r.Map.Load(state)
-	if ok {
-		return val.(*OAuthRequest), ok
-	} else {
-		return nil, ok
-	}
-}
-
-func (r *OAuthRequests) Set(state string, req *OAuthRequest) {
-	r.Map.Store(state, req)
-}
-
-func (r *OAuthRequests) Delete(state string) {
-	r.Map.Delete(state)
+	IsComplete      bool
+	TokenIdentifier string
+	ConvID          chat1.ConvIDStr
+	MsgID           chat1.MessageID
 }
 
 type GetOAuthOpts struct {
@@ -162,7 +178,6 @@ func GetOAuthClient(
 	tokenIdentifier string,
 	callbackMsg chat1.MsgSummary,
 	kbc *kbchat.API,
-	requests *OAuthRequests,
 	config *oauth2.Config,
 	storage OAuthStorage,
 	opts GetOAuthOpts,
@@ -190,7 +205,13 @@ func GetOAuthClient(
 		if err != nil {
 			return nil, err
 		}
-		requests.Set(state, &OAuthRequest{tokenIdentifier, callbackMsg})
+		if err := storage.PutState(state, &OAuthRequest{
+			TokenIdentifier: tokenIdentifier,
+			ConvID:          callbackMsg.ConvID,
+			MsgID:           callbackMsg.Id,
+		}); err != nil {
+			return nil, err
+		}
 
 		oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
 		if opts.OAuthOfflineAccessType {

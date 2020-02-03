@@ -229,8 +229,6 @@ func (s *BotServer) Go() (err error) {
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
 	}
 
-	requests := &base.OAuthRequests{}
-
 	tr := http.DefaultTransport
 	atr, err := ghinstallation.NewAppsTransport(tr, botConfig.AppID, appKey)
 	if err != nil {
@@ -238,8 +236,8 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := githubbot.NewHandler(s.kbc, debugConfig, db, requests, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, requests, config, atr, botConfig.WebhookSecret)
+	handler := githubbot.NewHandler(s.kbc, debugConfig, db, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
+	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config, atr, botConfig.WebhookSecret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

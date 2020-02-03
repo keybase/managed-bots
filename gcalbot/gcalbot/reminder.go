@@ -22,7 +22,7 @@ func (h *Handler) handleRemindersSubscribe(msg chat1.MsgSummary, args []string) 
 	accountNickname := args[0]
 	accountID := GetAccountID(keybaseUsername, accountNickname)
 
-	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.requests, h.config, h.db,
+	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
 	if err != nil || client == nil {
 		// if no error, account doesn't exist, short circuit

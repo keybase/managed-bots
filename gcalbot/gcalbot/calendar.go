@@ -21,7 +21,7 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 	accountNickname := args[0]
 
 	identifier := GetAccountID(username, accountNickname)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.requests, h.config, h.db,
+	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
 		h.getAccountOAuthOpts(msg, accountNickname))
 	if err != nil || client == nil {
 		return err
