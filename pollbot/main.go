@@ -113,8 +113,13 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	httpSrv := pollbot.NewHTTPSrv(s.kbc, debugConfig, db, loginSecret)
-	handler := pollbot.NewHandler(s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "pollbot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	httpSrv := pollbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, loginSecret)
+	handler := pollbot.NewHandler(stats, s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

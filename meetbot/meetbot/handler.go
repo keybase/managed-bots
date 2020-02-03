@@ -17,6 +17,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats  *base.StatsRegistry
 	kbc    *kbchat.API
 	db     *base.GoogleOAuthDB
 	config *oauth2.Config
@@ -24,10 +25,11 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	db *base.GoogleOAuthDB, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		config:      config,
@@ -36,7 +38,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
@@ -51,6 +53,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!meet"):
+		h.stats.Count("handle - meet")
 		return h.meetHandler(msg)
 	}
 	return nil

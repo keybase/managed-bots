@@ -22,7 +22,7 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	db *DB, handler *Handler, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
@@ -30,7 +30,7 @@ func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 		handler: handler,
 		secret:  secret,
 	}
-	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
+	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	http.HandleFunc("/gitlabbot", h.handleHealthCheck)
 	http.HandleFunc("/gitlabbot/webhook", h.handleWebhook)
 	return h

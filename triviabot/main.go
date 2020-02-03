@@ -80,7 +80,12 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := triviabot.NewHandler(s.kbc, debugConfig, db)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "trivabot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	handler := triviabot.NewHandler(stats, s.kbc, debugConfig, db)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(func() error { return s.HandleSignals(nil) })

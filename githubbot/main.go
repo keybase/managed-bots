@@ -236,8 +236,13 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := githubbot.NewHandler(s.kbc, debugConfig, db, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
-	httpSrv := githubbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config, atr, botConfig.WebhookSecret)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "githubbot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	handler := githubbot.NewHandler(stats, s.kbc, debugConfig, db, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
+	httpSrv := githubbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config, atr, botConfig.WebhookSecret)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

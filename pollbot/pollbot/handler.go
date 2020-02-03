@@ -15,6 +15,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats      *base.StatsRegistry
 	kbc        *kbchat.API
 	db         *DB
 	httpSrv    *HTTPSrv
@@ -23,10 +24,11 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -141,7 +143,7 @@ To login your web browser in order to vote in anonymous polls, please follow the
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Find out the answers to the hardest questions. Try `!poll 'Should we move the office to a beach?' Yes No`"
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -151,8 +153,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
+		h.stats.Count("handle - poll")
 		return h.handlePoll(cmd, msg.ConvID, msg.Id)
 	case strings.ToLower(cmd) == "login":
+		h.stats.Count("handle - login")
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	}
 	return nil

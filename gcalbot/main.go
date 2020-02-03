@@ -275,8 +275,13 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := gcalbot.NewHandler(s.kbc, debugConfig, db, config, s.opts.HTTPPrefix)
-	httpSrv := gcalbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "gitlabbot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, s.opts.HTTPPrefix)
+	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
 	var eg errgroup.Group

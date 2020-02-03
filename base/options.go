@@ -27,8 +27,9 @@ type Options struct {
 	// Conversation name or ID to report bot errors to
 	ErrReportConv string
 	// Database Source Name
-	DSN     string
-	AWSOpts *AWSOptions
+	DSN          string
+	StathatEZKey string
+	AWSOpts      *AWSOptions
 }
 
 func NewOptions() *Options {
@@ -43,6 +44,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.ErrReportConv, "err-report-conv", os.Getenv("BOT_ERR_REPORT_CONV"),
 		"Conversation name or ID to report errors to")
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
+	fs.StringVar(&o.StathatEZKey, "stathat-ezkey", os.Getenv("BOT_STATHAT_EZKEY"), "Bot stathat ezkey")
 
 	awsOpts := &AWSOptions{}
 	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_AWS_REGION"), "AWS region for cloudwatch logs, optional")
@@ -54,7 +56,6 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 		return err
 	}
 	return nil
-
 }
 
 func (o *Options) Command(args ...string) *exec.Cmd {

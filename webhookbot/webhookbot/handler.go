@@ -13,6 +13,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats      *base.StatsRegistry
 	kbc        *kbchat.API
 	db         *DB
 	httpSrv    *HTTPSrv
@@ -21,10 +22,11 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -119,7 +121,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "I can create generic webhooks into Keybase! Try `!webhook create` to get started."
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -129,10 +131,13 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!webhook create"):
+		h.stats.Count("handle - create")
 		return h.handleCreate(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook list"):
+		h.stats.Count("handle - list")
 		return h.handleList(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook remove"):
+		h.stats.Count("handle - remove")
 		return h.handleRemove(cmd, msg)
 	}
 	return nil

@@ -28,7 +28,7 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, handler *Handler,
+func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, handler *Handler,
 	oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
@@ -37,7 +37,7 @@ func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB
 		atr:     atr,
 		secret:  secret,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"githubbot", base.Images["logo"], "/githubbot")
 	http.HandleFunc("/githubbot", h.handleHealthCheck)
 	http.HandleFunc("/githubbot/webhook", h.handleWebhook)
@@ -85,55 +85,56 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	itr := ghinstallation.NewFromAppsTransport(h.atr, installationID)
 	client := github.NewClient(&http.Client{Transport: itr})
 
-	if repo != "" {
-		defaultBranch, err := getDefaultBranch(repo, client)
-		if err != nil {
-			h.Errorf("Error getting default branch: %s", err)
-		}
+	if repo == "" {
+		return
+	}
 
-		convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
+	defaultBranch, err := getDefaultBranch(repo, client)
+	if err != nil {
+		h.Errorf("Error getting default branch: %s", err)
+	}
+
+	convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
+	if err != nil {
+		h.Errorf("Error getting subscriptions for repo: %s", err)
+		return
+	}
+
+	for _, convID := range convs {
+		features, err := h.db.GetFeatures(convID, repo)
 		if err != nil {
-			h.Errorf("Error getting subscriptions for repo: %s", err)
+			h.Errorf("Error getting features for repo and convID: %s", err)
 			return
 		}
 
-		for _, convID := range convs {
-			features, err := h.db.GetFeatures(convID, repo)
+		if !shouldParseEvent(event, features) {
+			// If a conversation is not subscribed to the feature an event is part of, bail
+			continue
+		}
+
+		message, branch := h.formatMessage(convID, event, repo, defaultBranch, client)
+		if message == "" {
+			// if we don't have a message to send, bail
+			continue
+		}
+
+		if branch != defaultBranch {
+			// if the event is not on the default branch, check if we're subscribed to that branch
+			subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
 			if err != nil {
-				h.Errorf("Error getting features for repo and convID: %s", err)
+				h.Errorf("could not get subscription: %s\n", err)
 				return
 			}
 
-			if !shouldParseEvent(event, features) {
-				// If a conversation is not subscribed to the feature an event is part of, bail
+			if !subscriptionExists {
 				continue
 			}
+		}
 
-			message, branch := h.formatMessage(convID, event, repo, defaultBranch, client)
-			if message == "" {
-				// if we don't have a message to send, bail
-				continue
-			}
-
-			if branch != defaultBranch {
-				// if the event is not on the default branch, check if we're subscribed to that branch
-				subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
-				if err != nil {
-					h.Errorf("could not get subscription: %s\n", err)
-					return
-				}
-
-				if !subscriptionExists {
-					continue
-				}
-			}
-
-			_, err = h.kbc.SendMessageByConvID(convID, message)
-			if err != nil {
-				h.Debug("Error sending message: %s", err)
-				return
-			}
-
+		_, err = h.kbc.SendMessageByConvID(convID, message)
+		if err != nil {
+			h.Debug("Error sending message: %s", err)
+			return
 		}
 	}
 }

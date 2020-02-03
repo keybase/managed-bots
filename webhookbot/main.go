@@ -109,8 +109,13 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	httpSrv := webhookbot.NewHTTPSrv(debugConfig, db)
-	handler := webhookbot.NewHandler(s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "webhookbot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	httpSrv := webhookbot.NewHTTPSrv(stats, debugConfig, db)
+	handler := webhookbot.NewHandler(stats, s.kbc, debugConfig, httpSrv, db, s.opts.HTTPPrefix)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)
