@@ -106,11 +106,6 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		err = fmt.Errorf("state %q not found %v", state, err)
 		return
 	}
-	defer func() {
-		if err := o.storage.CompleteState(state); err != nil {
-			return
-		}
-	}()
 
 	if req.IsComplete {
 		_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
@@ -130,6 +125,9 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = o.storage.PutToken(req.TokenIdentifier, token); err != nil {
+		return
+	}
+	if err = o.storage.CompleteState(state); err != nil {
 		return
 	}
 	callbackMsg, err := o.getCallbackMsg(*req)
