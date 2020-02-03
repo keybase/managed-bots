@@ -7,9 +7,20 @@ import * as Errors from './errors'
 import handleWebhookEvent from './handle-webhook-event'
 import logger from './logger'
 
-const healthCheck = (_: http.IncomingMessage, res: http.ServerResponse) => {
-  res.write('ok')
-  res.end()
+const healthCheck = async (
+  context: Context,
+  _: http.IncomingMessage,
+  res: http.ServerResponse
+): Promise<void> => {
+  try {
+    await context.bot.helpers.ping()
+    res.write('ok')
+    res.end()
+  } catch (err) {
+    res.writeHead(500)
+    res.write(err.toString())
+    res.end()
+  }
 }
 
 const jiraOauthCallback = (
@@ -122,7 +133,7 @@ export default (context: Context) =>
         const parsedUrl = url.parse(req.url, true)
         switch (parsedUrl.pathname) {
           case Constants.healthCheckPathname:
-            healthCheck(req, res)
+            healthCheck(context, req, res)
             return
           case Constants.jiraOauthCallbackPathname:
             jiraOauthCallback(parsedUrl, res)

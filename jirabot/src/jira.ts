@@ -174,7 +174,6 @@ export class JiraClientWrapper {
         events,
       })
       .then((res?: {self?: string}) => {
-        console.log({songgao: 'subscribe res', res})
         return res && res.self
       })
   }

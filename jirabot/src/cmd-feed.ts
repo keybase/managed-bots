@@ -169,23 +169,26 @@ const unsubscribe = async (
     parsedMessage.context.teamName
   )
   if (getSubRet.type === Errors.ReturnType.Error) {
-    if (getSubRet.error.type === Errors.ErrorType.KVStoreNotFound) {
-      // TODO better error
-    } else {
-      //
-    }
-    console.log({songgao: 'getSubRet error', error: getSubRet.error})
-    Errors.reportErrorAndReplyChat(
-      context,
-      parsedMessage.context,
-      getSubRet.error
-    )
+    getSubRet.error.type === Errors.ErrorType.KVStoreNotFound
+      ? Utils.replyToMessageContext(
+          context,
+          parsedMessage.context,
+          `There is no active subscription in this team.`
+        )
+      : Errors.reportErrorAndReplyChat(
+          context,
+          parsedMessage.context,
+          getSubRet.error
+        )
     return Errors.makeError(undefined)
   }
   const subscription = getSubRet.result.config.get(parsedMessage.subscriptionID)
   if (!subscription) {
-    console.log({songgao: '!subscription'})
-    // TODO better error
+    Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      `Unknown subscription ID ${parsedMessage.subscriptionID}`
+    )
     return Errors.makeError(undefined)
   }
 
@@ -256,18 +259,51 @@ const list = async (
     )
     return Errors.makeError(undefined)
   }
-  const oldSubscriptions =
-    getSubRet.type === Errors.ReturnType.Ok ? getSubRet.result : undefined
-  Utils.replyToMessageContext(
-    context,
-    parsedMessage.context,
-    `You have ${oldSubscriptions?.config.size ||
-      'no'} active subscriptions. Use !jira feed subscribe|unsubscribe to make changes.` +
-      [...(oldSubscriptions?.config?.entries() || [])].reduce(
-        (str, [subscriptionID, sub]) => str + `\n${subscriptionID}: ${sub.jql}`,
-        ''
-      )
-  )
+  const subscriptions =
+    getSubRet.type === Errors.ReturnType.Ok
+      ? [...getSubRet.result.config?.entries()]
+      : []
+  if (parsedMessage.allChannelsInTeam) {
+    Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      `You have ${subscriptions.length || 'no'} active subscription${
+        subscriptions.length > 1 ? 's' : ''
+      } in *this team*. Note that some of them might not be for this channel.` +
+        subscriptions.reduce(
+          (str, [subscriptionID, sub]) =>
+            str + `\n${subscriptionID}: ${sub.jql}`,
+          ''
+        )
+    )
+  } else {
+    const channelSubscriptions = subscriptions.filter(
+      ([_, {conversationId}]) =>
+        conversationId === parsedMessage.context.conversationId
+    )
+    const otherChannelSubscriptions =
+      subscriptions.length - channelSubscriptions.length
+    Utils.replyToMessageContext(
+      context,
+      parsedMessage.context,
+      `You have ${channelSubscriptions.length || 'no'} active subscription${
+        channelSubscriptions.length > 1 ? 's' : ''
+      } in *this channel*.${
+        otherChannelSubscriptions > 0
+          ? ` There ${
+              otherChannelSubscriptions > 1 ? 'are' : 'is'
+            } ${otherChannelSubscriptions} subscription${
+              otherChannelSubscriptions > 1 ? 's' : ''
+            } in other channels of this team. Use \`!jira feed list all\` to view all.`
+          : ''
+      }` +
+        channelSubscriptions.reduce(
+          (str, [subscriptionID, sub]) =>
+            str + `\n${subscriptionID}: ${sub.jql}`,
+          ''
+        )
+    )
+  }
   return Errors.makeResult(undefined)
 }
 

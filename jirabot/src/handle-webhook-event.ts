@@ -40,6 +40,7 @@ enum ChangelogType {
   Points = 'Story Points',
   Sprint = 'Sprint',
   Summary = 'summary',
+  Project = 'project',
 }
 
 type ChangelogItemAssignee = {
@@ -72,12 +73,19 @@ type ChangelogItemSummary = {
   to?: string
 }
 
+type ChangelogItemProject = {
+  type: ChangelogType.Project
+  from?: string
+  to?: string
+}
+
 type ChangelogItem =
   | ChangelogItemAssignee
   | ChangelogItemStatus
   | ChangelogItemPoints
   | ChangelogItemSprint
   | ChangelogItemSummary
+  | ChangelogItemProject
 
 const supportedChangelogType = new Set([
   ChangelogType.Assignee,
@@ -85,12 +93,14 @@ const supportedChangelogType = new Set([
   ChangelogType.Points,
   ChangelogType.Sprint,
   ChangelogType.Summary,
+  ChangelogType.Project,
 ])
 
 const parseChangelog = (changelog: any): Array<ChangelogItem> =>
   (Array.isArray(changelog.items) ? changelog.items : []).reduce(
     (items: Array<ChangelogItem>, item: any) => {
       if (!supportedChangelogType.has(item.field)) {
+        // console.log(JSON.stringify(item))
         return items
       }
       const from = item.fromString || undefined
@@ -175,7 +185,7 @@ export default async (
       }
       context.bot.chat.send(subscription.conversationId, {
         body:
-          `${issue.issueKey} was updated ${issue.url} | [${issue.type}] ${issue.summary}\n` +
+          `Updated: [${issue.type}] ${issue.summary} | ${issue.url}\n` +
           changelogItems
             .map(item => {
               switch (item.type) {
@@ -211,6 +221,11 @@ export default async (
                 case ChangelogType.Summary:
                   if (item.from) {
                     return `Reworded from ~_${item.from}_~ to *${item.to}*.`
+                  }
+                  return ''
+                case ChangelogType.Project:
+                  if (item.from) {
+                    return `Moved from ~_${item.from}_~ to *${item.to}*.`
                   }
                   return ''
               }

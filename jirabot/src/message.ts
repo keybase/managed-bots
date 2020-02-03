@@ -18,8 +18,8 @@ export enum BotMessageType {
 }
 
 export type MessageContext = Readonly<{
+  messageID: ChatTypes.MessageID
   chatChannel: ChatTypes.ChatChannel
-
   senderUsername: string
   teamName: string
   channelName: string
@@ -109,6 +109,7 @@ export type FeedListMessage = Readonly<{
   context: MessageContext
   type: BotMessageType.Feed
   feedMessageType: FeedMessageType.List
+  allChannelsInTeam: boolean
 }>
 
 export type FeedMessage =
@@ -299,6 +300,7 @@ const msgSummaryToMessageContext = (
   teamName: kbMessage.channel.name,
   channelName: kbMessage.channel.topicName ?? '',
   conversationId: kbMessage.conversationId,
+  messageID: kbMessage.id,
 })
 
 const shouldProcessMessageContext = (
@@ -552,10 +554,19 @@ export const parseMessage = async (
       switch (fields[2]) {
         case undefined:
         case 'list':
+          if (fields[3] === 'all') {
+            return {
+              context: messageContext,
+              type: BotMessageType.Feed,
+              feedMessageType: FeedMessageType.List,
+              allChannelsInTeam: true,
+            }
+          }
           return {
             context: messageContext,
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.List,
+            allChannelsInTeam: false,
           }
         case 'subscribe':
           const getProjectRet = await getProject(
@@ -586,7 +597,7 @@ export const parseMessage = async (
             context: messageContext,
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.Subscribe,
-            project: fields[3],
+            project,
           }
         case 'unsubscribe':
           if (!fields[3]) {
