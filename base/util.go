@@ -257,14 +257,19 @@ func MakeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(ShortConvID(convID))+secret)))
 }
 
-func SendByConvNameOrID(kbc *kbchat.API, name, msg string, args ...interface{}) error {
-	if _, err := kbc.SendMessageByConvID(chat1.ConvIDStr(name), msg, args...); err == nil {
+func SendByConvNameOrID(kbc *kbchat.API, debugOutput *DebugOutput, name, msg string, args ...interface{}) (err error) {
+	if _, err = kbc.SendMessageByConvID(chat1.ConvIDStr(name), msg, args...); err == nil {
 		return nil
 	}
-	if _, err := kbc.SendMessageByTlfName(name, msg, args...); err == nil {
+	debugOutput.Debug("unable to send by ConvID: %v", err)
+	if _, err = kbc.SendMessageByTlfName(name, msg, args...); err == nil {
 		return nil
 	}
-	_, err := kbc.SendMessageByTeamName(name, nil, msg, args...)
+	debugOutput.Debug("unable to send by tlfName: %v", err)
+	if _, err = kbc.SendMessageByTeamName(name, nil, msg, args...); err == nil {
+		return nil
+	}
+	debugOutput.Debug("unable to send by teamName: %v", err)
 	return err
 }
 

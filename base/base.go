@@ -99,9 +99,11 @@ func (s *Server) SendAnnouncement(announcement, running string) (err error) {
 		return nil
 	}
 	defer func() {
-		s.Debug("SendAnnouncement: failed to announce to %q %v", announcement, err)
+		if err != nil {
+			s.Debug("SendAnnouncement: failed to announce to %q %v", announcement, err)
+		}
 	}()
-	return SendByConvNameOrID(s.kbc, announcement, running)
+	return SendByConvNameOrID(s.kbc, s.DebugOutput, announcement, running)
 }
 
 func (s *Server) Listen(handler Handler) error {
