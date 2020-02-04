@@ -1,7 +1,11 @@
 package webhookbot
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -21,7 +25,7 @@ func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConf
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
-	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)
+	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_-]+}", h.handleHook)
 	http.Handle("/", rtr)
 	return h
 }
@@ -36,12 +40,25 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 		return msg, nil
 	}
 
+	var buf bytes.Buffer
+	bodyTee := io.TeeReader(r.Body, &buf)
 	var payload msgPayload
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(bufio.NewReader(bodyTee))
 	if err := decoder.Decode(&payload); err != nil {
-		return msg, err
+		return "", err
+	} else if len(payload.Msg) > 0 {
+		return payload.Msg, nil
 	}
-	return payload.Msg, nil
+
+	body, err := ioutil.ReadAll(&buf)
+	if err != nil {
+		return "", err
+	}
+	msg = string(body)
+	if len(msg) > 0 {
+		return msg, nil
+	}
+	return "`Error: no body found. To use a webhook URL, supply a 'msg' URL parameter, or a JSON POST body with a field 'msg'`", nil
 }
 
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +72,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	}
 	msg, err := h.getMessage(r)
 	if err != nil {
-		h.Debug("handleHook: failed to find message: %s", err)
+		h.Errorf("handleHook: failed to find message: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
