@@ -74,10 +74,6 @@ func (m *multi) heartbeat() {
 			ORDER BY id DESC
 			LIMIT 1
 		`, m.timeoutSeconds), m.name)
-		if err != nil {
-			m.Errorf("failed to select heartbeaters: %s", err)
-			return err
-		}
 		var id string
 		if err := row.Scan(&id); err != nil {
 			if err != sql.ErrNoRows {
