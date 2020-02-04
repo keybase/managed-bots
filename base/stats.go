@@ -3,7 +3,6 @@ package base
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	stathat "github.com/stathat/go"
@@ -25,32 +24,26 @@ const (
 
 type DummyStatsBackend struct {
 	*DebugOutput
-	prefix string
 }
 
-func NewDummyStatsBackend(debugConfig *ChatDebugOutputConfig, prefix string) *DummyStatsBackend {
+func NewDummyStatsBackend(debugConfig *ChatDebugOutputConfig) *DummyStatsBackend {
 	return &DummyStatsBackend{
-		DebugOutput: NewDebugOutput("DummyStatsBackend - "+prefix, debugConfig),
-		prefix:      prefix,
+		DebugOutput: NewDebugOutput("DummyStatsBackend - ", debugConfig),
 	}
 }
 
-func (d *DummyStatsBackend) stripPrefix(name string) string {
-	return strings.ReplaceAll(name, d.prefix, "")
-}
-
 func (d *DummyStatsBackend) Count(name string) error {
-	d.Debug("Count: %s", d.stripPrefix(name))
+	d.Debug("Count: %s", name)
 	return nil
 }
 
 func (d *DummyStatsBackend) CountMult(name string, count int) error {
-	d.Debug("CountMulti: %s - %d", d.stripPrefix(name), count)
+	d.Debug("CountMulti: %s - %d", name, count)
 	return nil
 }
 
 func (d *DummyStatsBackend) Value(name string, value float64) error {
-	d.Debug("Value: %s - %.2f", d.stripPrefix(name), value)
+	d.Debug("Value: %s - %.2f", name, value)
 	return nil
 }
 
@@ -90,7 +83,7 @@ func (s *StathatBackend) Shutdown() {
 	s.reporter.WaitUntilFinished(s.config.shutdownTimeout)
 }
 
-func NewStatsBackend(btype StatsBackendType, prefix string, config interface{}) (StatsBackend, error) {
+func NewStatsBackend(btype StatsBackendType, config interface{}) (StatsBackend, error) {
 	switch btype {
 	case StathatStatsBackendType:
 		if config, ok := config.(StathatConfig); ok {
@@ -101,7 +94,7 @@ func NewStatsBackend(btype StatsBackendType, prefix string, config interface{}) 
 		}
 	case DummyStatsBackendType:
 		if config, ok := config.(*ChatDebugOutputConfig); ok {
-			return NewDummyStatsBackend(config, prefix), nil
+			return NewDummyStatsBackend(config), nil
 		} else {
 			return nil, errors.New("invalid DummyStatsBackend config")
 		}
@@ -175,12 +168,12 @@ func NewStatsRegistry(debugConfig *ChatDebugOutputConfig, stathatEZKey string) (
 	var backend StatsBackend
 	if stathatEZKey != "" {
 		config := NewStathatConfig(stathatEZKey, 10*time.Second)
-		backend, err = NewStatsBackend(StathatStatsBackendType, "", config)
+		backend, err = NewStatsBackend(StathatStatsBackendType, config)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		backend, err = NewStatsBackend(DummyStatsBackendType, "", debugConfig)
+		backend, err = NewStatsBackend(DummyStatsBackendType, debugConfig)
 		if err != nil {
 			return nil, err
 		}
