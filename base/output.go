@@ -31,10 +31,6 @@ func NewDebugOutput(name string, config *ChatDebugOutputConfig) *DebugOutput {
 	}
 }
 
-func (d *DebugOutput) Name() string {
-	return d.name
-}
-
 func (d *DebugOutput) Config() *ChatDebugOutputConfig {
 	return d.config
 }

@@ -149,7 +149,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "gitlabbot")
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, s.Name())
 	if err != nil {
 		s.Debug("unable to create stats", err)
 		return err

@@ -52,6 +52,10 @@ func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string
 	}
 }
 
+func (s *Server) Name() string {
+	return s.name
+}
+
 func (s *Server) SetBotAdmins(admins []string) {
 	s.botAdmins = admins
 }
