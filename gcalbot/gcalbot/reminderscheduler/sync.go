@@ -1,8 +1,8 @@
 package reminderscheduler
 
 import (
+	"container/list"
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
@@ -18,7 +18,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 	}()
 
 	eventSync := func() {
-		subscriptions, err := r.db.GetAggregatedReminderSubscriptions()
+		subscriptions, err := r.db.GetAggregatedReminderSubscriptionsWithToken()
 		if err != nil {
 			r.Errorf("error getting reminder subscriptions to sync: %s", err)
 		}
@@ -44,6 +44,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				List(subscription.CalendarID).
 				TimeMin(minTime.Format(time.RFC3339)).
 				TimeMax(maxTime.Format(time.RFC3339)).
+				SingleEvents(true).
 				Pages(context.Background(), func(page *calendar.Events) error {
 					events = append(events, page.Items...)
 					return nil
@@ -53,7 +54,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				continue
 			}
 			for _, event := range events {
-				err = r.updateOrCreateReminderEvent(srv, event, subscription)
+				err = r.UpdateOrCreateReminderEvent(srv, event, &subscription.AggregatedSubscription)
 				if err != nil {
 					r.Errorf("error updating or creating reminder event: %s", err)
 				}
@@ -72,20 +73,37 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 	}
 }
 
-func (r *ReminderScheduler) updateOrCreateReminderEvent(
+func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	srv *calendar.Service,
 	event *calendar.Event,
-	subscriptionSet *gcalbot.AggregatedReminderSubscription,
+	subscriptionSet *gcalbot.AggregatedSubscription,
 ) error {
-	if event.Start.DateTime == "" {
+	status := gcalbot.EventStatus(event.Status)
+	if status == gcalbot.EventStatusCancelled {
+		r.Debug("removed cancelled event %s", event.Summary)
+		r.removeEventByID(event.Id)
+		return nil
+	}
+
+	start, _, isAllDay, err := gcalbot.ParseTime(event.Start, event.End)
+	if err != nil {
+		return err
+	}
+
+	if isAllDay {
 		// TODO(marcel): notifications for all day events
 		return nil
 	}
 
-	newStartTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
-	if err != nil {
-		return fmt.Errorf("error parsing event start time: %s", err)
-	}
+	var reminderMessage *ReminderMessage
+	r.eventReminders.ForEachReminderMessageInEvent(event.Id, func(msg *ReminderMessage) {
+		if msg.AccountID == subscriptionSet.AccountID &&
+			msg.CalendarID == subscriptionSet.CalendarID &&
+			msg.KeybaseConvID == subscriptionSet.KeybaseConvID {
+			// TODO(marcel): figure out how to break
+			reminderMessage = msg
+		}
+	})
 
 	timezone, err := gcalbot.GetUserTimezone(srv)
 	if err != nil {
@@ -105,57 +123,98 @@ func (r *ReminderScheduler) updateOrCreateReminderEvent(
 		return err
 	}
 
-	reminderEvent, ok := r.eventMap.Get(event.Id)
-	if !ok {
-		reminderEvent = &ReminderEvent{
-			EventID:    event.Id,
-			StartTime:  newStartTime,
-			MsgContent: eventMsgContent,
+	if reminderMessage != nil {
+		reminderMessage.Lock()
+		defer reminderMessage.Unlock()
+
+		if !start.Equal(reminderMessage.StartTime) {
+			// remove all minutes
+			r.minuteReminders.RemoveReminderMessageFromAllMinutes(reminderMessage)
+			// update the start time, and then all of the minutes
+			reminderMessage.StartTime = start
+			for _, duration := range subscriptionSet.DurationBefore {
+				if time.Now().Before(start.Add(-duration)) {
+					r.minuteReminders.AddReminderMessageToMinute(duration, reminderMessage)
+					r.Debug("added a %s reminder for event %s at %s",
+						gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(duration)),
+						event.Summary,
+						getReminderTimestamp(start, duration))
+				}
+			}
+		}
+
+		// update the event
+		reminderMessage.MsgContent = eventMsgContent
+	} else {
+		// create the event
+		reminderMessage = &ReminderMessage{
+			EventID:         event.Id,
+			AccountID:       subscriptionSet.AccountID,
+			CalendarID:      subscriptionSet.CalendarID,
+			KeybaseConvID:   subscriptionSet.KeybaseConvID,
+			StartTime:       start,
+			MsgContent:      eventMsgContent,
+			MinuteReminders: make(map[time.Duration]*list.Element),
+		}
+		reminderMessage.Lock()
+		defer reminderMessage.Unlock()
+
+		r.subscriptionReminders.AddReminderMessageToSubscription(reminderMessage)
+		r.eventReminders.AddReminderMessageToEvent(reminderMessage)
+		for _, duration := range subscriptionSet.DurationBefore {
+			if time.Now().Before(start.Add(-duration)) {
+				r.minuteReminders.AddReminderMessageToMinute(duration, reminderMessage)
+				r.Debug("added a %s reminder for event %s at %s",
+					gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(duration)),
+					event.Summary,
+					getReminderTimestamp(start, duration))
+			}
 		}
 	}
 
-	reminderEvent.Lock()
-	defer reminderEvent.Unlock()
-
-	if ok {
-		if !newStartTime.Equal(reminderEvent.StartTime) {
-			reminderEvent.StartTime = newStartTime
-			for index, subscription := range reminderEvent.Subscriptions {
-				// remove old reminder
-				r.reminderSchedule.ForEachReminderInMinute(subscription.Timestamp, func(minuteEvent *ReminderEvent, remove func()) {
-					minuteEvent.Lock()
-					defer minuteEvent.Unlock()
-					if minuteEvent.EventID == reminderEvent.EventID {
-						remove()
-						r.Debug("removed reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, subscription.Timestamp)
-					}
-				})
-				// add new reminder
-				newTimestamp := getReminderTimestamp(newStartTime, subscription.DurationBefore)
-				r.reminderSchedule.AddReminderToMinute(newTimestamp, reminderEvent)
-				r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, newTimestamp)
-				// update subscription
-				reminderEvent.Subscriptions[index].Timestamp = newTimestamp
-				r.Debug("updated subscription for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, newTimestamp)
-			}
-		}
-		reminderEvent.MsgContent = eventMsgContent
-	} else {
-		r.eventMap.Set(event.Id, reminderEvent)
-		for _, durationBefore := range subscriptionSet.DurationBefore {
-			if newStartTime.Add(-durationBefore).Before(time.Now()) {
-				continue
-			}
-			timestamp := getReminderTimestamp(newStartTime, durationBefore)
-			reminderEvent.Subscriptions = append(reminderEvent.Subscriptions, &ReminderEventSubscriptions{
-				KeybaseConvID:  subscriptionSet.KeybaseConvID,
-				Timestamp:      timestamp,
-				DurationBefore: durationBefore,
-			})
-			r.Debug("added reminder for '%s', cal '%s' at %s", event.Summary, subscribedCalendar.Summary, timestamp)
-			r.reminderSchedule.AddReminderToMinute(timestamp, reminderEvent)
-		}
+	// check if there are any minutes set, if not remove the event
+	if len(reminderMessage.MinuteReminders) == 0 {
+		r.Debug("removed event with no reminders %s", event.Summary)
+		r.subscriptionReminders.RemoveReminderMessageFromSubscription(reminderMessage)
+		r.eventReminders.RemoveReminderMessageFromEvent(reminderMessage)
 	}
 
 	return nil
+}
+
+func (r *ReminderScheduler) removeEventByID(eventID string) {
+	r.eventReminders.ForEachReminderMessageInEvent(eventID, func(msg *ReminderMessage) {
+		r.subscriptionReminders.RemoveReminderMessageFromSubscription(msg)
+		r.minuteReminders.RemoveReminderMessageFromAllMinutes(msg)
+	})
+	r.eventReminders.RemoveEvent(eventID)
+}
+
+func (r *ReminderScheduler) AddSubscription(subscription gcalbot.Subscription) {
+	r.subscriptionReminders.ForEachReminderMessageInSubscription(
+		subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
+		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
+			r.Debug("added %s reminder for event %s at %s",
+				gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
+				msg.EventID,
+				getReminderTimestamp(msg.StartTime, subscription.DurationBefore))
+			r.minuteReminders.AddReminderMessageToMinute(subscription.DurationBefore, msg)
+		})
+}
+
+func (r *ReminderScheduler) RemoveSubscription(subscription gcalbot.Subscription) {
+	r.subscriptionReminders.ForEachReminderMessageInSubscription(
+		subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
+		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
+			r.minuteReminders.RemoveReminderMessageFromMinute(msg, subscription.DurationBefore)
+			r.Debug("removed %s reminder for event %s at %s",
+				gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
+				msg.EventID,
+				getReminderTimestamp(msg.StartTime, subscription.DurationBefore))
+			if len(msg.MinuteReminders) == 0 {
+				r.Debug("removed event with no reminders %s", msg.EventID)
+				r.eventReminders.RemoveReminderMessageFromEvent(msg)
+				removeReminderMessageFromSubscription()
+			}
+		})
 }

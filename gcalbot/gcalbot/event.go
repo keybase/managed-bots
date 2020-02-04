@@ -8,6 +8,14 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+type EventStatus string
+
+const (
+	EventStatusConfirmed EventStatus = "confirmed"
+	EventStatusTentative EventStatus = "tentative"
+	EventStatusCancelled EventStatus = "cancelled"
+)
+
 func FormatEvent(
 	event *calendar.Event,
 	accountNickname, calendarSummary string,

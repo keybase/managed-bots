@@ -52,10 +52,61 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	reminderSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeReminder)
+	if err != nil {
+		return
+	}
+	inviteSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeInvite)
+	if err != nil {
+		return
+	}
+
 	client := h.handler.config.Client(context.Background(), token)
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		return
+	}
+
+	registerForReminders := func(start time.Time, isAllDay bool, event *calendar.Event) {
+		if isAllDay {
+			// TODO(marcel): support all day event reminders
+			return
+		}
+		// check if the event starts in the next 3 hours before registering it
+		if time.Now().Before(start) && time.Now().Add(3*time.Hour).After(start) {
+			for _, subscription := range reminderSubscriptions {
+				err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
+				if err != nil {
+					return
+				}
+			}
+		}
+	}
+
+	sendInvites := func(end time.Time, event *calendar.Event) {
+		if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
+			// if the event is recurring, only deal with the underlying recurring event
+			return
+		}
+		if time.Now().After(end) {
+			// the event has already ended, don't send an invite
+			return
+		}
+		var exists bool
+		exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
+		if err != nil {
+			return
+		}
+		if !exists {
+			// user was recently invited to the event
+			for range inviteSubscriptions {
+				// TODO(marcel): use subscription convid
+				err = h.handler.sendEventInvite(srv, channel, event)
+				if err != nil {
+					return
+				}
+			}
+		}
 	}
 
 	var events []*calendar.Event
@@ -83,30 +134,39 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	}
 
 	for _, event := range events {
-		if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
-			// if the event is recurring, only deal with the underlying recurring event
-			continue
-		}
-		if event.Status == "cancelled" {
-			// skip cancelled events
-			continue
-		}
-		for _, attendee := range event.Attendees {
-			if attendee.Self && !attendee.Organizer &&
-				ResponseStatus(attendee.ResponseStatus) == ResponseStatusNeedsAction {
-				var exists bool
-				exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
+		status := EventStatus(event.Status)
+
+		if status == EventStatusCancelled {
+			for _, subscription := range reminderSubscriptions {
+				err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
 				if err != nil {
 					return
 				}
-				if !exists {
-					// TODO(marcel): only send the invite if the user is subscribed
-					// user was recently invited to the event
-					err = h.handler.sendEventInvite(srv, channel, event)
-					if err != nil {
-						return
-					}
-				}
+			}
+			continue
+		}
+
+		var start, end time.Time
+		var isAllDay bool
+		start, end, isAllDay, err = ParseTime(event.Start, event.End)
+		if err != nil {
+			return
+		}
+
+		if event.Attendees == nil {
+			// the event has no attendees, the user created it! register for reminders
+			registerForReminders(start, isAllDay, event)
+		}
+
+		for _, attendee := range event.Attendees {
+			responseStatus := ResponseStatus(attendee.ResponseStatus)
+			if attendee.Self && (responseStatus == ResponseStatusAccepted || responseStatus == ResponseStatusTentative) {
+				// the user has (possibly tentatively) accepted the event invite, register for reminders
+				registerForReminders(start, isAllDay, event)
+			} else if attendee.Self && !attendee.Organizer && responseStatus == ResponseStatusNeedsAction &&
+				status != EventStatusCancelled {
+				// the user has not responded to the event invite, send event invites
+				sendInvites(end, event)
 			}
 		}
 	}
@@ -138,6 +198,8 @@ func (h *Handler) createSubscription(
 		return exists, err
 	}
 
+	h.reminderScheduler.AddSubscription(subscription)
+
 	return false, nil
 }
 
@@ -149,6 +211,8 @@ func (h *Handler) removeSubscription(
 		// if no error, subscription doesn't exist, short circuit
 		return exists, err
 	}
+
+	h.reminderScheduler.RemoveSubscription(subscription)
 
 	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(subscription.AccountID, subscription.CalendarID)
 	if err != nil {

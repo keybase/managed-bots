@@ -20,9 +20,10 @@ const backs = "```"
 type ShortID string
 
 var DefaultBotAdmins = []string{
-	"joshblum",
-	"mikem",
 	"01",
+	"joshblum",
+	"marceloneil",
+	"mikem",
 }
 
 func MsgpackDecode(dst interface{}, src []byte) error {
