@@ -14,7 +14,7 @@ type HTTPSrv struct {
 func NewHTTPSrv(stats *StatsRegistry, debugConfig *ChatDebugOutputConfig) *HTTPSrv {
 	return &HTTPSrv{
 		DebugOutput: NewDebugOutput("HTTPSrv", debugConfig),
-		Stats:       stats,
+		Stats:       stats.SetPrefix("HTTPSrv"),
 		srv:         &http.Server{Addr: ":8080"},
 	}
 }

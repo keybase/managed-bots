@@ -145,13 +145,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!webhook create"):
-		h.stats.Count("handle - create")
 		return h.handleCreate(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook list"):
-		h.stats.Count("handle - list")
 		return h.handleList(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook remove"):
-		h.stats.Count("handle - remove")
 		return h.handleRemove(cmd, msg)
 	}
 	return nil

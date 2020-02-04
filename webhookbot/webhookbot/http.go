@@ -21,8 +21,7 @@ type HTTPSrv struct {
 
 func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConfig, db *DB) *HTTPSrv {
 	h := &HTTPSrv{
-		db:    db,
-		stats: stats.SetPrefix("HTTPSrv"),
+		db: db,
 	}
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	rtr := mux.NewRouter()
@@ -68,19 +67,19 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 	hook, err := h.db.GetHook(id)
 	if err != nil {
-		h.stats.Count("handle - not found")
+		h.Stats.Count("handle - not found")
 		h.Debug("handleHook: failed to find hook for ID: %s", id)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	msg, err := h.getMessage(r)
 	if err != nil {
-		h.stats.Count("handle - no message")
+		h.Stats.Count("handle - no message")
 		h.Errorf("handleHook: failed to find message: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	h.stats.Count("handle - success")
+	h.Stats.Count("handle - success")
 	h.ChatEcho(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg)
 }
 
