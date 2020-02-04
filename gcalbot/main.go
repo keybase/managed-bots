@@ -275,11 +275,12 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, s.Name())
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
 		s.Debug("unable to create stats", err)
 		return err
 	}
+	stats = stats.SetPrefix(s.Name())
 	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)

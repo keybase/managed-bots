@@ -149,11 +149,12 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, s.Name())
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
 		s.Debug("unable to create stats", err)
 		return err
 	}
+	stats = stats.SetPrefix(s.Name())
 	handler := gitlabbot.NewHandler(stats, s.kbc, debugConfig, db, s.opts.HTTPPrefix, secret)
 	httpSrv := gitlabbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, secret)
 	eg := &errgroup.Group{}
