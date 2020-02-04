@@ -77,7 +77,7 @@ func (r *SubscriptionReminders) RemoveReminderMessageFromSubscription(msg *Remin
 func (r *SubscriptionReminders) ForEachReminderMessageInSubscription(
 	accountID, calendarID string,
 	keybaseConvID chat1.ConvIDStr,
-	callback func(msg *ReminderMessage),
+	callback func(msg *ReminderMessage, removeReminderMessageFromSubscription func()),
 ) {
 	key := getSubscriptionKey(accountID, calendarID, keybaseConvID)
 	// note: this lock could be moved to the map value in order to improve performance
@@ -90,7 +90,11 @@ func (r *SubscriptionReminders) ForEachReminderMessageInSubscription(
 	for elem := messages.Front(); elem != nil; elem = elem.Next() {
 		reminder := elem.Value.(*ReminderMessage)
 		reminder.Lock()
-		callback(reminder)
+		remove := func() {
+			messages.Remove(elem)
+			reminder.SubscriptionReminder = nil
+		}
+		callback(reminder, remove)
 		reminder.Unlock()
 	}
 }
@@ -198,6 +202,24 @@ func (r *MinuteReminders) RemoveReminderMessageFromAllMinutes(msg *ReminderMessa
 		}
 		delete(msg.MinuteReminders, duration)
 	}
+}
+
+func (r *MinuteReminders) RemoveReminderMessageFromMinute(msg *ReminderMessage, duration time.Duration) {
+	r.Lock()
+	defer r.Unlock()
+
+	minute, ok := msg.MinuteReminders[duration]
+	if !ok {
+		return
+	}
+
+	timestamp := getReminderTimestamp(msg.StartTime, duration)
+	messages, ok := r.reminderMessages[timestamp]
+	if ok && minute != nil {
+		messages.Remove(minute)
+	}
+
+	delete(msg.MinuteReminders, duration)
 }
 
 func (r *MinuteReminders) RemoveMinute(timestamp ReminderTimestamp) {

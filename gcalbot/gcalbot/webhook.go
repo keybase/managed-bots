@@ -198,6 +198,8 @@ func (h *Handler) createSubscription(
 		return exists, err
 	}
 
+	h.reminderScheduler.AddSubscription(subscription)
+
 	return false, nil
 }
 
@@ -209,6 +211,8 @@ func (h *Handler) removeSubscription(
 		// if no error, subscription doesn't exist, short circuit
 		return exists, err
 	}
+
+	h.reminderScheduler.RemoveSubscription(subscription)
 
 	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(subscription.AccountID, subscription.CalendarID)
 	if err != nil {

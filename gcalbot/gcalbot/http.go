@@ -27,9 +27,9 @@ func NewHTTPSrv(
 	kbc *kbchat.API,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
-	handler *Handler,
 	oauthConfig *oauth2.Config,
 	reminderScheduler ReminderScheduler,
+	handler *Handler,
 ) *HTTPSrv {
 	h := &HTTPSrv{
 		db:                db,

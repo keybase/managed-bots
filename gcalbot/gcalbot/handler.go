@@ -12,10 +12,13 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	stats      *base.StatsRegistry
-	kbc        *kbchat.API
-	db         *DB
-	config     *oauth2.Config
+	stats  *base.StatsRegistry
+	kbc    *kbchat.API
+	db     *DB
+	config *oauth2.Config
+
+	reminderScheduler ReminderScheduler
+
 	httpPrefix string
 }
 
@@ -27,15 +30,17 @@ func NewHandler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
 	config *oauth2.Config,
+	reminderScheduler ReminderScheduler,
 	httpPrefix string,
 ) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats.SetPrefix("Handler"),
-		kbc:         kbc,
-		db:          db,
-		config:      config,
-		httpPrefix:  httpPrefix,
+		DebugOutput:       base.NewDebugOutput("Handler", debugConfig),
+		stats:             stats.SetPrefix("Handler"),
+		kbc:               kbc,
+		db:                db,
+		config:            config,
+		reminderScheduler: reminderScheduler,
+		httpPrefix:        httpPrefix,
 	}
 }
 

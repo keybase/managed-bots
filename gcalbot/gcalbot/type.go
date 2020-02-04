@@ -1,6 +1,8 @@
 package gcalbot
 
-import "google.golang.org/api/calendar/v3"
+import (
+	"google.golang.org/api/calendar/v3"
+)
 
 type ReminderScheduler interface {
 	UpdateOrCreateReminderEvent(
@@ -8,4 +10,6 @@ type ReminderScheduler interface {
 		event *calendar.Event,
 		subscriptionSet *AggregatedSubscription,
 	) error
+	AddSubscription(subscription Subscription)
+	RemoveSubscription(subscription Subscription)
 }
