@@ -108,8 +108,9 @@ func (m *multi) heartbeat() {
 func (m *multi) deregister() {
 	if err := m.db.RunTxn(func(tx *sql.Tx) error {
 		_, err := m.db.Exec(`
-			DELETE from heartbeats WHERE name = ?
-		`, m.name)
+			DELETE from heartbeats
+			WHERE id = ? OR mtime < NOW() - INTERVAL 1 MINUTE
+		`, m.id)
 		return err
 	}); err != nil {
 		m.Errorf("deregister: failed to run txn: %s", err)
