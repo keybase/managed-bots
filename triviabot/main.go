@@ -24,7 +24,7 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts, opts.MultiDSN),
+		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
 		opts:   opts,
 	}
 }

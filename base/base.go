@@ -32,6 +32,7 @@ type Server struct {
 
 	shutdownCh chan struct{}
 
+	name         string
 	announcement string
 	awsOpts      *AWSOptions
 	kbc          *kbchat.API
@@ -40,8 +41,9 @@ type Server struct {
 	multi        *multi
 }
 
-func NewServer(announcement string, awsOpts *AWSOptions, multiDBDSN string) *Server {
+func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string) *Server {
 	return &Server{
+		name:         name,
 		announcement: announcement,
 		awsOpts:      awsOpts,
 		botAdmins:    DefaultBotAdmins,
@@ -102,7 +104,7 @@ func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API,
 			s.Errorf("failed to connect to Multi MySQL: %s", err)
 			return nil, err
 		}
-		s.multi = newMulti(NewDB(db), debugConfig)
+		s.multi = newMulti(s.name, NewDB(db), debugConfig)
 	}
 	return s.kbc, nil
 }
@@ -132,9 +134,7 @@ func (s *Server) Listen(handler Handler) error {
 	var eg errgroup.Group
 	eg.Go(func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
 	eg.Go(func() error { return s.listenForConvs(shutdownCh, sub, handler) })
-	if s.multi != nil {
-		eg.Go(func() error { return s.multi.Heartbeat(shutdownCh) })
-	}
+	eg.Go(func() error { return s.multi.Heartbeat(shutdownCh) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
@@ -157,7 +157,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 			s.Debug("listenForMsgs: Read() error: %s", err)
 			continue
 		}
-		if s.multi != nil && !s.multi.IsLeader() {
+		if !s.multi.IsLeader() {
 			s.Debug("listenForMsgs: ignoring message, not the leader")
 			continue
 		}
@@ -213,7 +213,7 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscri
 			continue
 		}
 
-		if s.multi != nil && !s.multi.IsLeader() {
+		if !s.multi.IsLeader() {
 			s.Debug("listenForMsgs: ignoring new conv, not the leader")
 			continue
 		}

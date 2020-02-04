@@ -3,7 +3,6 @@ package base
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 )
@@ -13,22 +12,27 @@ type multi struct {
 	*DebugOutput
 
 	db             *DB
+	name           string
 	id             string
 	isLeader       bool
 	timeoutSeconds int
 	interval       time.Duration
 }
 
-func newMulti(db *DB, debugConfig *ChatDebugOutputConfig) *multi {
+func newMulti(name string, db *DB, debugConfig *ChatDebugOutputConfig) *multi {
 	return &multi{
 		DebugOutput:    NewDebugOutput("Multi", debugConfig),
 		db:             db,
 		timeoutSeconds: 5,
 		interval:       time.Second,
+		name:           name,
 	}
 }
 
 func (m *multi) Heartbeat(shutdownCh chan struct{}) (err error) {
+	if m == nil {
+		return nil
+	}
 	m.id = RandHexString(8)
 	m.Debug("Heartbeat: starting multi coordination heartbeat loop: id: %s", m.id)
 	for {
@@ -44,6 +48,9 @@ func (m *multi) Heartbeat(shutdownCh chan struct{}) (err error) {
 }
 
 func (m *multi) IsLeader() bool {
+	if m == nil {
+		return true
+	}
 	m.Lock()
 	defer m.Unlock()
 	return m.isLeader
@@ -53,39 +60,40 @@ func (m *multi) heartbeat() {
 	if err := m.db.RunTxn(func(tx *sql.Tx) error {
 		// update ourselves first
 		_, err := m.db.Exec(`
-			INSERT INTO heartbeats (id, mtime) VALUES (?, NOW(6)) ON DUPLICATE KEY UPDATE mtime=NOW(6)
-		`, m.id)
+			INSERT INTO heartbeats (id, name, mtime)
+			VALUES (?, ?, NOW(6)) ON DUPLICATE KEY UPDATE mtime=NOW(6)
+		`, m.id, m.name)
 		if err != nil {
 			m.Errorf("failed to register heartbeat: %s", err)
 			return err
 		}
 		// see if we are the leader
-		rows, err := m.db.Query(fmt.Sprintf(`
-			SELECT id FROM heartbeats WHERE mtime > NOW(6) - INTERVAL %d SECOND
-		`, m.timeoutSeconds))
+		row := m.db.QueryRow(fmt.Sprintf(`
+			SELECT id FROM heartbeats
+			WHERE mtime > NOW(6) - INTERVAL %d SECOND AND name = ?
+			ORDER BY id DESC
+			LIMIT 1
+		`, m.timeoutSeconds), m.name)
 		if err != nil {
 			m.Errorf("failed to select heartbeaters: %s", err)
 			return err
 		}
-		var ids []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
+		var id string
+		if err := row.Scan(&id); err != nil {
+			if err != sql.ErrNoRows {
 				m.Errorf("failed to scan id: %s", err)
 				return err
 			}
-			ids = append(ids, id)
 		}
 
 		// figure out if we are the leader
-		sort.Strings(ids)
 		m.Lock()
+		defer m.Unlock()
 		lastLeader := m.isLeader
-		m.isLeader = ids[0] == m.id
+		m.isLeader = id == m.id
 		if lastLeader != m.isLeader {
-			m.Debug("heartbeat: leader change: isLeader: %v", m.isLeader)
+			m.Errorf("heartbeat: leader change: isLeader: %v", m.isLeader)
 		}
-		m.Unlock()
 		return nil
 	}); err != nil {
 		m.Errorf("heartbeat failed to run txn: %s", err)
@@ -95,8 +103,8 @@ func (m *multi) heartbeat() {
 func (m *multi) deregister() {
 	if err := m.db.RunTxn(func(tx *sql.Tx) error {
 		_, err := m.db.Exec(`
-			DELETE from heartbeats WHERE id = ?
-		`, m.id)
+			DELETE from heartbeats WHERE name = ?
+		`, m.name)
 		return err
 	}); err != nil {
 		m.Errorf("deregister: failed to run txn: %s", err)
