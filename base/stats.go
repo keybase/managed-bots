@@ -121,12 +121,8 @@ func (r *StatsRegistry) makeFname(name string) string {
 }
 
 func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
-	if r.prefix == "" {
-		prefix = prefix + " - "
-	} else {
-		prefix = r.prefix + prefix + " - "
-	}
-	return NewStatsRegistryWithPrefix(r.DebugOutput.Config(), r.backend, prefix)
+	prefix = r.prefix + prefix + " - "
+	return newStatsRegistryWithPrefix(r.DebugOutput.Config(), r.backend, prefix)
 }
 
 func (r *StatsRegistry) ResetPrefix() *StatsRegistry {
@@ -167,7 +163,7 @@ func NewStatsRegistryWithBackend(debugConfig *ChatDebugOutputConfig, backend Sta
 	}
 }
 
-func NewStatsRegistryWithPrefix(debugConfig *ChatDebugOutputConfig, backend StatsBackend, prefix string) *StatsRegistry {
+func newStatsRegistryWithPrefix(debugConfig *ChatDebugOutputConfig, backend StatsBackend, prefix string) *StatsRegistry {
 	return &StatsRegistry{
 		DebugOutput: NewDebugOutput("StatsRegistry - "+prefix, debugConfig),
 		backend:     backend,
@@ -175,19 +171,19 @@ func NewStatsRegistryWithPrefix(debugConfig *ChatDebugOutputConfig, backend Stat
 	}
 }
 
-func NewStatsRegistry(debugConfig *ChatDebugOutputConfig, stathatEZKey string, prefix string) (reg *StatsRegistry, err error) {
+func NewStatsRegistry(debugConfig *ChatDebugOutputConfig, stathatEZKey string) (reg *StatsRegistry, err error) {
 	var backend StatsBackend
 	if stathatEZKey != "" {
 		config := NewStathatConfig(stathatEZKey, 10*time.Second)
-		backend, err = NewStatsBackend(StathatStatsBackendType, prefix, config)
+		backend, err = NewStatsBackend(StathatStatsBackendType, "", config)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		backend, err = NewStatsBackend(DummyStatsBackendType, prefix, debugConfig)
+		backend, err = NewStatsBackend(DummyStatsBackendType, "", debugConfig)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return NewStatsRegistryWithPrefix(debugConfig, backend, prefix), nil
+	return NewStatsRegistryWithBackend(debugConfig, backend), nil
 }
