@@ -28,7 +28,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -116,7 +116,9 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.Mes
 		return nil
 	}
 	prompt := args[0]
+	h.stats.Count("handlePoll")
 	if anonymous {
+		h.stats.Count("handlePoll - anonymous")
 		return h.generateAnonymousPoll(convID, msgID, prompt, args[1:])
 	} else {
 		return h.generatePoll(convID, msgID, prompt, args[1:])
@@ -153,10 +155,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
-		h.stats.Count("handle - poll")
 		return h.handlePoll(cmd, msg.ConvID, msg.Id)
 	case strings.ToLower(cmd) == "login":
-		h.stats.Count("handle - login")
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	}
 	return nil

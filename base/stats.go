@@ -2,7 +2,6 @@ package base
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	stathat "github.com/stathat/go"
@@ -28,7 +27,7 @@ type DummyStatsBackend struct {
 
 func NewDummyStatsBackend(debugConfig *ChatDebugOutputConfig) *DummyStatsBackend {
 	return &DummyStatsBackend{
-		DebugOutput: NewDebugOutput("DummyStatsBackend - ", debugConfig),
+		DebugOutput: NewDebugOutput("DummyStatsBackend", debugConfig),
 	}
 }
 
@@ -110,7 +109,7 @@ type StatsRegistry struct {
 }
 
 func (r *StatsRegistry) makeFname(name string) string {
-	return fmt.Sprintf("%s - %s", r.prefix, name)
+	return r.prefix + name
 }
 
 func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
