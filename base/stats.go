@@ -2,6 +2,7 @@ package base
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -117,7 +118,7 @@ type StatsRegistry struct {
 }
 
 func (r *StatsRegistry) makeFname(name string) string {
-	return r.prefix + name
+	return fmt.Sprintf("%s - %s", r.prefix, name)
 }
 
 func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
