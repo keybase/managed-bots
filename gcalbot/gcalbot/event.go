@@ -16,8 +16,8 @@ func FormatEvent(
 ) (string, error) {
 	message := `%s
 > What: *%s*
-> When: %s%s%s%s%s
-> Calendar: %s`
+> When: %s%s%s%s
+> Calendar: %s%s`
 
 	// strip protocol to skip unfurl prompt
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
@@ -35,13 +35,27 @@ func FormatEvent(
 		where = fmt.Sprintf("\n> Where: %s", event.Location)
 	}
 
+	var isOrganizer bool
+	if event.Attendees == nil {
+		isOrganizer = true
+	} else {
+		for _, attendee := range event.Attendees {
+			if attendee.Self && attendee.Organizer {
+				isOrganizer = true
+			}
+		}
+	}
+
 	var organizer string
-	if event.Organizer.DisplayName != "" && event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
-	} else if event.Organizer.DisplayName != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
-	} else if event.Organizer.Email != "" {
-		organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
+	// don't show organizer for self-organized event
+	if !isOrganizer {
+		if event.Organizer.DisplayName != "" && event.Organizer.Email != "" {
+			organizer = fmt.Sprintf("\n> Organizer: %s <%s>", event.Organizer.DisplayName, event.Organizer.Email)
+		} else if event.Organizer.DisplayName != "" {
+			organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.DisplayName)
+		} else if event.Organizer.Email != "" {
+			organizer = fmt.Sprintf("\n> Organizer: %s", event.Organizer.Email)
+		}
 	}
 
 	var conferenceData string
@@ -62,14 +76,20 @@ func FormatEvent(
 		}
 	}
 
+	accountCalendar := fmt.Sprintf("%s [%s]", calendarSummary, accountNickname)
+
 	// note: description can contain HTML
 	var description string
 	if event.Description != "" {
-		description = fmt.Sprintf("\n> Description: %s", event.Description)
+		// quote all newlines
+		if strings.Contains(event.Description, "\n") {
+			descriptionBody := strings.ReplaceAll(event.Description, "\n", "\n> > ")
+			description = fmt.Sprintf("\n> Description:\n> > %s", descriptionBody)
+		} else {
+			description = fmt.Sprintf("\n> Description: %s", event.Description)
+		}
 	}
 
-	accountCalendar := fmt.Sprintf("%s [%s]", calendarSummary, accountNickname)
-
 	return fmt.Sprintf(message,
-		url, what, when, where, conferenceData, organizer, description, accountCalendar), nil
+		url, what, when, where, conferenceData, organizer, accountCalendar, description), nil
 }
