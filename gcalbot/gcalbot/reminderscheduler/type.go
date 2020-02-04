@@ -2,100 +2,225 @@ package reminderscheduler
 
 import (
 	"container/list"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 )
 
-type ReminderEvent struct {
+type ReminderTimestamp string
+
+type ReminderMessage struct {
 	sync.Mutex
-	EventID       string
-	StartTime     time.Time
-	MsgContent    string
-	Subscriptions []*ReminderEventSubscriptions
+
+	EventID string
+
+	AccountID     string
+	CalendarID    string
+	KeybaseConvID chat1.ConvIDStr
+
+	StartTime  time.Time
+	MsgContent string
+
+	SubscriptionReminder *list.Element
+	EventReminder        *list.Element
+	MinuteReminders      map[time.Duration]*list.Element
 }
 
-type ReminderEventSubscriptions struct {
-	KeybaseConvID  chat1.ConvIDStr
-	Timestamp      string
-	DurationBefore time.Duration
+// Subscriptions
+type SubscriptionKey string
+
+func getSubscriptionKey(
+	accountID, calendarID string,
+	keybaseConvID chat1.ConvIDStr,
+) SubscriptionKey {
+	return SubscriptionKey(fmt.Sprintf("%s:%s:%s", accountID, calendarID, keybaseConvID))
 }
 
-// Map of eventID (string) -> ReminderEvent (locking)
-type ReminderEventMap struct {
-	syncMap sync.Map
+type SubscriptionReminders struct {
+	sync.Mutex
+	reminderMessages map[SubscriptionKey]*list.List
 }
 
-func (r *ReminderEventMap) Get(eventID string) (event *ReminderEvent, ok bool) {
-	val, ok := r.syncMap.Load(eventID)
-	if ok {
-		return val.(*ReminderEvent), ok
-	} else {
-		return nil, ok
+func NewSubscriptionReminders() *SubscriptionReminders {
+	return &SubscriptionReminders{
+		reminderMessages: make(map[SubscriptionKey]*list.List),
 	}
 }
 
-func (r *ReminderEventMap) Set(eventID string, event *ReminderEvent) {
-	r.syncMap.Store(eventID, event)
-}
-
-func (r *ReminderEventMap) Delete(eventID string) {
-	r.syncMap.Delete(eventID)
-}
-
-type ReminderMinute struct {
-	sync.Mutex
-	ReminderList *list.List
-}
-
-// Map of timestamp (string) -> ReminderMinute (locking list)
-type ReminderSchedule struct {
-	syncMap sync.Map
-}
-
-func (r *ReminderSchedule) AddReminderToMinute(timestamp string, reminder *ReminderEvent) {
-	minute, ok := r.get(timestamp)
+func (r *SubscriptionReminders) AddReminderMessageToSubscription(msg *ReminderMessage) {
+	key := getSubscriptionKey(msg.AccountID, msg.CalendarID, msg.KeybaseConvID)
+	r.Lock()
+	defer r.Unlock()
+	messages, ok := r.reminderMessages[key]
 	if !ok {
-		minute = &ReminderMinute{}
-		minute.ReminderList = list.New()
-		r.set(timestamp, minute)
+		messages = list.New()
+		r.reminderMessages[key] = messages
 	}
-	minute.Lock()
-	defer minute.Unlock()
-	minute.ReminderList.PushBack(reminder)
+	elem := messages.PushBack(msg)
+	msg.SubscriptionReminder = elem
 }
 
-func (r *ReminderSchedule) ForEachReminderInMinute(
-	timestamp string,
-	handleEvent func(event *ReminderEvent, remove func()),
+func (r *SubscriptionReminders) RemoveReminderMessageFromSubscription(msg *ReminderMessage) {
+	key := getSubscriptionKey(msg.AccountID, msg.CalendarID, msg.KeybaseConvID)
+	r.Lock()
+	defer r.Unlock()
+
+	messages, ok := r.reminderMessages[key]
+	if ok && msg.SubscriptionReminder != nil {
+		messages.Remove(msg.SubscriptionReminder)
+		msg.SubscriptionReminder = nil
+	}
+}
+
+func (r *SubscriptionReminders) ForEachReminderMessageInSubscription(
+	accountID, calendarID string,
+	keybaseConvID chat1.ConvIDStr,
+	callback func(msg *ReminderMessage),
 ) {
-	minute, ok := r.get(timestamp)
+	key := getSubscriptionKey(accountID, calendarID, keybaseConvID)
+	// note: this lock could be moved to the map value in order to improve performance
+	r.Lock()
+	defer r.Unlock()
+	messages, ok := r.reminderMessages[key]
 	if !ok {
 		return
 	}
-	minute.Lock()
-	defer minute.Unlock()
-	for elem := minute.ReminderList.Front(); elem != nil; elem = elem.Next() {
-		event := elem.Value.(*ReminderEvent)
-		remove := func() { minute.ReminderList.Remove(elem) }
-		handleEvent(event, remove)
+	for elem := messages.Front(); elem != nil; elem = elem.Next() {
+		reminder := elem.Value.(*ReminderMessage)
+		reminder.Lock()
+		callback(reminder)
+		reminder.Unlock()
 	}
 }
 
-func (r *ReminderSchedule) Delete(timestamp string) {
-	r.syncMap.Delete(timestamp)
+// Events
+type EventReminders struct {
+	sync.Mutex
+	reminderMessages map[string]*list.List
 }
 
-func (r *ReminderSchedule) get(timestamp string) (minute *ReminderMinute, ok bool) {
-	val, ok := r.syncMap.Load(timestamp)
-	if ok {
-		return val.(*ReminderMinute), ok
-	} else {
-		return nil, ok
+func NewEventReminders() *EventReminders {
+	return &EventReminders{
+		reminderMessages: make(map[string]*list.List),
 	}
 }
 
-func (r *ReminderSchedule) set(timestamp string, minute *ReminderMinute) {
-	r.syncMap.Store(timestamp, minute)
+func (r *EventReminders) AddReminderMessageToEvent(msg *ReminderMessage) {
+	r.Lock()
+	defer r.Unlock()
+	messages, ok := r.reminderMessages[msg.EventID]
+	if !ok {
+		messages = list.New()
+		r.reminderMessages[msg.EventID] = messages
+	}
+	elem := messages.PushBack(msg)
+	msg.EventReminder = elem
+}
+
+func (r *EventReminders) RemoveReminderMessageFromEvent(msg *ReminderMessage) {
+	r.Lock()
+	defer r.Unlock()
+
+	messages, ok := r.reminderMessages[msg.EventID]
+	if ok && msg.EventReminder != nil {
+		messages.Remove(msg.EventReminder)
+		msg.EventReminder = nil
+	}
+}
+
+func (r *EventReminders) RemoveEvent(eventID string) {
+	r.Lock()
+	defer r.Unlock()
+	delete(r.reminderMessages, eventID)
+}
+
+func (r *EventReminders) ForEachReminderMessageInEvent(
+	eventID string,
+	callback func(msg *ReminderMessage),
+) {
+	// note: this lock could be moved to the map value in order to improve performance
+	r.Lock()
+	defer r.Unlock()
+	messages, ok := r.reminderMessages[eventID]
+	if !ok {
+		return
+	}
+	for elem := messages.Front(); elem != nil; elem = elem.Next() {
+		reminder := elem.Value.(*ReminderMessage)
+		reminder.Lock()
+		callback(reminder)
+		reminder.Unlock()
+	}
+}
+
+// Minutes
+type MinuteReminders struct {
+	sync.Mutex
+	reminderMessages map[ReminderTimestamp]*list.List
+}
+
+func NewMinuteReminders() *MinuteReminders {
+	return &MinuteReminders{
+		reminderMessages: make(map[ReminderTimestamp]*list.List),
+	}
+}
+
+func (r *MinuteReminders) AddReminderMessageToMinute(duration time.Duration, msg *ReminderMessage) {
+	r.Lock()
+	defer r.Unlock()
+
+	minute, ok := msg.MinuteReminders[duration]
+	if ok && minute != nil {
+		return
+	}
+
+	timestamp := getReminderTimestamp(msg.StartTime, duration)
+	messages, ok := r.reminderMessages[timestamp]
+	if !ok {
+		messages = list.New()
+		r.reminderMessages[timestamp] = messages
+	}
+	minute = messages.PushBack(msg)
+	msg.MinuteReminders[duration] = minute
+}
+
+func (r *MinuteReminders) RemoveReminderMessageFromAllMinutes(msg *ReminderMessage) {
+	r.Lock()
+	defer r.Unlock()
+
+	for duration, minute := range msg.MinuteReminders {
+		timestamp := getReminderTimestamp(msg.StartTime, duration)
+		messages, ok := r.reminderMessages[timestamp]
+		if ok && minute != nil {
+			messages.Remove(minute)
+		}
+		delete(msg.MinuteReminders, duration)
+	}
+}
+
+func (r *MinuteReminders) RemoveMinute(timestamp ReminderTimestamp) {
+	r.Lock()
+	defer r.Unlock()
+	delete(r.reminderMessages, timestamp)
+}
+
+func (r *MinuteReminders) ForEachReminderMessageInMinute(
+	timestamp ReminderTimestamp,
+	callback func(msg *ReminderMessage),
+) {
+	// note: this lock could be moved to the map value in order to improve performance
+	r.Lock()
+	defer r.Unlock()
+	messages, ok := r.reminderMessages[timestamp]
+	if !ok {
+		return
+	}
+	for elem := messages.Front(); elem != nil; elem = elem.Next() {
+		reminder := elem.Value.(*ReminderMessage)
+		reminder.Lock()
+		callback(reminder)
+		reminder.Unlock()
+	}
 }

@@ -1,6 +1,7 @@
 package gcalbot
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,42 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 )
+
+const AllDayDateFormat = "2006-01-02"
+
+func ParseTime(startDateTime, endDateTime *calendar.EventDateTime) (start, end time.Time, isAllDay bool, err error) {
+	if startDateTime == nil || endDateTime == nil {
+		err = errors.New("empty dates")
+		return
+	} else if startDateTime.DateTime != "" && endDateTime.DateTime != "" {
+		// this is a normal event
+		isAllDay = false
+		start, err = time.Parse(time.RFC3339, startDateTime.DateTime)
+		if err != nil {
+			return
+		}
+		end, err = time.Parse(time.RFC3339, endDateTime.DateTime)
+		if err != nil {
+			return
+		}
+	} else if startDateTime.Date != "" && endDateTime.Date != "" {
+		// this is an all day event
+		isAllDay = true
+		start, err = time.Parse(AllDayDateFormat, startDateTime.Date)
+		if err != nil {
+			return
+		}
+		end, err = time.Parse(AllDayDateFormat, endDateTime.Date)
+		if err != nil {
+			return
+		}
+		end = end.Add(-24 * time.Hour) // the google API sets the end day to the day after, so compensate by one day
+	} else {
+		err = fmt.Errorf("invalid dates: start: %+v, end: %+v", startDateTime, endDateTime)
+		return
+	}
+	return
+}
 
 func FormatTimeRange(
 	startDateTime, endDateTime *calendar.EventDateTime,
@@ -25,35 +62,13 @@ func FormatTimeRange(
 	//	If just the year is the same (same ^):   Fri Jan 31 - Sat Feb 1, 2020
 	//	If none of the params are the same:		 Thu Dec 31, 2020 - Fri Jan 1, 2021
 
-	var isAllDay bool
-	var start, end time.Time
-	if startDateTime.DateTime != "" && endDateTime.DateTime != "" {
-		// this is a normal event
-		isAllDay = false
-		start, err = time.Parse(time.RFC3339, startDateTime.DateTime)
-		if err != nil {
-			return "", err
-		}
-		end, err = time.Parse(time.RFC3339, endDateTime.DateTime)
-		if err != nil {
-			return "", err
-		}
+	start, end, isAllDay, err := ParseTime(startDateTime, endDateTime)
+	if err != nil {
+		return "", err
+	}
+	if !isAllDay {
 		start = start.In(timezone)
 		end = end.In(timezone)
-	} else if startDateTime.Date != "" && endDateTime.Date != "" {
-		// this is an all day event
-		isAllDay = true
-		start, err = time.Parse("2006-01-02", startDateTime.Date)
-		if err != nil {
-			return "", err
-		}
-		end, err = time.Parse("2006-01-02", endDateTime.Date)
-		if err != nil {
-			return "", err
-		}
-		end = end.Add(-24 * time.Hour) // the google API sets the end day to the day after, so compensate by one day
-	} else {
-		return "", fmt.Errorf("invalid dates: start: %+v, end: %+v", startDateTime, endDateTime)
 	}
 
 	startYear, startMonth, startDay := start.Date()

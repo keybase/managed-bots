@@ -31,33 +31,28 @@ func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
 
 func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 	timestamp := getReminderTimestamp(sendMinute, 0)
-	schedule, ok := r.reminderSchedule.get(timestamp)
-	if ok {
-		schedule.Lock()
-		r.Debug("%s: %d event notifications", timestamp, schedule.ReminderList.Len())
-		schedule.Unlock()
-	} else {
-		r.Debug("%s: 0 event notifications", timestamp)
-	}
-	r.reminderSchedule.ForEachReminderInMinute(timestamp, func(event *ReminderEvent, remove func()) {
-		event.Lock()
-		defer event.Unlock()
-		for _, subscription := range event.Subscriptions {
-			if subscription.Timestamp == timestamp {
-				// TODO(marcel): check if the user still has this reminder set
-				minutesBefore := gcalbot.GetMinutesFromDuration(subscription.DurationBefore)
+	r.minuteReminders.ForEachReminderMessageInMinute(timestamp, func(msg *ReminderMessage) {
+		for duration := range msg.MinuteReminders {
+			msgTimestamp := getReminderTimestamp(msg.StartTime, duration)
+			if msgTimestamp == timestamp {
+				minutesBefore := gcalbot.GetMinutesFromDuration(duration)
 				if minutesBefore == 0 {
-					r.ChatEcho(subscription.KeybaseConvID, "An event is starting now: %s", event.MsgContent)
+					r.ChatEcho(msg.KeybaseConvID, "An event is starting now: %s", msg.MsgContent)
 				} else {
-					r.ChatEcho(subscription.KeybaseConvID, "An event is starting in %s: %s",
-						gcalbot.MinutesBeforeString(minutesBefore), event.MsgContent)
+					r.ChatEcho(msg.KeybaseConvID, "An event is starting in %s: %s",
+						gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
 				}
+				delete(msg.MinuteReminders, duration)
 			}
 		}
-		remove()
-		// TODO(marcel): remove event if this was the last reminder
+		if len(msg.MinuteReminders) == 0 {
+			r.subscriptionReminders.RemoveReminderMessageFromSubscription(msg)
+			r.eventReminders.RemoveReminderMessageFromEvent(msg)
+			r.Debug("removed event with no reminders %s", msg.EventID)
+			// the entire minute will be removed, and since this is the event's last minute there is no need to delete 'all' minutes
+		}
 	})
-	r.reminderSchedule.Delete(timestamp)
+	r.minuteReminders.RemoveMinute(timestamp)
 	sendDuration := time.Since(sendMinute)
 	if sendDuration.Seconds() > 15 {
 		r.Errorf("sending reminders took %s", sendDuration.String())
