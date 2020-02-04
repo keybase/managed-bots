@@ -338,7 +338,7 @@ func (d *DB) GetAggregatedReminderSubscriptionsWithToken() (reminders []*Aggrega
 		       subscription.account_id, calendar_id, keybase_conv_id, GROUP_CONCAT(minutes_before), type -- subscription
 		FROM subscription
 		JOIN oauth ON subscription.account_id = oauth.identifier
-		JOIN account ON subscription.account_id = account.account_id
+		JOIN account USING(account_id)
 		WHERE subscription.type = ?
 		GROUP BY subscription.calendar_id
 	`, SubscriptionTypeReminder)
