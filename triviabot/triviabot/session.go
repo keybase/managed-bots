@@ -288,7 +288,7 @@ func (s *session) numAnswers() int {
 func (s *session) waitForCorrectAnswer() {
 	timeoutCh := make(chan struct{})
 	doneCh := make(chan struct{})
-	go func() {
+	base.GoWithRecover(s.DebugOutput, func() {
 		for {
 			select {
 			case <-s.stopCh:
@@ -335,7 +335,7 @@ func (s *session) waitForCorrectAnswer() {
 
 			}
 		}
-	}()
+	})
 	select {
 	case <-time.After(20 * time.Second):
 		s.ChatEcho(s.convID, "Times up, next question!\nCorrect answer was %s *%q*",
@@ -353,7 +353,7 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 	if intotal > 0 {
 		total = intotal
 	}
-	go func() {
+	base.GoWithRecover(s.DebugOutput, func() {
 		defer close(doneCb)
 		for i := 0; i < total; i++ {
 			select {
@@ -371,7 +371,7 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 			}
 			s.waitForCorrectAnswer()
 		}
-	}()
+	})
 	return doneCb, nil
 }
 

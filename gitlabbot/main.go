@@ -156,10 +156,10 @@ func (s *BotServer) Go() (err error) {
 	}
 	handler := gitlabbot.NewHandler(stats, s.kbc, debugConfig, db, s.opts.HTTPPrefix, secret)
 	httpSrv := gitlabbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, secret)
-	var eg errgroup.Group
-	eg.Go(func() error { return s.Listen(handler) })
-	eg.Go(httpSrv.Listen)
-	eg.Go(func() error { return s.HandleSignals(httpSrv) })
+	eg := &errgroup.Group{}
+	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
+	s.GoWithRecover(eg, httpSrv.Listen)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
