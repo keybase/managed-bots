@@ -25,7 +25,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	db *DB, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		db:          db,
 		httpPrefix:  httpPrefix,
@@ -54,10 +54,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	switch {
 	case strings.HasPrefix(cmd, "!gitlab subscribe"):
-		h.stats.Count("handle - subscribe")
+		h.stats.Count("subscribe")
 		return h.handleSubscribe(cmd, msg, true)
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
-		h.stats.Count("handle - unsubscribe")
+		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false)
 	}
 	return nil

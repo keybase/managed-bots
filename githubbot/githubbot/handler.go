@@ -35,7 +35,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	httpPrefix, appName string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		db:          db,
 		oauthConfig: oauthConfig,
@@ -70,17 +70,17 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	if strings.HasPrefix(cmd, "!github mentions") {
 		// handle user preferences without needing oauth
-		h.stats.Count("handle - mentions")
+		h.stats.Count("mentions")
 		return h.handleMentionPref(cmd, msg)
 	}
 
 	client := github.NewClient(&http.Client{Transport: h.atr})
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
-		h.stats.Count("handle - subscribe")
+		h.stats.Count("subscribe")
 		return h.handleSubscribe(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
-		h.stats.Count("handle - unsubscribe")
+		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false, client)
 	default:
 		h.Debug("ignoring unknown command %q", cmd)

@@ -52,6 +52,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := github.ValidatePayload(r, []byte(h.secret))
 	if err != nil {
 		h.Debug("Error validating payload (%s): %s\n", r.Header.Get("X-GitHub-Delivery"), err)
+		h.Stats.Count("webhook - invalid payload")
 		return
 	}
 
@@ -109,6 +110,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 		if !shouldParseEvent(event, features) {
 			// If a conversation is not subscribed to the feature an event is part of, bail
+			h.Stats.Count("webhook - disabled feature")
 			continue
 		}
 
@@ -131,6 +133,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		h.Stats.Count("webhook - success")
 		_, err = h.kbc.SendMessageByConvID(convID, message)
 		if err != nil {
 			h.Debug("Error sending message: %s", err)

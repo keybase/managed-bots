@@ -27,7 +27,7 @@ var _ base.Handler = (*Handler)(nil)
 func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		debugConfig: debugConfig,
 		db:          db,
@@ -125,16 +125,16 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!trivia begin"):
-		h.stats.Count("handle - start")
+		h.stats.Count("start")
 		h.handleStart(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia end"):
-		h.stats.Count("handle - stop")
+		h.stats.Count("stop")
 		h.handleStop(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
-		h.stats.Count("handle - top")
+		h.stats.Count("top")
 		return h.handleTop(msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
-		h.stats.Count("handle - reset")
+		h.stats.Count("reset")
 		return h.handleReset(cmd, msg)
 	}
 	return nil

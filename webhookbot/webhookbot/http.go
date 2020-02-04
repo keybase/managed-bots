@@ -15,8 +15,7 @@ import (
 type HTTPSrv struct {
 	*base.HTTPSrv
 
-	db    *DB
-	stats *base.StatsRegistry
+	db *DB
 }
 
 func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConfig, db *DB) *HTTPSrv {

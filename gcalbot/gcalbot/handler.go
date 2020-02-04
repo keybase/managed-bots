@@ -31,7 +31,7 @@ func NewHandler(
 ) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		db:          db,
 		config:      config,
@@ -69,31 +69,31 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	switch {
 	case strings.HasPrefix(cmd, "!gcal accounts list"):
-		h.stats.Count("handle - accounts list")
+		h.stats.Count("accounts list")
 		return h.handleAccountsList(msg)
 	case strings.HasPrefix(cmd, "!gcal accounts connect"):
-		h.stats.Count("handle - accounts connect")
+		h.stats.Count("accounts connect")
 		return h.handleAccountsConnect(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal accounts disconnect"):
-		h.stats.Count("handle - accounts disconnect")
+		h.stats.Count("accounts disconnect")
 		return h.handleAccountsDisconnect(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal calendars list"):
-		h.stats.Count("handle - calendars list")
+		h.stats.Count("calendars list")
 		return h.handleCalendarsList(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal invites subscribe"):
-		h.stats.Count("handle - invites subscribe")
+		h.stats.Count("invites subscribe")
 		return h.handleInvitesSubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal invites unsubscribe"):
-		h.stats.Count("handle - invites unsubscribe")
+		h.stats.Count("invites unsubscribe")
 		return h.handleInvitesUnsubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders subscribe"):
-		h.stats.Count("handle - reminders subscribe")
+		h.stats.Count("reminders subscribe")
 		return h.handleRemindersSubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders unsubscribe"):
-		h.stats.Count("handle - reminders unsubscribe")
+		h.stats.Count("reminders unsubscribe")
 		return h.handleRemindersUnsubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders list"):
-		h.stats.Count("handle - reminders list")
+		h.stats.Count("reminders list")
 		return h.handleRemindersList(msg, tokens[3:])
 	default:
 		h.ChatEcho(msg.ConvID, "Unknown command %q", cmd)
