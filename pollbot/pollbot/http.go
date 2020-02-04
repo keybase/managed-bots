@@ -25,7 +25,7 @@ type HTTPSrv struct {
 	tokenSecret string
 }
 
-func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	db *DB, tokenSecret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:         kbc,
@@ -36,7 +36,7 @@ func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	http.HandleFunc("/pollbot/vote", h.handleVote)
 	http.HandleFunc("/pollbot/login", h.handleLogin)
 	http.HandleFunc("/pollbot/image", h.handleImage)
-	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
+	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	return h
 }
 

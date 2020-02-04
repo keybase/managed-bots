@@ -12,6 +12,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats      *base.StatsRegistry
 	kbc        *kbchat.API
 	db         *DB
 	config     *oauth2.Config
@@ -21,6 +22,7 @@ type Handler struct {
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(
+	stats *base.StatsRegistry,
 	kbc *kbchat.API,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
@@ -29,6 +31,7 @@ func NewHandler(
 ) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		config:      config,
@@ -38,7 +41,7 @@ func NewHandler(
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you setup with Google Calendar anytime, just send me `!gcal accounts connect <account nickname>`."
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -66,25 +69,34 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	switch {
 	case strings.HasPrefix(cmd, "!gcal accounts list"):
+		h.stats.Count("handle - accounts list")
 		return h.handleAccountsList(msg)
 	case strings.HasPrefix(cmd, "!gcal accounts connect"):
+		h.stats.Count("handle - accounts connect")
 		return h.handleAccountsConnect(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal accounts disconnect"):
+		h.stats.Count("handle - accounts disconnect")
 		return h.handleAccountsDisconnect(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal calendars list"):
+		h.stats.Count("handle - calendars list")
 		return h.handleCalendarsList(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal invites subscribe"):
+		h.stats.Count("handle - invites subscribe")
 		return h.handleInvitesSubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal invites unsubscribe"):
+		h.stats.Count("handle - invites unsubscribe")
 		return h.handleInvitesUnsubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders subscribe"):
+		h.stats.Count("handle - reminders subscribe")
 		return h.handleRemindersSubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders unsubscribe"):
+		h.stats.Count("handle - reminders unsubscribe")
 		return h.handleRemindersUnsubscribe(msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal reminders list"):
+		h.stats.Count("handle - reminders list")
 		return h.handleRemindersList(msg, tokens[3:])
 	default:
-		h.ChatEcho(msg.ConvID, "Unknown command.")
+		h.ChatEcho(msg.ConvID, "Unknown command %q", cmd)
 		return nil
 	}
 }

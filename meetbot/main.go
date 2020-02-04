@@ -111,8 +111,13 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	handler := meetbot.NewHandler(s.kbc, debugConfig, db, config)
-	httpSrv := meetbot.NewHTTPSrv(s.kbc, debugConfig, db, handler, config)
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "meetbot")
+	if err != nil {
+		s.Debug("unable to create stats", err)
+		return err
+	}
+	handler := meetbot.NewHandler(stats, s.kbc, debugConfig, db, config)
+	httpSrv := meetbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
 	var eg errgroup.Group
 	eg.Go(func() error { return s.Listen(handler) })
 	eg.Go(httpSrv.Listen)

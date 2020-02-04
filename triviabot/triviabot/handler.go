@@ -15,6 +15,7 @@ type Handler struct {
 	*base.DebugOutput
 	sync.Mutex
 
+	stats       *base.StatsRegistry
 	kbc         *kbchat.API
 	debugConfig *base.ChatDebugOutputConfig
 	db          *DB
@@ -23,9 +24,10 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB) *Handler {
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		debugConfig: debugConfig,
 		db:          db,
@@ -109,7 +111,7 @@ func (h *Handler) handleAnswer(convID chat1.ConvIDStr, reaction chat1.MessageRea
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Are you up to the challenge? Try `!trivia begin` to find out."
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
@@ -123,12 +125,16 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!trivia begin"):
+		h.stats.Count("handle - start")
 		h.handleStart(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia end"):
+		h.stats.Count("handle - stop")
 		h.handleStop(cmd, msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
+		h.stats.Count("handle - top")
 		return h.handleTop(msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
+		h.stats.Count("handle - reset")
 		return h.handleReset(cmd, msg)
 	}
 	return nil

@@ -12,6 +12,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats      *base.StatsRegistry
 	kbc        *kbchat.API
 	db         *DB
 	httpPrefix string
@@ -20,10 +21,11 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	db *DB, httpPrefix string, secret string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		httpPrefix:  httpPrefix,
@@ -33,7 +35,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "Hi! I can notify you whenever something happens on a GitLab repository. To get started, set up a repository by sending `!gitlab subscribe <owner/repo>`"
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
@@ -52,8 +54,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	switch {
 	case strings.HasPrefix(cmd, "!gitlab subscribe"):
+		h.stats.Count("handle - subscribe")
 		return h.handleSubscribe(cmd, msg, true)
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
+		h.stats.Count("handle - unsubscribe")
 		return h.handleSubscribe(cmd, msg, false)
 	}
 	return nil

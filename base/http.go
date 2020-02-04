@@ -7,12 +7,14 @@ import (
 
 type HTTPSrv struct {
 	*DebugOutput
-	srv *http.Server
+	srv   *http.Server
+	Stats *StatsRegistry
 }
 
-func NewHTTPSrv(debugConfig *ChatDebugOutputConfig) *HTTPSrv {
+func NewHTTPSrv(stats *StatsRegistry, debugConfig *ChatDebugOutputConfig) *HTTPSrv {
 	return &HTTPSrv{
 		DebugOutput: NewDebugOutput("HTTPSrv", debugConfig),
+		Stats:       stats,
 		srv:         &http.Server{Addr: ":8080"},
 	}
 }

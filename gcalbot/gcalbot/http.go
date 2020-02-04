@@ -21,6 +21,7 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(
+	stats *base.StatsRegistry,
 	kbc *kbchat.API,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
@@ -31,7 +32,7 @@ func NewHTTPSrv(
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"gcalbot", base.Images["logo"], "/gcalbot")
 	http.HandleFunc("/gcalbot", h.healthCheckHandler)
 	http.HandleFunc("/gcalbot/home", h.homeHandler)
@@ -45,6 +46,7 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
+	h.Stats.Count("home")
 	homePage := `Google Calendar Bot is a <a href="https://keybase.io">Keybase</a> chatbot
 	which connects with your Google calendar to notify you of invites, upcoming events and more!
 	<div style="padding-top:25px;">

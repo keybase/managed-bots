@@ -20,13 +20,13 @@ type HTTPSrv struct {
 	handler *Handler
 }
 
-func NewHTTPSrv(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
+func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
 	db *base.GoogleOAuthDB, handler *Handler, oauthConfig *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		db:      db,
 		handler: handler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
 		"meetbot", base.Images["logo"], "/meetbot")
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
 	http.HandleFunc("/meetbot/home", h.homeHandler)
@@ -39,6 +39,7 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
+	h.Stats.Count("home")
 	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
 	which creates links to Google Meet meetings for you.
 	<div style="padding-top:25px;">

@@ -14,11 +14,11 @@ type HTTPSrv struct {
 	db *DB
 }
 
-func NewHTTPSrv(debugConfig *base.ChatDebugOutputConfig, db *DB) *HTTPSrv {
+func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConfig, db *DB) *HTTPSrv {
 	h := &HTTPSrv{
 		db: db,
 	}
-	h.HTTPSrv = base.NewHTTPSrv(debugConfig)
+	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
 	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_]+}", h.handleHook)

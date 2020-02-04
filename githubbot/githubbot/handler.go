@@ -19,6 +19,7 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
+	stats       *base.StatsRegistry
 	kbc         *kbchat.API
 	db          *DB
 	oauthConfig *oauth2.Config
@@ -29,11 +30,12 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB,
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB,
 	oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport,
 	httpPrefix, appName string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
+		stats:       stats,
 		kbc:         kbc,
 		db:          db,
 		oauthConfig: oauthConfig,
@@ -48,7 +50,7 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 		"Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <owner/repo>`\n\ngithub.com/apps/%s/installations/new",
 		h.appName,
 	)
-	return base.HandleNewTeam(h.DebugOutput, h.kbc, conv, welcomeMsg)
+	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
 func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
@@ -68,17 +70,20 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	if strings.HasPrefix(cmd, "!github mentions") {
 		// handle user preferences without needing oauth
+		h.stats.Count("handle - mentions")
 		return h.handleMentionPref(cmd, msg)
 	}
 
 	client := github.NewClient(&http.Client{Transport: h.atr})
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
+		h.stats.Count("handle - subscribe")
 		return h.handleSubscribe(cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
+		h.stats.Count("handle - unsubscribe")
 		return h.handleSubscribe(cmd, msg, false, client)
 	default:
-		h.Debug("ignoring unknown command")
+		h.Debug("ignoring unknown command %q", cmd)
 	}
 	return nil
 }
