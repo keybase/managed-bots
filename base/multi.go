@@ -92,7 +92,12 @@ func (m *multi) heartbeat() {
 		lastLeader := m.isLeader
 		m.isLeader = id == m.id
 		if lastLeader != m.isLeader {
-			m.Errorf("heartbeat: leader change: isLeader: %v", m.isLeader)
+			if m.isLeader {
+				m.Errorf("heartbeat: leader change: isLeader: %v myid: %s", m.isLeader, m.id)
+			} else {
+				m.Errorf("heartbeat: leader change: isLeader: %v myid: %s leaderid: %s", m.isLeader, m.id,
+					id)
+			}
 		}
 		return nil
 	}); err != nil {
