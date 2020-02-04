@@ -102,7 +102,7 @@ func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API,
 			s.Errorf("failed to connect to Multi MySQL: %s", err)
 			return nil, err
 		}
-		s.multi = newMulti(s.kbc, NewDB(db), debugConfig)
+		s.multi = newMulti(NewDB(db), debugConfig)
 	}
 	return s.kbc, nil
 }

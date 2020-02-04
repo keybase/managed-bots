@@ -6,8 +6,6 @@ import (
 	"sort"
 	"sync"
 	"time"
-
-	"github.com/keybase/go-keybase-chat-bot/kbchat"
 )
 
 type multi struct {
@@ -21,7 +19,7 @@ type multi struct {
 	interval       time.Duration
 }
 
-func newMulti(kbc *kbchat.API, db *DB, debugConfig *ChatDebugOutputConfig) *multi {
+func newMulti(db *DB, debugConfig *ChatDebugOutputConfig) *multi {
 	return &multi{
 		DebugOutput:    NewDebugOutput("Multi", debugConfig),
 		db:             db,
