@@ -54,8 +54,7 @@ func (d *DummyStatsBackend) Value(name string, value float64) error {
 	return nil
 }
 
-func (d *DummyStatsBackend) GetPrefix() string { return d.Name() }
-func (d *DummyStatsBackend) Shutdown()         {}
+func (d *DummyStatsBackend) Shutdown() {}
 
 var _ StatsBackend = (*DummyStatsBackend)(nil)
 
@@ -128,10 +127,6 @@ func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
 
 func (r *StatsRegistry) ResetPrefix() *StatsRegistry {
 	return NewStatsRegistryWithBackend(r.DebugOutput.Config(), r.backend)
-}
-
-func (r *StatsRegistry) GetPrefix() string {
-	return r.prefix
 }
 
 func (r *StatsRegistry) Count(name string) {

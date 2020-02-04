@@ -24,7 +24,7 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
 		opts:   opts,
 	}
 }
@@ -80,7 +80,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "trivabot")
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, s.Name())
 	if err != nil {
 		s.Debug("unable to create stats", err)
 		return err

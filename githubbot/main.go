@@ -48,7 +48,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer("githubbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
 		opts:   opts,
 	}
 }
@@ -57,7 +57,7 @@ const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitHub repository to this conversation.
-	
+
 Running this command without a branch or event type will subscribe you to all events on the specified repository's default branch.
 
 Event type must be one of %sissues, pulls, commits, statuses%s
@@ -70,7 +70,7 @@ Examples:%s
 		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
-	
+
 Running this command without a branch or event type will unsubscribe you from all events on the specified repository.
 
 Event type must be one of %sissues, pulls, commits, statuses%s
@@ -236,7 +236,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, "githubbot")
+	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey, s.Name())
 	if err != nil {
 		s.Debug("unable to create stats", err)
 		return err
