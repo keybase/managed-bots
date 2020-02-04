@@ -63,7 +63,7 @@ func (m *multi) heartbeat() {
 		}
 		// see if we are the leader
 		rows, err := m.db.Query(fmt.Sprintf(`
-			SELECT id FROM heartbeats WHERE mtime > NOW(6) - %d SECOND
+			SELECT id FROM heartbeats WHERE mtime > NOW(6) - INTERVAL %d SECOND
 		`, m.timeoutSeconds))
 		if err != nil {
 			m.Errorf("failed to select heartbeaters: %s", err)
@@ -90,7 +90,7 @@ func (m *multi) heartbeat() {
 		m.Unlock()
 		return nil
 	}); err != nil {
-		m.Debug("heartbeat failed to run txn: %s", err)
+		m.Errorf("heartbeat failed to run txn: %s", err)
 	}
 }
 
@@ -101,6 +101,6 @@ func (m *multi) deregister() {
 		`, m.id)
 		return err
 	}); err != nil {
-		m.Debug("deregister: failed to run txn: %s", err)
+		m.Errorf("deregister: failed to run txn: %s", err)
 	}
 }
