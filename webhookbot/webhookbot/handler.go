@@ -1,6 +1,7 @@
 package webhookbot
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -38,15 +39,17 @@ func (h *Handler) formURL(id string) string {
 	return fmt.Sprintf("%s/webhookbot/%s", h.httpPrefix, id)
 }
 
-func (h *Handler) checkAdmin(msg chat1.MsgSummary) (bool, error) {
+var errNeedAdmin = errors.New("only admins can administer webhooks")
+
+func (h *Handler) checkAdmin(msg chat1.MsgSummary) error {
 	ok, err := base.IsAdmin(h.kbc, msg)
 	if err != nil {
-		return false, fmt.Errorf("handleCreate: failed to check admin: %s", err)
+		return fmt.Errorf("handleCreate: failed to check admin: %s", err)
 	}
 	if !ok {
-		return false, fmt.Errorf("only admins can administer webhooks")
+		return errNeedAdmin
 	}
-	return true, nil
+	return nil
 }
 
 func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
@@ -56,7 +59,11 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
 	}
-	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+	if err := h.checkAdmin(msg); err != nil {
+		if err == errNeedAdmin {
+			h.ChatEcho(convID, err.Error())
+			return nil
+		}
 		return err
 	}
 	name := toks[2]
@@ -73,7 +80,11 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
 	if err != nil {
 		return fmt.Errorf("handleList: failed to list hook: %s", err)
 	}
-	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
+	if err := h.checkAdmin(msg); err != nil {
+		if err == errNeedAdmin {
+			h.ChatEcho(convID, err.Error())
+			return nil
+		}
 		return err
 	}
 
@@ -99,9 +110,9 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
 	}
-	if isAdmin, err := h.checkAdmin(msg); err != nil || !isAdmin {
-		if !isAdmin {
-			h.ChatEcho(convID, "only team admins can create web hooks")
+	if err := h.checkAdmin(msg); err != nil {
+		if err == errNeedAdmin {
+			h.ChatEcho(convID, err.Error())
 			return nil
 		}
 		return err
