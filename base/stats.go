@@ -121,7 +121,11 @@ func (r *StatsRegistry) makeFname(name string) string {
 }
 
 func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
-	prefix = r.prefix + prefix + " - "
+	if r.prefix == "" {
+		prefix = prefix + " - "
+	} else {
+		prefix = r.prefix + prefix + " - "
+	}
 	return NewStatsRegistryWithPrefix(r.DebugOutput.Config(), r.backend, prefix)
 }
 
