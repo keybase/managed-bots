@@ -27,7 +27,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats,
+		stats:       stats.SetPrefix("Handler"),
 		kbc:         kbc,
 		db:          db,
 		httpSrv:     httpSrv,
@@ -66,6 +66,7 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
 		}
 		return err
 	}
+	h.stats.Count("remove")
 	name := toks[2]
 	if err := h.db.Remove(name, convID); err != nil {
 		return fmt.Errorf("handleRemove: failed to remove webhook: %s", err)
@@ -88,6 +89,7 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
 		return err
 	}
 
+	h.stats.Count("list")
 	if len(hooks) == 0 {
 		h.ChatEcho(convID, "No hooks in this conversation")
 		return nil
@@ -118,6 +120,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
 		return err
 	}
 
+	h.stats.Count("create")
 	name := toks[2]
 	id, err := h.db.Create(name, convID)
 	if err != nil {
