@@ -45,14 +45,14 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 		h.ChatErrorf(convID, "handleState: failed to start: %s", err)
 	}
 	h.sessions[convID] = session
-	go func() {
+	base.GoWithRecover(h.DebugOutput, func() {
 		<-doneCb
 		h.ChatEcho(convID, "Session complete, here are the top players")
 		err := h.handleTop(convID)
 		if err != nil {
 			h.ChatErrorf(msg.ConvID, err.Error())
 		}
-	}()
+	})
 }
 
 func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {

@@ -39,9 +39,9 @@ func (r *ReminderScheduler) Run() error {
 	r.Lock()
 	shutdownCh := r.shutdownCh
 	r.Unlock()
-	var eg errgroup.Group
-	eg.Go(func() error { return r.eventSyncLoop(shutdownCh) })
-	eg.Go(func() error { return r.sendReminderLoop(shutdownCh) })
+	eg := &errgroup.Group{}
+	base.GoWithRecoverErrGroup(eg, r.DebugOutput, func() error { return r.eventSyncLoop(shutdownCh) })
+	base.GoWithRecoverErrGroup(eg, r.DebugOutput, func() error { return r.sendReminderLoop(shutdownCh) })
 	if err := eg.Wait(); err != nil {
 		r.Debug("wait error: %s", err)
 		return err

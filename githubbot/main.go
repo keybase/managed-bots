@@ -243,10 +243,10 @@ func (s *BotServer) Go() (err error) {
 	}
 	handler := githubbot.NewHandler(stats, s.kbc, debugConfig, db, config, atr, s.opts.HTTPPrefix, botConfig.AppName)
 	httpSrv := githubbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config, atr, botConfig.WebhookSecret)
-	var eg errgroup.Group
-	eg.Go(func() error { return s.Listen(handler) })
-	eg.Go(httpSrv.Listen)
-	eg.Go(func() error { return s.HandleSignals(httpSrv) })
+	eg := &errgroup.Group{}
+	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
+	s.GoWithRecover(eg, httpSrv.Listen)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

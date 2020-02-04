@@ -284,12 +284,12 @@ func (s *BotServer) Go() (err error) {
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
-	var eg errgroup.Group
-	eg.Go(func() error { return s.Listen(handler) })
-	eg.Go(httpSrv.Listen)
-	eg.Go(renewScheduler.Run)
-	eg.Go(reminderScheduler.Run)
-	eg.Go(func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
+	eg := &errgroup.Group{}
+	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
+	s.GoWithRecover(eg, httpSrv.Listen)
+	s.GoWithRecover(eg, renewScheduler.Run)
+	s.GoWithRecover(eg, reminderScheduler.Run)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

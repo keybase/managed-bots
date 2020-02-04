@@ -60,6 +60,10 @@ func (s *Server) SetBotAdmins(admins []string) {
 	s.botAdmins = admins
 }
 
+func (s *Server) GoWithRecover(eg *errgroup.Group, f func() error) {
+	GoWithRecoverErrGroup(eg, s.DebugOutput, f)
+}
+
 func (s *Server) Shutdown() error {
 	s.Lock()
 	defer s.Unlock()
@@ -135,10 +139,10 @@ func (s *Server) Listen(handler Handler) error {
 	s.Lock()
 	shutdownCh := s.shutdownCh
 	s.Unlock()
-	var eg errgroup.Group
-	eg.Go(func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
-	eg.Go(func() error { return s.listenForConvs(shutdownCh, sub, handler) })
-	eg.Go(func() error { return s.multi.Heartbeat(shutdownCh) })
+	eg := &errgroup.Group{}
+	s.GoWithRecover(eg, func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
+	s.GoWithRecover(eg, func() error { return s.listenForConvs(shutdownCh, sub, handler) })
+	s.GoWithRecover(eg, func() error { return s.multi.Heartbeat(shutdownCh) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
@@ -306,7 +310,7 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 		s.Errorf("unable to get run command: %v", err)
 		return err
 	}
-	go func() {
+	GoWithRecover(s.DebugOutput, func() {
 		time.Sleep(dur + time.Second)
 		defer func() {
 			// Cleanup after the file is sent.
@@ -319,7 +323,7 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 		if _, err := s.kbc.SendAttachmentByConvID(msg.ConvID, outfile, ""); err != nil {
 			s.Errorf("unable to send attachment profile: %v", err)
 		}
-	}()
+	})
 	return nil
 }
 
