@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -231,6 +232,14 @@ func RandBytes(length int) ([]byte, error) {
 		return nil, fmt.Errorf("RandBytes got too few bytes, %d < %d", n, length)
 	}
 	return buf, nil
+}
+
+func RandHexString(length int) string {
+	b, err := RandBytes(length)
+	if err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
 }
 
 func MakeRequestID() (string, error) {

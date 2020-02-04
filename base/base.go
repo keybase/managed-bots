@@ -1,6 +1,7 @@
 package base
 
 import (
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,14 +36,17 @@ type Server struct {
 	awsOpts      *AWSOptions
 	kbc          *kbchat.API
 	botAdmins    []string
+	multiDBDSN   string
+	multi        *multi
 }
 
-func NewServer(announcement string, awsOpts *AWSOptions) *Server {
+func NewServer(announcement string, awsOpts *AWSOptions, multiDBDSN string) *Server {
 	return &Server{
 		announcement: announcement,
 		awsOpts:      awsOpts,
 		botAdmins:    DefaultBotAdmins,
 		shutdownCh:   make(chan struct{}),
+		multiDBDSN:   multiDBDSN,
 	}
 }
 
@@ -90,7 +94,16 @@ func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API,
 	}); err != nil {
 		return s.kbc, err
 	}
-	s.DebugOutput = NewDebugOutput("Server", NewChatDebugOutputConfig(s.kbc, errReportConv))
+	debugConfig := NewChatDebugOutputConfig(s.kbc, errReportConv)
+	s.DebugOutput = NewDebugOutput("Server", debugConfig)
+	if s.multiDBDSN != "" {
+		db, err := sql.Open("mysql", s.multiDBDSN)
+		if err != nil {
+			s.Errorf("failed to connect to Multi MySQL: %s", err)
+			return nil, err
+		}
+		s.multi = newMulti(s.kbc, NewDB(db), debugConfig)
+	}
 	return s.kbc, nil
 }
 
@@ -119,6 +132,9 @@ func (s *Server) Listen(handler Handler) error {
 	var eg errgroup.Group
 	eg.Go(func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
 	eg.Go(func() error { return s.listenForConvs(shutdownCh, sub, handler) })
+	if s.multi != nil {
+		eg.Go(func() error { return s.multi.Heartbeat(shutdownCh) })
+	}
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
@@ -139,6 +155,10 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 		m, err := sub.Read()
 		if err != nil {
 			s.Debug("listenForMsgs: Read() error: %s", err)
+			continue
+		}
+		if s.multi != nil && !s.multi.IsLeader() {
+			s.Debug("listenForMsgs: ignoring message, not the leader")
 			continue
 		}
 
@@ -190,6 +210,11 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscri
 		c, err := sub.ReadNewConvs()
 		if err != nil {
 			s.Debug("listenForConvs: ReadNewConvs() error: %s", err)
+			continue
+		}
+
+		if s.multi != nil && !s.multi.IsLeader() {
+			s.Debug("listenForMsgs: ignoring new conv, not the leader")
 			continue
 		}
 

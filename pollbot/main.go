@@ -35,7 +35,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer(opts.Announcement, opts.AWSOpts),
+		Server: base.NewServer(opts.Announcement, opts.AWSOpts, opts.MultiDSN),
 		opts:   opts,
 	}
 }
