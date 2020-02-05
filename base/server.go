@@ -189,7 +189,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
-			case strings.HasPrefix(cmd, fmt.Sprintf("!%s feedback", s.kbc.GetUsername())):
+			case strings.HasPrefix(cmd, fmt.Sprintf("!%s", feedbackCmd(s.kbc.GetUsername()))):
 				if err := s.handleFeedback(msg); err != nil {
 					s.Errorf("listenForMsgs: unable to handleFeedback: %v", err)
 				}
@@ -367,8 +367,15 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 }
 
 func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
-	s.Report("Feedback from @%s:\n ```%s```", msg.Sender.Username, msg.Content.Text.Body)
-	s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
-		msg.Sender.Username)
+	toks := strings.Split(strings.TrimSpace(msg.Content.Text.Body), " ")
+	if len(toks) < 3 {
+		s.ChatEcho(msg.ConvID, "Woah there @%s, I can't deliver a blank message...not again. What did you want to say?",
+			msg.Sender.Username)
+	} else {
+		body := strings.Join(toks[2:], " ")
+		s.Report("Feedback from @%s:\n ```%s```", msg.Sender.Username, body)
+		s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
+			msg.Sender.Username)
+	}
 	return nil
 }
