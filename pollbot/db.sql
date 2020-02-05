@@ -12,5 +12,5 @@ CREATE TABLE `votes` (
   `id` varchar(16) NOT NULL,
   `username` varchar(50) NOT NULL,
   `choice` int(11) NOT NULL,
-   PRIMARY KEY (`id`)
+   PRIMARY KEY (`id`, `username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
