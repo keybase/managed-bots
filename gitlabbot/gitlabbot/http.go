@@ -54,8 +54,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var message string
-	var repo string
+	var message, repo string
 	branch := "master"
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
@@ -67,10 +66,9 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.Title,
 			event.ObjectAttributes.URL,
 		)
-		repo = strings.ToLower(event.Project.PathWithNamespace)
+		repo = event.Project.PathWithNamespace
 		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
-
 		message = git.FormatPullRequestMsg(
 			git.GITLAB,
 			event.ObjectAttributes.Action,
@@ -81,14 +79,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.URL,
 			event.ObjectAttributes.TargetBranch,
 		)
-
-		repo = strings.ToLower(event.Project.PathWithNamespace)
+		repo = event.Project.PathWithNamespace
 		branch = event.Project.DefaultBranch
 	case *gitlab.PushEvent:
 		if len(event.Commits) == 0 {
 			break
 		}
-
 		branch = git.RefToName(event.Ref)
 		commitMsgs := getCommitMessages(event)
 		lastCommitDiffURL := event.Commits[len(event.Commits)-1].URL
@@ -100,11 +96,9 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			len(event.Commits),
 			commitMsgs,
 			lastCommitDiffURL)
-
-		repo = strings.ToLower(event.Project.PathWithNamespace)
-
+		repo = event.Project.PathWithNamespace
 	case *gitlab.PipelineEvent:
-		repo = strings.ToLower(event.Project.PathWithNamespace)
+		repo = event.Project.PathWithNamespace
 		if event.MergeRequest.IID == 0 {
 			branch = event.ObjectAttributes.Ref
 		} else {
@@ -113,22 +107,25 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		message = formatPipelineMsg(event, event.User.Username)
 	}
 
-	if message != "" && repo != "" {
-		signature := r.Header.Get("X-Gitlab-Token")
+	if message == "" || repo == "" {
+		return
+	}
+	repo = strings.ToLower(repo)
+	branch = strings.ToLower(branch)
+	signature := r.Header.Get("X-Gitlab-Token")
 
-		convs, err := h.db.GetSubscribedConvs(repo, branch)
-		if err != nil {
-			h.Errorf("Error getting subscriptions for repo: %s", err)
-			return
-		}
+	convs, err := h.db.GetSubscribedConvs(repo, branch)
+	if err != nil {
+		h.Errorf("Error getting subscriptions for repo: %s", err)
+		return
+	}
 
-		for _, convID := range convs {
-			var secretToken = base.MakeSecret(repo, convID, h.secret)
-			if signature != secretToken {
-				h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
-				continue
-			}
-			h.ChatEcho(convID, message)
+	for _, convID := range convs {
+		var secretToken = base.MakeSecret(repo, convID, h.secret)
+		if signature != secretToken {
+			h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
+			continue
 		}
+		h.ChatEcho(convID, message)
 	}
 }
