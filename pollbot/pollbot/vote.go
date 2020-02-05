@@ -25,16 +25,10 @@ func NewVoteFromEncoded(sdat string) Vote {
 	var ve voteToEncode
 	dat, _ := base.URLEncoder().DecodeString(sdat)
 	_ = base.MsgpackDecode(&ve, dat)
-	return Vote{
-		ID:     ve.ID,
-		Choice: ve.Choice,
-	}
+	return Vote(ve)
 }
 
 func (v Vote) Encode() string {
-	mdat, _ := base.MsgpackEncode(voteToEncode{
-		ID:     v.ID,
-		Choice: v.Choice,
-	})
+	mdat, _ := base.MsgpackEncode(voteToEncode(v))
 	return base.URLEncoder().EncodeToString(mdat)
 }
