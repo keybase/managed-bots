@@ -3,6 +3,7 @@ package gcalbot
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -138,6 +139,35 @@ func GetUserFormat24HourTime(srv *calendar.Service) (format24HourTime bool, err 
 	return strconv.ParseBool(format24HourTimeSetting.Value)
 }
 
+var ErrMinutesSyntax = fmt.Errorf("invalid syntax for reminder minutes")
+var ErrMinutesRange = fmt.Errorf("value out of range for reminder minutes")
+var ErrMinutesMin = errors.New("reminder minutes cannot be negative")
+var ErrMinutesMax = errors.New("reminder minutes cannot be greater than 60")
+
+func ParseMinutes(arg string) (minutes int, err error) {
+	minutesBefore, err := strconv.Atoi(arg)
+	switch err := err.(type) {
+	case nil:
+	case *strconv.NumError:
+		switch err.Err {
+		case strconv.ErrSyntax:
+			return 0, ErrMinutesSyntax
+		case strconv.ErrRange:
+			return 0, ErrMinutesRange
+		default:
+			return 0, err
+		}
+	default:
+		return 0, err
+	}
+	if minutesBefore < 0 {
+		return 0, ErrMinutesMin
+	} else if minutesBefore > 60 {
+		return 0, ErrMinutesMax
+	}
+	return minutesBefore, nil
+}
+
 func GetMinutesFromDuration(duration time.Duration) int {
 	return int(duration.Minutes())
 }
@@ -157,4 +187,30 @@ func GetDurationBeforeFromBytes(minutesBeforeBytes []byte) (durationBefore []tim
 		durationBefore[index] = GetDurationFromMinutes(minutesBefore)
 	}
 	return durationBefore, nil
+}
+
+func FormatMinuteString(minutesBefore int) string {
+	if minutesBefore == 1 {
+		return "1 minute"
+	} else {
+		return fmt.Sprintf("%d minutes", minutesBefore)
+	}
+}
+
+func FormatMinuteSeriesString(minutes []int) string {
+	if len(minutes) == 0 {
+		return ""
+	} else if len(minutes) == 1 {
+		return fmt.Sprintf("%d minute", minutes[0])
+	}
+
+	sort.Ints(minutes)
+
+	minuteStrings := make([]string, len(minutes)-1)
+	for index := range minuteStrings {
+		minuteStrings[index] = strconv.Itoa(minutes[index])
+	}
+
+	series := strings.Join(minuteStrings, ", ")
+	return fmt.Sprintf("%s and %d minute", series, minutes[len(minutes)-1])
 }

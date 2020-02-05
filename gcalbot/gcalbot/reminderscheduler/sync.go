@@ -136,7 +136,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 				if time.Now().Before(start.Add(-duration)) {
 					r.minuteReminders.AddReminderMessageToMinute(duration, reminderMessage)
 					r.Debug("added a %s reminder for event %s at %s",
-						gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(duration)),
+						gcalbot.FormatMinuteString(gcalbot.GetMinutesFromDuration(duration)),
 						event.Summary,
 						getReminderTimestamp(start, duration))
 				}
@@ -165,7 +165,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 			if time.Now().Before(start.Add(-duration)) {
 				r.minuteReminders.AddReminderMessageToMinute(duration, reminderMessage)
 				r.Debug("added a %s reminder for event %s at %s",
-					gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(duration)),
+					gcalbot.FormatMinuteString(gcalbot.GetMinutesFromDuration(duration)),
 					event.Summary,
 					getReminderTimestamp(start, duration))
 			}
@@ -195,7 +195,7 @@ func (r *ReminderScheduler) AddSubscription(subscription gcalbot.Subscription) {
 		subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
 		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
 			r.Debug("added %s reminder for event %s at %s",
-				gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
+				gcalbot.FormatMinuteString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
 				msg.EventID,
 				getReminderTimestamp(msg.StartTime, subscription.DurationBefore))
 			r.minuteReminders.AddReminderMessageToMinute(subscription.DurationBefore, msg)
@@ -208,7 +208,7 @@ func (r *ReminderScheduler) RemoveSubscription(subscription gcalbot.Subscription
 		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
 			r.minuteReminders.RemoveReminderMessageFromMinute(msg, subscription.DurationBefore)
 			r.Debug("removed %s reminder for event %s at %s",
-				gcalbot.MinutesBeforeString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
+				gcalbot.FormatMinuteString(gcalbot.GetMinutesFromDuration(subscription.DurationBefore)),
 				msg.EventID,
 				getReminderTimestamp(msg.StartTime, subscription.DurationBefore))
 			if len(msg.MinuteReminders) == 0 {

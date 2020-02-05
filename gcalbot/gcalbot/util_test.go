@@ -203,3 +203,18 @@ func TestFormatTimeRange(t *testing.T) {
 		require.Equal(t, expected, actual)
 	})
 }
+
+func TestFormatMinuteString(t *testing.T) {
+	require.Equal(t, "0 minutes", gcalbot.FormatMinuteString(0))
+	require.Equal(t, "1 minute", gcalbot.FormatMinuteString(1))
+	require.Equal(t, "2 minutes", gcalbot.FormatMinuteString(2))
+
+	require.Equal(t, "", gcalbot.FormatMinuteSeriesString(nil))
+	require.Equal(t, "", gcalbot.FormatMinuteSeriesString([]int{}))
+
+	require.Equal(t, "0 minute", gcalbot.FormatMinuteSeriesString([]int{0}))
+	require.Equal(t, "1 minute", gcalbot.FormatMinuteSeriesString([]int{1}))
+	require.Equal(t, "0 and 1 minute", gcalbot.FormatMinuteSeriesString([]int{0, 1}))
+	require.Equal(t, "0, 1 and 2 minute", gcalbot.FormatMinuteSeriesString([]int{0, 1, 2}))
+	require.Equal(t, "2, 3, 5 and 9 minute", gcalbot.FormatMinuteSeriesString([]int{3, 5, 2, 9}))
+}

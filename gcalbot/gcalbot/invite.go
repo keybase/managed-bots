@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 )
@@ -27,42 +26,16 @@ const (
 	ResponseStatusAccepted    ResponseStatus = "accepted"
 )
 
-func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) error {
-	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
-		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
-		return nil
-	}
-
-	if len(args) != 1 {
-		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
-		return nil
-	}
-
-	keybaseUsername := msg.Sender.Username
-	accountNickname := args[0]
-	accountID := GetAccountID(keybaseUsername, accountNickname)
-
-	client, err := base.GetOAuthClient(accountID, msg, h.kbc, h.config, h.db,
-		h.getAccountOAuthOpts(msg, accountNickname))
-	if err != nil || client == nil {
-		// if no error, account doesn't exist, short circuit
-		return err
-	}
-
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
-	if err != nil {
-		return err
-	}
-
-	primaryCalendar, err := getPrimaryCalendar(srv)
-	if err != nil {
-		return err
-	}
-
+func (h *Handler) subscribeInvites(
+	srv *calendar.Service,
+	accountID string,
+	keybaseConvID chat1.ConvIDStr,
+	selectedCalendar *calendar.Calendar,
+) error {
 	exists, err := h.createSubscription(srv, Subscription{
 		AccountID:     accountID,
-		CalendarID:    primaryCalendar.Id,
-		KeybaseConvID: msg.ConvID,
+		CalendarID:    selectedCalendar.Id,
+		KeybaseConvID: keybaseConvID,
 		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || exists {
@@ -70,47 +43,19 @@ func (h *Handler) handleInvitesSubscribe(msg chat1.MsgSummary, args []string) er
 		return err
 	}
 
-	h.ChatEcho(msg.ConvID,
-		"OK, you will be notified of event invites for your primary calendar '%s' from now on.", primaryCalendar.Summary)
 	return nil
 }
 
-func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) error {
-	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
-		h.ChatEcho(msg.ConvID, "This command can only be run through direct message.")
-		return nil
-	}
-
-	if len(args) != 1 {
-		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
-		return nil
-	}
-
-	keybaseUsername := msg.Sender.Username
-	accountNickname := args[0]
-	accountID := GetAccountID(keybaseUsername, accountNickname)
-
-	token, err := h.db.GetToken(accountID)
-	if err != nil || token == nil {
-		// if no error, account doesn't exist, short circuit
-		return err
-	}
-
-	client := h.config.Client(context.Background(), token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
-	if err != nil {
-		return err
-	}
-
-	primaryCalendar, err := getPrimaryCalendar(srv)
-	if err != nil {
-		return err
-	}
-
+func (h *Handler) unsubscribeInvites(
+	srv *calendar.Service,
+	accountID string,
+	keybaseConvID chat1.ConvIDStr,
+	selectedCalendar *calendar.Calendar,
+) error {
 	exists, err := h.removeSubscription(srv, Subscription{
 		AccountID:     accountID,
-		CalendarID:    primaryCalendar.Id,
-		KeybaseConvID: msg.ConvID,
+		CalendarID:    selectedCalendar.Id,
+		KeybaseConvID: keybaseConvID,
 		Type:          SubscriptionTypeInvite,
 	})
 	if err != nil || !exists {
@@ -118,8 +63,10 @@ func (h *Handler) handleInvitesUnsubscribe(msg chat1.MsgSummary, args []string) 
 		return err
 	}
 
-	h.ChatEcho(msg.ConvID,
-		"OK, you will no longer be notified of event invites for your primary calendar '%s'.", primaryCalendar.Summary)
+	// TODO(marcel): move message to calling function
+	h.ChatEcho(keybaseConvID,
+		"OK, you will no longer be notified of event invites for your primary calendar '%s'.", selectedCalendar.Summary)
+
 	return nil
 }
 

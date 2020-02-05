@@ -77,51 +77,31 @@ Examples:%s
 !gcal calendars list work%s`,
 		back, back, backs, backs)
 
-	invitesSubscribeDesc := fmt.Sprintf(`Subscribes to event invites over direct message for the primary calendar of a Google account given the account connection's nickname.
+	subscribeDesc := fmt.Sprintf(`Subscribes to calendar notifications.
 View your connected Google accounts using %s!gcal accounts list%s
+If no calendar is provided, the primary calendar of the account is used.
+If the type of notification is not provided, you will be subscribed to a 10 minute reminder.
+You can provide the %s--reminder%s flag multiple times.
 
 Examples:%s
-!gcal invites subscribe personal
-!gcal invites subscribe work%s`,
-		back, back, backs, backs)
-
-	invitesUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event invites for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-
-Examples:%s
-!gcal invites unsubscribe personal
-!gcal invites unsubscribe work%s`,
-		back, back, backs, backs)
-
-	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders over direct message for the primary calendar of a Google account given the account connection's nickname.
-Reminders can be set for 0 minutes up to 60 minutes before the start of an event.
-You can configure multiple event reminders per account.
-View your connected Google accounts using %s!gcal accounts list%s
-View existing reminder configurations using %s!gcal reminders list%s
-
-Examples:%s
-!gcal reminders subscribe personal 0
-!gcal reminders subscribe family 5
-!gcal reminders subscribe work 60%s`,
+!gcal subscribe work
+!gcal subscribe personal --cal family --invites
+!gcal subscribe school --cal 4 --reminder 0
+!gcal subscribe work --cal meetings --invites --reminder 5 --reminder 10%s`,
 		back, back, back, back, backs, backs)
 
-	remindersUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event reminders for the primary calendar of a Google account given the account connection's nickname.
+	unsubscribeDesc := fmt.Sprintf(`Unsubscribes from calendar notifications.
 View your connected Google accounts using %s!gcal accounts list%s
-View existing reminder configurations using %s!gcal reminders list%s
+If no calendar is provided, the primary calendar of the account is used.
+If the type of notification is not provided, you will be subscribed to a 10 minute reminder.
+You can provide the %s--reminder%s flag multiple times.
 
 Examples:%s
-!gcal reminders unsubscribe personal 0
-!gcal reminders unsubscribe family 5
-!gcal reminders unsubscribe work 60%s`,
+!gcal unsubscribe work
+!gcal unsubscribe personal --cal family --invites
+!gcal unsubscribe school --cal 4 --reminder
+!gcal unsubscribe work --cal meetings --invites --reminder 5 --reminder 10%s`,
 		back, back, back, back, backs, backs)
-
-	remindersListDesc := fmt.Sprintf(`Lists event reminders configured for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-
-Examples:%s
-!gcal reminders list personal
-!gcal reminders list work%s`,
-		back, back, backs, backs)
 
 	commands := []chat1.UserBotCommandInput{
 		{
@@ -161,56 +141,26 @@ Examples:%s
 		},
 
 		{
-			Name:        "gcal invites subscribe",
-			Description: "Subscribe to event invites over direct message for your primary calendar",
-			Usage:       "<account nickname>",
+			Name:        "gcal subscribe",
+			Description: "Subscribes to calendar notifications",
+			Usage:       "<account nickname> [--cal calendar] [--invites] [--notification minutesBefore [--notification...]]",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal invites subscribe* <account nickname>",
-				DesktopBody: invitesSubscribeDesc,
-				MobileBody:  invitesSubscribeDesc,
+				Title:       "*!gcal subscribe* <account nickname> [--cal calendar] [--invites] [--notification minutesBefore [--notification...]]",
+				DesktopBody: subscribeDesc,
+				MobileBody:  subscribeDesc,
 			},
 		},
 		{
-			Name:        "gcal invites unsubscribe",
-			Description: "Unsubscribe from event invites for your primary calendar",
-			Usage:       "<account nickname>",
+			Name:        "gcal unsubscribe",
+			Description: "Unsubscribes from calendar notifications",
+			Usage:       "<account nickname> [--cal calendar] [--invites] [--notification minutesBefore [--notification...]]",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal invites unsubscribe* <account nickname>",
-				DesktopBody: invitesUnsubscribeDesc,
-				MobileBody:  invitesUnsubscribeDesc,
+				Title:       "*!gcal unsubscribe* <account nickname> [--cal calendar] [--invites] [--notification minutesBefore [--notification...]]",
+				DesktopBody: unsubscribeDesc,
+				MobileBody:  unsubscribeDesc,
 			},
 		},
 
-		{
-			Name:        "gcal reminders subscribe",
-			Description: "Subscribe to event reminders over direct message for your primary calendar",
-			Usage:       "<account nickname> <minutes before start of event>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders subscribe* <account nickname> <minutes before start of event>",
-				DesktopBody: remindersSubscribeDesc,
-				MobileBody:  remindersSubscribeDesc,
-			},
-		},
-		{
-			Name:        "gcal reminders unsubscribe",
-			Description: "Unsubscribe from event reminders for your primary calendar",
-			Usage:       "<account nickname> <minutes before start of event>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders unsubscribe* <account nickname> <minutes before start of event>",
-				DesktopBody: remindersUnsubscribeDesc,
-				MobileBody:  remindersUnsubscribeDesc,
-			},
-		},
-		{
-			Name:        "gcal reminders list",
-			Description: "List event reminder configurations for your primary calendar",
-			Usage:       "<account nickname>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders list* <account nickname>",
-				DesktopBody: remindersListDesc,
-				MobileBody:  remindersListDesc,
-			},
-		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 

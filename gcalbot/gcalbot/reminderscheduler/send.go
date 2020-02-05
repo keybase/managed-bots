@@ -40,7 +40,7 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 					r.ChatEcho(msg.KeybaseConvID, "An event is starting now: %s", msg.MsgContent)
 				} else {
 					r.ChatEcho(msg.KeybaseConvID, "An event is starting in %s: %s",
-						gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
+						gcalbot.FormatMinuteString(minutesBefore), msg.MsgContent)
 				}
 				delete(msg.MinuteReminders, duration)
 			}
