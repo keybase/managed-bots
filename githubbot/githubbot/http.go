@@ -51,7 +51,7 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := github.ValidatePayload(r, []byte(h.secret))
 	if err != nil {
-		h.Debug("Error validating payload (%s): %s\n", r.Header.Get("X-GitHub-Delivery"), err)
+		h.Debug("Error validating payload (%s): %v\n", r.Header.Get("X-GitHub-Delivery"), err)
 		h.Stats.Count("webhook - invalid payload")
 		return
 	}
