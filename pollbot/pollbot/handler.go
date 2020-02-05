@@ -36,14 +36,15 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) generateVoteLink(convID chat1.ConvIDStr, msgID chat1.MessageID, choice int) string {
-	vote := NewVote(convID, msgID, choice)
+func (h *Handler) generateVoteLink(id string, choice int) string {
+	vote := NewVote(id, choice)
 	link := h.httpPrefix + "/pollbot/vote?=" + url.QueryEscape(vote.Encode())
 	return strings.ReplaceAll(link, "%", "%%")
 }
 
 func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.MessageID, prompt string,
 	options []string) error {
+	id := base.RandHexString(8)
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	sendRes, err := h.kbc.SendMessageByConvID(convID, promptBody)
 	if err != nil {
@@ -56,7 +57,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.Mess
 	var body string
 	for index, option := range options {
 		body += fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
-			h.generateVoteLink(convID, promptMsgID, index+1))
+			h.generateVoteLink(id, index+1))
 	}
 	h.ChatEcho(convID, body)
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
@@ -66,7 +67,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.Mess
 		return fmt.Errorf("failed to get ID of result message")
 	}
 	resultMsgID := *sendRes.Result.MessageID
-	if err := h.db.CreatePoll(convID, promptMsgID, resultMsgID, len(options)); err != nil {
+	if err := h.db.CreatePoll(id, convID, promptMsgID, resultMsgID, len(options)); err != nil {
 		return fmt.Errorf("failed to create poll: %s", err)
 	}
 	return nil
