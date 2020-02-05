@@ -24,37 +24,37 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) CreatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
+func (d *DB) CreatePoll(id string, convID chat1.ConvIDStr, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO polls
-			(conv_id, msg_id, result_msg_id, choices)
+			(id, conv_id, msg_id, result_msg_id, choices)
 			VALUES
-			(?, ?, ?, ?)
-		`, base.ShortConvID(convID), msgID, resultMsgID, numChoices)
+			(?, ?, ?, ?, ?)
+		`, id, convID, msgID, resultMsgID, numChoices)
 		return err
 	})
 }
 
-func (d *DB) GetPollInfo(convID chat1.ConvIDStr, msgID chat1.MessageID) (resultMsgID chat1.MessageID, numChoices int, err error) {
+func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.MessageID, numChoices int, err error) {
 	row := d.DB.QueryRow(`
-		SELECT result_msg_id, choices
+		SELECT conv_id, result_msg_id, choices
 		FROM polls
-		WHERE conv_id = ? AND msg_id = ?
-	`, convID, msgID)
-	if err := row.Scan(&resultMsgID, &numChoices); err != nil {
-		return resultMsgID, numChoices, err
+		WHERE id = ?
+	`, id)
+	if err := row.Scan(&convID, &resultMsgID, &numChoices); err != nil {
+		return convID, resultMsgID, numChoices, err
 	}
-	return resultMsgID, numChoices, nil
+	return convID, resultMsgID, numChoices, nil
 }
 
-func (d *DB) GetTally(convID chat1.ConvIDStr, msgID chat1.MessageID) (res Tally, err error) {
+func (d *DB) GetTally(id string) (res Tally, err error) {
 	rows, err := d.DB.Query(`
 		SELECT choice, count(*)
 		FROM votes
-		WHERE conv_id = ? AND msg_id = ?
+		WHERE id = ?
 		GROUP BY 1 ORDER BY 2 DESC
-	`, convID, msgID)
+	`, id)
 	if err != nil {
 		return res, err
 	}
@@ -72,10 +72,10 @@ func (d *DB) CastVote(username string, vote Vote) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			REPLACE INTO votes
-			(conv_id, msg_id, username, choice)
+			(id, username, choice)
 			VALUES
-			(?, ?, ?, ?)
-		`, base.ShortConvID(vote.ConvID), vote.MsgID, username, vote.Choice)
+			(?, ?, ?)
+		`, vote.ID, username, vote.Choice)
 		return err
 	})
 }
