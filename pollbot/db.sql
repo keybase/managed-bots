@@ -4,7 +4,7 @@ CREATE TABLE `polls` (
   `conv_id` varchar(100) NOT NULL,
   `msg_id` int(11) NOT NULL,
   `result_msg_id` int(11) NOT NULL,
-  `choices` int(11) DEFAULT NULL,
+  `choices` int(11) NOT NULL,
    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
