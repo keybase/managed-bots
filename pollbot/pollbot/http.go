@@ -106,7 +106,7 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := h.kbc.EditByConvID(vote.ConvID, resultMsgID, formatTally(tally, numChoices)); err != nil {
-		h.Debug("failed to post result: %s", err)
+		h.Errorf("failed to post result: %s", err)
 		h.showError(w)
 		return
 	}
