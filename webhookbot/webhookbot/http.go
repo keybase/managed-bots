@@ -45,7 +45,11 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 	var payload msgPayload
 	decoder := json.NewDecoder(bufio.NewReader(bodyTee))
 	if err := decoder.Decode(&payload); err != nil {
-		return "", err
+		body, err := ioutil.ReadAll(&buf)
+		if err != nil {
+			return "", err
+		}
+		return string(body), err
 	} else if len(payload.Msg) > 0 {
 		return payload.Msg, nil
 	}
