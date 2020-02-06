@@ -4,19 +4,17 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws/defaults"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/elastiwatch/elastiwatch"
 	"github.com/olivere/elastic"
-	"github.com/sha1sum/aws_signing_client"
+	elaws "github.com/olivere/elastic/aws/v4"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -132,13 +130,7 @@ func (s *BotServer) Go() (err error) {
 	}
 	if s.opts.AWSOpts != nil {
 		s.Debug("Using AWS HTTP client: region: %s", s.opts.AWSOpts.AWSRegion)
-		signer := v4.NewSigner(defaults.Get().Config.Credentials)
-		httpClient, err = aws_signing_client.New(signer, nil, "es", s.opts.AWSOpts.AWSRegion)
-		if err != nil {
-			s.Errorf("failed to make http client: %s", err)
-			return err
-		}
-		aws_signing_client.SetDebugLog(log.New(os.Stdout, "httpClient", 0))
+		httpClient = elaws.NewV4SigningClient(defaults.Get().Config.Credentials, s.opts.AWSOpts.AWSRegion)
 		emailer = base.NewSESEmailer(s.opts.SenderEmail, s.opts.AWSOpts.AWSRegion, debugConfig)
 	}
 	cli, err := elastic.NewClient(
