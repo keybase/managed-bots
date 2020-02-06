@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -131,7 +132,8 @@ func (s *BotServer) Go() (err error) {
 
 	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
 	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db)
-	logwatch := elastiwatch.NewLogWatch(cli, s.opts.Index, s.opts.Email, emailer, debugConfig)
+	logwatch := elastiwatch.NewLogWatch(cli, s.opts.Index, s.opts.Email, emailer, s.opts.AlertConvID,
+		s.opts.EmailConvID, debugConfig)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
@@ -160,8 +162,7 @@ func mainInner() int {
 	fs.StringVar(&opts.Team, "team", os.Getenv("TEAM"), "Team")
 	fs.StringVar(&alertConvID, "alert-convid", os.Getenv("ALERT_CONVID"), "Alerting conv id")
 	fs.StringVar(&emailConvID, "email-convid", os.Getenv("EMAIL_CONVID"), "Email conv id")
-	opts.AlertConvID = chat1.ConvIDStr(alertConvID)
-	opts.EmailConvID = chat1.ConvIDStr(emailConvID)
+
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
@@ -182,6 +183,8 @@ func mainInner() int {
 		fmt.Printf("must specify a team to operate in\n")
 		return 3
 	}
+	opts.AlertConvID = chat1.ConvIDStr(alertConvID)
+	opts.EmailConvID = chat1.ConvIDStr(emailConvID)
 	bs := NewBotServer(*opts)
 	if err := bs.Go(); err != nil {
 		fmt.Printf("error running chat loop: %v\n", err)

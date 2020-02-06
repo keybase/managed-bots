@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/olivere/elastic"
 )
@@ -17,11 +18,13 @@ type LogWatch struct {
 	emailer      base.Emailer
 	sendCount    int
 	lastSend     time.Time
+	alertConvID  chat1.ConvIDStr
+	emailConvID  chat1.ConvIDStr
 	shutdownCh   chan struct{}
 }
 
 func NewLogWatch(cli *elastic.Client, index, email string, emailer base.Emailer,
-	debugConfig *base.ChatDebugOutputConfig) *LogWatch {
+	alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
 	return &LogWatch{
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
 		cli:         cli,
@@ -29,13 +32,15 @@ func NewLogWatch(cli *elastic.Client, index, email string, emailer base.Emailer,
 		email:       email,
 		emailer:     emailer,
 		lastSend:    time.Now(),
+		alertConvID: alertConvID,
+		emailConvID: emailConvID,
 		shutdownCh:  make(chan struct{}),
 	}
 }
 
 func (l *LogWatch) addAndCheckForSend(entries []*entry) {
 	l.entries = append(l.entries, entries...)
-	threshold := 10000
+	threshold := 10
 	score := 0
 	for _, e := range l.entries {
 		switch e.Severity {
@@ -59,11 +64,32 @@ func (l *LogWatch) addAndCheckForSend(entries []*entry) {
 	}
 }
 
+const backs = "```"
+
+func (l *LogWatch) alertFromChunk(c chunk) {
+	if c.Severity != "CRITICAL" {
+		return
+	}
+	l.ChatEcho(l.alertConvID, `%d *CRITICAL* errors received
+%s%s%s`, c.Count, backs, c.Message, backs)
+}
+
+func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
+	body := fmt.Sprintf("Email sent: %s", subject)
+	for _, c := range chunks {
+		body += fmt.Sprintf("\n%s %d %s", c.Severity, c.Count, c.Message)
+	}
+	l.ChatEcho(l.emailConvID, "```"+body+"````")
+}
+
 func (l *LogWatch) generateAndSend(entries []*entry) {
 	// do tree grouping
 	groupRes := newTreeifyGrouper(3).Group(entries)
 	indivRes := newTreeifyGrouper(0).Group(entries)
 
+	for _, c := range groupRes {
+		l.alertFromChunk(c)
+	}
 	var sections []renderSection
 	sections = append(sections, renderSection{
 		Heading: "Grouped Messages",
@@ -80,6 +106,7 @@ func (l *LogWatch) generateAndSend(entries []*entry) {
 
 	dur := time.Since(l.lastSend).String()
 	subject := fmt.Sprintf("Log Error Report - #%d - %s", l.sendCount, dur)
+	l.alertEmail(subject, groupRes)
 	if err := l.emailer.Send(l.email, subject, renderText); err != nil {
 		l.Debug("error sending email: %s", err.Error())
 	}
@@ -122,6 +149,13 @@ func (l *LogWatch) runOnce() {
 }
 
 func (l *LogWatch) Run() error {
+	l.Debug("log watch starting up...")
+	if l.alertConvID != "" {
+		l.Debug("alerting into convID: %s", l.alertConvID)
+	}
+	if l.emailConvID != "" {
+		l.Debug("email notices into convID: %s", l.emailConvID)
+	}
 	l.runOnce()
 	for {
 		select {

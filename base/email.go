@@ -17,7 +17,6 @@ type DummyEmailer struct {
 
 func (d DummyEmailer) Send(address, subject, message string) error {
 	fmt.Printf("subject: %s\n", subject)
-	fmt.Println(message)
 	return nil
 }
 
