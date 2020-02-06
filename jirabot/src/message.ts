@@ -96,6 +96,7 @@ export type FeedSubscribeMessage = Readonly<{
   type: BotMessageType.Feed
   feedMessageType: FeedMessageType.Subscribe
   project: string
+  withUpdates: boolean
 }>
 
 export type FeedUnsubscribeMessage = Readonly<{
@@ -598,6 +599,7 @@ export const parseMessage = async (
             type: BotMessageType.Feed,
             feedMessageType: FeedMessageType.Subscribe,
             project,
+            withUpdates: fields[4] === 'with' && fields[5] === 'updates',
           }
         case 'unsubscribe':
           if (!fields[3]) {

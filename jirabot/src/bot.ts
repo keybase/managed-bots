@@ -177,13 +177,16 @@ const commands = [
   {
     name: 'jira feed',
     description: `Subscribe to Jira feed and receive messages on Keybase about Jira activities.`,
-    usage: `list | subscribe <project> | unsubscribe <webhook>`,
+    usage: `list [all] | subscribe <project|'all'> [with updates] | unsubscribe <id>`,
     title: 'Subscribe to Jira feed',
     body:
       'Examples:\n\n' +
       '!jira list\n' +
+      '!jira list all\n' +
+      '!jira subscribe all\n' +
       '!jira subscribe design\n' +
-      '!jira unsubscribe https://example.atlassian.net/rest/webhooks/1.0/webhook/123',
+      '!jira subscribe frontend with updates\n' +
+      '!jira unsubscribe 123',
   },
 ]
 

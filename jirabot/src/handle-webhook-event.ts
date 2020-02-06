@@ -79,28 +79,28 @@ type ChangelogItemProject = {
   to?: string
 }
 
-type ChangelogItem =
+type ChangelogItemNoProject =
   | ChangelogItemAssignee
   | ChangelogItemStatus
   | ChangelogItemPoints
   | ChangelogItemSprint
   | ChangelogItemSummary
-  | ChangelogItemProject
 
-const supportedChangelogType = new Set([
+const supportedChangelogTypeForUpdates = new Set([
   ChangelogType.Assignee,
   ChangelogType.Status,
   ChangelogType.Points,
   ChangelogType.Sprint,
   ChangelogType.Summary,
-  ChangelogType.Project,
+  // We deal with ChangelogType.Project separrately.
 ])
 
-const parseChangelog = (changelog: any): Array<ChangelogItem> =>
+const parseChangelogForUpdates = (
+  changelog: any
+): Array<ChangelogItemNoProject> =>
   (Array.isArray(changelog.items) ? changelog.items : []).reduce(
-    (items: Array<ChangelogItem>, item: any) => {
-      if (!supportedChangelogType.has(item.field)) {
-        // console.log(JSON.stringify(item))
+    (items: Array<ChangelogItemNoProject>, item: any) => {
+      if (!supportedChangelogTypeForUpdates.has(item.field)) {
         return items
       }
       const from = item.fromString || undefined
@@ -116,8 +116,24 @@ const parseChangelog = (changelog: any): Array<ChangelogItem> =>
             },
           ]
     },
-    [] as Array<ChangelogItem>
+    [] as Array<ChangelogItemNoProject>
   )
+
+const parseChangelogForProjectUpdate = (
+  changelog: any
+): undefined | ChangelogItemProject => {
+  const entry = (Array.isArray(changelog.items) ? changelog.items : []).find(
+    (entry: any) => entry.field === ChangelogType.Project
+  )
+  if (!entry || !entry.fromString || !entry.toString) {
+    return undefined
+  }
+  return {
+    type: ChangelogType.Project,
+    from: entry.fromString,
+    to: entry.toString,
+  }
+}
 
 export default async (
   context: Context,
@@ -173,8 +189,18 @@ export default async (
       })
       return undefined
     case Jira.JiraSubscriptionEvents.IssueUpdated:
+      const projectUpdate = parseChangelogForProjectUpdate(payload.changelog)
+      projectUpdate &&
+        context.bot.chat.send(subscription.conversationId, {
+          body: `A _${issue.type}_ was moved from ~_${projectUpdate.from}_~ to *${projectUpdate.to}*: ${issue.summary} | ${issue.url}`,
+        })
+
+      if (!subscription.withUpdates) {
+        return undefined
+      }
+
       const changelogItems =
-        payload.changelog && parseChangelog(payload.changelog)
+        payload.changelog && parseChangelogForUpdates(payload.changelog)
       if (!changelogItems.length) {
         logger.warn({
           msg: 'handleWebhookEvent',
@@ -221,11 +247,6 @@ export default async (
                 case ChangelogType.Summary:
                   if (item.from) {
                     return `Reworded from ~_${item.from}_~ to *${item.to}*.`
-                  }
-                  return ''
-                case ChangelogType.Project:
-                  if (item.from) {
-                    return `Moved from ~_${item.from}_~ to *${item.to}*.`
                   }
                   return ''
               }
