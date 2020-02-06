@@ -44,7 +44,7 @@ func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.
 }
 
 func (l *LogWatch) addAndCheckForSend(entries []*entry) {
-	l.entries = append(l.entries, entries...)
+	l.entries = append(l.entries, l.filterEntries(entries)...)
 	threshold := 10000
 	score := 0
 	for _, e := range l.entries {
@@ -129,14 +129,12 @@ func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 }
 
 func (l *LogWatch) peek() {
-	entries := l.filterEntries(l.entries)
-	groupRes := newTreeifyGrouper(3).Group(entries)
+	groupRes := newTreeifyGrouper(3).Group(l.entries)
 	l.alertEmail("Peek results", groupRes)
 }
 
 func (l *LogWatch) generateAndSend(entries []*entry) {
 	// do tree grouping
-	entries = l.filterEntries(entries)
 	groupRes := newTreeifyGrouper(3).Group(entries)
 	indivRes := newTreeifyGrouper(0).Group(entries)
 
