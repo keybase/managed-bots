@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -132,6 +133,7 @@ func (s *BotServer) Go() (err error) {
 	if s.opts.AWSOpts != nil {
 		s.Debug("Using AWS HTTP client: region: %s", s.opts.AWSOpts.AWSRegion)
 		signer := v4.NewSigner(defaults.Get().Config.Credentials)
+		aws_signing_client.SetDebugLog(log.New(os.Stdout, "httpClient", 0))
 		httpClient, err = aws_signing_client.New(signer, nil, "es", s.opts.AWSOpts.AWSRegion)
 		if err != nil {
 			s.Errorf("failed to make http client: %s", err)
@@ -148,6 +150,7 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("unable to connect to Elasticsearch: %s", err)
 		return err
 	}
+	s.Debug("Connected to ElasticSearch")
 
 	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
 	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db)
