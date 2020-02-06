@@ -121,8 +121,8 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	branchesNotified := false
-	if len(convs) == 0 {
+	shouldNotifyConvs := len(convs) == 0
+	if shouldNotifyConvs {
 		notSubscribedConvs, err := h.db.GetNotSubscribedToBranchConvs(repo, branch)
 		if err != nil {
 			h.Errorf("Error getting subscriptions for repo: %s", err)
@@ -148,7 +148,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		message = formatNotifyBranchMsg(repo, branch)
-		branchesNotified = true
 	}
 
 	for _, convID := range convs {
@@ -159,7 +158,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		h.ChatEcho(convID, message)
 
-		if branchesNotified {
+		if shouldNotifyConvs {
 			err = h.db.PutNotifiedBranchConv(convID, repo, branch)
 			if err != nil {
 				h.Errorf("Error putting notified branch for repo: %s", err)
