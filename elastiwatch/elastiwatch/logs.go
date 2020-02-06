@@ -3,6 +3,7 @@ package elastiwatch
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -12,6 +13,7 @@ import (
 
 type LogWatch struct {
 	*base.DebugOutput
+	db           *DB
 	cli          *elastic.Client
 	index, email string
 	entries      []*entry
@@ -23,11 +25,12 @@ type LogWatch struct {
 	shutdownCh   chan struct{}
 }
 
-func NewLogWatch(cli *elastic.Client, index, email string, emailer base.Emailer,
+func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.Emailer,
 	alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
 	return &LogWatch{
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
 		cli:         cli,
+		db:          db,
 		index:       index,
 		email:       email,
 		emailer:     emailer,
@@ -82,8 +85,47 @@ func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 	l.ChatEcho(l.emailConvID, "```"+body+"````")
 }
 
+func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
+	// get regexes
+	deferrals, err := l.db.List()
+	if err != nil {
+		l.Errorf("failed to get filter list: %s", err)
+		return entries
+	}
+	if len(deferrals) == 0 {
+		return entries
+	}
+	var regexs []*regexp.Regexp
+	for _, d := range deferrals {
+		r, err := regexp.Compile(d.regex)
+		if err != nil {
+			l.Errorf("invalid regex: %s err: %s", d, err)
+			continue
+		}
+		regexs = append(regexs, r)
+	}
+
+	// filter
+	isBlocked := func(msg string) bool {
+		for _, r := range regexs {
+			if r.Match([]byte(msg)) {
+				l.Debug("filtering message: %s regex: %s", msg, r)
+				return true
+			}
+		}
+		return false
+	}
+	for _, e := range entries {
+		if !isBlocked(e.Message) {
+			res = append(res, e)
+		}
+	}
+	return res
+}
+
 func (l *LogWatch) generateAndSend(entries []*entry) {
 	// do tree grouping
+	entries = l.filterEntries(entries)
 	groupRes := newTreeifyGrouper(3).Group(entries)
 	indivRes := newTreeifyGrouper(0).Group(entries)
 

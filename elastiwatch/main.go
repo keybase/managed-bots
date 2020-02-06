@@ -51,12 +51,17 @@ func NewBotServer(opts Options) *BotServer {
 }
 
 const backs = "```"
+const back = "`"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	pollExtended := fmt.Sprintf(`Defer reporting on logs lines that match the givesn regular expression. Useful if there is a known error spamming emails that is not a problem
+	deferExtended := fmt.Sprintf(`Defer reporting on logs lines that match the givesn regular expression. Useful if there is a known error spamming emails that is not a problem
 
 	Example:%s
-		!elastiwatch defer error loading .*`, backs, backs)
+		!elastiwatch defer error loading .*%s`, backs, backs)
+	unDeferExtended := fmt.Sprintf(`Remove a currently active log deferral. Deferrals IDs can be found by running %s!elastiwatch list-defers%s.
+
+	Example:%s
+		!elastiwatch undefer 2%s`, back, back, backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
@@ -65,8 +70,22 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title: `*!elastiwatch defer* <regex>
 Defer logs`,
-				DesktopBody: pollExtended,
-				MobileBody:  pollExtended,
+				DesktopBody: deferExtended,
+				MobileBody:  deferExtended,
+			},
+		},
+		{
+			Name:        "elastiwatch list-defers",
+			Description: "List active list-defers",
+		},
+		{
+			Name:        "elastiwatch undefer",
+			Description: "Remove deferral",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title: `*!elastiwatch undefer* <deferral index>
+Remove deferral`,
+				DesktopBody: unDeferExtended,
+				MobileBody:  unDeferExtended,
 			},
 		},
 	}
@@ -132,7 +151,7 @@ func (s *BotServer) Go() (err error) {
 
 	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
 	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db)
-	logwatch := elastiwatch.NewLogWatch(cli, s.opts.Index, s.opts.Email, emailer, s.opts.AlertConvID,
+	logwatch := elastiwatch.NewLogWatch(cli, db, s.opts.Index, s.opts.Email, emailer, s.opts.AlertConvID,
 		s.opts.EmailConvID, debugConfig)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
