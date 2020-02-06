@@ -348,7 +348,7 @@ func (d *DB) GetAggregatedReminderSubscriptionsWithToken() (reminders []*Aggrega
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer row.Close()
 	for row.Next() {
 		var reminder AggregatedSubscriptionWithToken
 		reminder.Token = &oauth2.Token{}
@@ -388,7 +388,7 @@ func (d *DB) GetAggregatedSubscriptionsByTypeForUserAndCal(
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer row.Close()
 	for row.Next() {
 		var subscription AggregatedSubscription
 		var minutesBeforeBytes []byte
