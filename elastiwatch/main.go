@@ -78,6 +78,10 @@ Defer logs`,
 			Description: "List active list-defers",
 		},
 		{
+			Name:        "elastiwatch dump",
+			Description: "Dump currently held log lines",
+		},
+		{
 			Name:        "elastiwatch undefer",
 			Description: "Remove deferral",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
@@ -145,10 +149,10 @@ func (s *BotServer) Go() (err error) {
 	}
 	s.Debug("Connected to ElasticSearch")
 
-	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
-	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db)
 	logwatch := elastiwatch.NewLogWatch(cli, db, s.opts.Index, s.opts.Email, emailer, s.opts.AlertConvID,
 		s.opts.EmailConvID, debugConfig)
+	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
+	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db, logwatch)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)

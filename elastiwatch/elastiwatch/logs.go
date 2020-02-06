@@ -23,6 +23,7 @@ type LogWatch struct {
 	alertConvID  chat1.ConvIDStr
 	emailConvID  chat1.ConvIDStr
 	shutdownCh   chan struct{}
+	peekCh       chan struct{}
 }
 
 func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.Emailer,
@@ -38,6 +39,7 @@ func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.
 		alertConvID: alertConvID,
 		emailConvID: emailConvID,
 		shutdownCh:  make(chan struct{}),
+		peekCh:      make(chan struct{}),
 	}
 }
 
@@ -126,6 +128,12 @@ func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 	return res
 }
 
+func (l *LogWatch) peek() {
+	entries := l.filterEntries(l.entries)
+	groupRes := newTreeifyGrouper(3).Group(entries)
+	l.alertEmail("Peek results", groupRes)
+}
+
 func (l *LogWatch) generateAndSend(entries []*entry) {
 	// do tree grouping
 	entries = l.filterEntries(entries)
@@ -206,10 +214,16 @@ func (l *LogWatch) Run() error {
 		select {
 		case <-l.shutdownCh:
 			return nil
+		case <-l.peekCh:
+			l.peek()
 		case <-time.After(time.Minute):
 			l.runOnce()
 		}
 	}
+}
+
+func (l *LogWatch) Peek() {
+	l.peekCh <- struct{}{}
 }
 
 func (l *LogWatch) Shutdown() error {

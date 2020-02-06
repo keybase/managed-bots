@@ -16,17 +16,19 @@ type Handler struct {
 	kbc     *kbchat.API
 	httpSrv *HTTPSrv
 	db      *DB
+	logs    *LogWatch
 }
 
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	httpSrv *HTTPSrv, db *DB) *Handler {
+	httpSrv *HTTPSrv, db *DB, logs *LogWatch) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		httpSrv:     httpSrv,
 		db:          db,
+		logs:        logs,
 	}
 }
 
@@ -81,6 +83,11 @@ func (h *Handler) handleUndefer(convID chat1.ConvIDStr, cmd string) error {
 	return nil
 }
 
+func (h *Handler) handleDump() error {
+	h.logs.Peek()
+	return nil
+}
+
 func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
@@ -93,6 +100,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleDeferrals(msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch undefer"):
 		return h.handleUndefer(msg.ConvID, cmd)
+	case strings.HasPrefix(cmd, "!elastiwatch dump"):
+		return h.handleDump()
 	}
 	return nil
 }
