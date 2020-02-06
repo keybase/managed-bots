@@ -87,7 +87,7 @@ func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 		}
 		body += fmt.Sprintf("\n%s %d %s", c.Severity, c.Count, c.Message)
 	}
-	l.ChatEcho(l.emailConvID, "```"+body+"````")
+	l.ChatEcho(l.emailConvID, "```"+body+"```")
 }
 
 func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
