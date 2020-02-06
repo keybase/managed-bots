@@ -136,6 +136,7 @@ func (s *BotServer) Go() (err error) {
 	cli, err := elastic.NewClient(
 		elastic.SetURL(s.opts.ESAddress),
 		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
 		elastic.SetHttpClient(httpClient),
 	)
 	if err != nil {
