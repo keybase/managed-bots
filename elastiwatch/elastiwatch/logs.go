@@ -80,6 +80,9 @@ func (l *LogWatch) alertFromChunk(c chunk) {
 func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 	body := fmt.Sprintf("Email sent: %s", subject)
 	for _, c := range chunks {
+		if c.Severity == "INFO" {
+			continue
+		}
 		body += fmt.Sprintf("\n%s %d %s", c.Severity, c.Count, c.Message)
 	}
 	l.ChatEcho(l.emailConvID, "```"+body+"````")
