@@ -124,7 +124,7 @@ func (s *BotServer) Go() (err error) {
 
 	s.Debug("Connect to Elasticsearch at %s", s.opts.ESAddress)
 	var emailer base.Emailer
-	httpClient := http.DefaultClient
+	var httpClient *http.Client
 	emailer = base.DummyEmailer{}
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
