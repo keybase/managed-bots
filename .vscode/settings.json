@@ -1,0 +1,5 @@
+{
+    "go.useLanguageServer": true,
+    "git.ignoreLimitWarning": true,
+    "editor.autoClosingBrackets": "never"
+}
