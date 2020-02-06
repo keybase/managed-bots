@@ -138,8 +138,8 @@ func (d *DB) PutNotifiedBranchConv(convID chat1.ConvIDStr, repo string, branch s
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO notified_branches
-			(conv_id, repo, branch)
-			VALUES (?, ?, ?)
+			(conv_id, repo, branch, ctime)
+			VALUES (?, ?, ?, NOW())
 		`, convID, repo, branch)
 		return err
 	})
