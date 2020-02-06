@@ -74,6 +74,26 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDS
 	return res, nil
 }
 
+func (d *DB) GetNotSubscribedToBranchConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
+	rows, err := d.DB.Query(`
+		SELECT conv_id
+		FROM subscriptions
+		WHERE (repo = ? AND branch != ?)
+		GROUP BY conv_id
+	`, repo, branch)
+	if err != nil {
+		return res, err
+	}
+	for rows.Next() {
+		var convID chat1.ConvIDStr
+		if err := rows.Scan(&convID); err != nil {
+			return res, err
+		}
+		res = append(res, convID)
+	}
+	return res, nil
+}
+
 func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
@@ -109,6 +129,39 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	default:
 		return false, err
 	}
+}
+
+// notified_branches methods
+
+func (d *DB) GetNotifiedBranches(repo string, branch string) (res []chat1.ConvIDStr, err error) {
+	rows, err := d.DB.Query(`
+		SELECT conv_id
+		FROM notified_branches
+		WHERE (repo = ? AND branch = ?)
+		GROUP BY conv_id
+	`, repo, branch)
+	if err != nil {
+		return res, err
+	}
+	for rows.Next() {
+		var convID chat1.ConvIDStr
+		if err := rows.Scan(&convID); err != nil {
+			return res, err
+		}
+		res = append(res, convID)
+	}
+	return res, nil
+}
+
+func (d *DB) PutNotifiedBranchConv(convID chat1.ConvIDStr, repo string, branch string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO notified_branches
+			(conv_id, repo, branch)
+			VALUES (?, ?, ?)
+		`, convID, repo, branch)
+		return err
+	})
 }
 
 // OAuth2 token methods
