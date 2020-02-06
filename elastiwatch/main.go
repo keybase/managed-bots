@@ -152,16 +152,34 @@ func main() {
 func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	var alertConvID, emailConvID string
 	fs.StringVar(&opts.ESAddress, "esaddress", os.Getenv("ESADDRESS"), "Elasticsearch address")
 	fs.StringVar(&opts.Index, "index", os.Getenv("INDEX"), "Elasticsearch index")
 	fs.StringVar(&opts.Email, "email", os.Getenv("EMAIL"), "Destination email address")
 	fs.StringVar(&opts.SenderEmail, "sender-email", os.Getenv("SENDER_EMAIL"), "Sourceemail address")
+	fs.StringVar(&opts.Team, "team", os.Getenv("TEAM"), "Team")
+	fs.StringVar(&alertConvID, "alert-convid", os.Getenv("ALERT_CONVID"), "Alerting conv id")
+	fs.StringVar(&emailConvID, "email-convid", os.Getenv("EMAIL_CONVID"), "Email conv id")
+	opts.AlertConvID = chat1.ConvIDStr(alertConvID)
+	opts.EmailConvID = chat1.ConvIDStr(emailConvID)
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
 	}
 	if len(opts.DSN) == 0 {
 		fmt.Printf("must specify a database DSN\n")
+		return 3
+	}
+	if len(opts.ESAddress) == 0 {
+		fmt.Printf("must specify a ElasticSearch address\n")
+		return 3
+	}
+	if len(opts.Index) == 0 {
+		fmt.Printf("must specify a ElasicSearch index\n")
+		return 3
+	}
+	if len(opts.Team) == 0 {
+		fmt.Printf("must specify a team to operate in\n")
 		return 3
 	}
 	bs := NewBotServer(*opts)
