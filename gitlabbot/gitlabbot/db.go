@@ -113,7 +113,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 
 // notified_branches methods
 
-func (d *DB) GetNotifiedBranches(repo string, branch string) (res []chat1.ConvIDStr, err error) {
+func (d *DB) GetUnnotifiedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
 		SELECT s.conv_id
 		FROM subscriptions s

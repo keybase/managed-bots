@@ -133,7 +133,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) notifyUnsubscribedConvs(repo string, branch string, signature string) {
-	convsToNotify, err := h.db.GetNotifiedBranches(repo, branch)
+	convsToNotify, err := h.db.GetUnnotifiedConvs(repo, branch)
 	if err != nil {
 		h.Errorf("Error getting notified branches for repo: %s", err)
 		return
