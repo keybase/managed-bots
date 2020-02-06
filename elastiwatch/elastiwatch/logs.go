@@ -43,7 +43,7 @@ func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.
 
 func (l *LogWatch) addAndCheckForSend(entries []*entry) {
 	l.entries = append(l.entries, entries...)
-	threshold := 10
+	threshold := 10000
 	score := 0
 	for _, e := range l.entries {
 		switch e.Severity {
