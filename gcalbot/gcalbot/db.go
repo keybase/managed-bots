@@ -75,6 +75,7 @@ func (d *DB) GetAccountNicknameListForUsername(keybaseUsername string) (accounts
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var account string
 		err = rows.Scan(&account)
@@ -205,6 +206,7 @@ func (d *DB) GetChannelListByAccountID(accountID string) (channels []*Channel, e
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		channel := &Channel{}
 		var expiry int64
@@ -228,6 +230,7 @@ func (d *DB) GetExpiringChannelList() (channels []*Channel, err error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		channel := &Channel{}
 		var expiry int64
@@ -345,6 +348,7 @@ func (d *DB) GetAggregatedReminderSubscriptionsWithToken() (reminders []*Aggrega
 	if err != nil {
 		return nil, err
 	}
+	defer row.Close()
 	for row.Next() {
 		var reminder AggregatedSubscriptionWithToken
 		reminder.Token = &oauth2.Token{}
@@ -384,6 +388,7 @@ func (d *DB) GetAggregatedSubscriptionsByTypeForUserAndCal(
 	if err != nil {
 		return nil, err
 	}
+	defer row.Close()
 	for row.Next() {
 		var subscription AggregatedSubscription
 		var minutesBeforeBytes []byte
@@ -413,6 +418,7 @@ func (d *DB) GetReminderDurationBeforeList(accountID, calendarID string, keybase
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var minutesBefore int
 		err = rows.Scan(&minutesBefore)

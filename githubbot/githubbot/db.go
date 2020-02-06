@@ -97,6 +97,7 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 	if err != nil {
 		return res, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -221,6 +222,7 @@ func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features
 		return nil, err
 	}
 	res := make(map[string]Features)
+	defer rows.Close()
 	for rows.Next() {
 		var repo string
 		var features Features

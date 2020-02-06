@@ -64,6 +64,7 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDS
 	if err != nil {
 		return res, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {

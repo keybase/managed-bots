@@ -58,6 +58,7 @@ func (d *DB) GetTally(id string) (res Tally, err error) {
 	if err != nil {
 		return res, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var tres TallyResult
 		if err := rows.Scan(&tres.choice, &tres.votes); err != nil {
