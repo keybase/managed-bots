@@ -120,6 +120,8 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notifyUnsubscribedConvs(repo, branch, signature)
+
 	for _, convID := range convs {
 		var secretToken = base.MakeSecret(repo, convID, h.secret)
 		if signature != secretToken {
@@ -127,5 +129,30 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		h.ChatEcho(convID, message)
+	}
+}
+
+func (h *HTTPSrv) notifyUnsubscribedConvs(repo string, branch string, signature string) {
+	convsToNotify, err := h.db.GetUnnotifiedConvs(repo, branch)
+	if err != nil {
+		h.Errorf("Error getting notified branches for repo: %s", err)
+		return
+	}
+
+	message := formatNotifyBranchMsg(repo, branch)
+
+	for _, convID := range convsToNotify {
+		var secretToken = base.MakeSecret(repo, convID, h.secret)
+		if signature != secretToken {
+			h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
+			continue
+		}
+		h.ChatEcho(convID, message)
+
+		err = h.db.PutNotifiedBranchConv(convID, repo, branch)
+		if err != nil {
+			h.Errorf("Error putting notified branch for repo: %s", err)
+			return
+		}
 	}
 }
