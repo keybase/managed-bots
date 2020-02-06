@@ -133,12 +133,12 @@ func (s *BotServer) Go() (err error) {
 	if s.opts.AWSOpts != nil {
 		s.Debug("Using AWS HTTP client: region: %s", s.opts.AWSOpts.AWSRegion)
 		signer := v4.NewSigner(defaults.Get().Config.Credentials)
-		aws_signing_client.SetDebugLog(log.New(os.Stdout, "httpClient", 0))
 		httpClient, err = aws_signing_client.New(signer, nil, "es", s.opts.AWSOpts.AWSRegion)
 		if err != nil {
 			s.Errorf("failed to make http client: %s", err)
 			return err
 		}
+		aws_signing_client.SetDebugLog(log.New(os.Stdout, "httpClient", 0))
 		emailer = base.NewSESEmailer(s.opts.SenderEmail, s.opts.AWSOpts.AWSRegion, debugConfig)
 	}
 	cli, err := elastic.NewClient(
