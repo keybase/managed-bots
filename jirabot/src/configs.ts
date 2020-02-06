@@ -34,6 +34,7 @@ export type TeamJiraSubscription = {
   webhookURI: string // needed for unsubscribing
   urlToken: string
   jql: string
+  withUpdates: boolean
 }
 
 export type TeamJiraSubscriptions = Readonly<
@@ -126,7 +127,8 @@ const jsonToTeamJiraSubscriptions = (
       typeof value.conversationId !== 'string' ||
       typeof value.webhookURI !== 'string' ||
       typeof value.urlToken !== 'string' ||
-      typeof value.jql !== 'string'
+      typeof value.jql !== 'string' ||
+      !['boolean', 'undefined'].includes(typeof value.withUpdates)
     ) {
       return
     }
@@ -135,6 +137,7 @@ const jsonToTeamJiraSubscriptions = (
       webhookURI: value.webhookURI,
       urlToken: value.urlToken,
       jql: value.jql,
+      withUpdates: !!value.withUpdates,
     })
   })
   return subscriptions

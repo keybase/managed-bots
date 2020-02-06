@@ -117,6 +117,7 @@ const subscribe = async (
             webhookURI,
             urlToken,
             jql,
+            withUpdates: parsedMessage.withUpdates,
           },
         ],
       ])
@@ -150,7 +151,9 @@ const subscribe = async (
   Utils.replyToMessageContext(
     context,
     parsedMessage.context,
-    `Subscribed to ${parsedMessage.project}:\n${id}: \`${jql}\``
+    `Subscribed to ${parsedMessage.project}${
+      parsedMessage.withUpdates ? ', with issue updates' : ''
+    }:\n${id}: \`${jql}\``
   )
   return Errors.makeResult(undefined)
 }
@@ -272,7 +275,10 @@ const list = async (
       } in *this team*. Note that some of them might not be for this channel.` +
         subscriptions.reduce(
           (str, [subscriptionID, sub]) =>
-            str + `\n${subscriptionID}: ${sub.jql}`,
+            str +
+            `\n${subscriptionID}: \`${sub.jql}\`${
+              sub.withUpdates ? ' (with issue udpates)' : ''
+            }`,
           ''
         )
     )
@@ -299,7 +305,10 @@ const list = async (
       }` +
         channelSubscriptions.reduce(
           (str, [subscriptionID, sub]) =>
-            str + `\n${subscriptionID}: ${sub.jql}`,
+            str +
+            `\n${subscriptionID}: \`${sub.jql}\`${
+              sub.withUpdates ? ' (with issue udpates)' : ''
+            }`,
           ''
         )
     )
