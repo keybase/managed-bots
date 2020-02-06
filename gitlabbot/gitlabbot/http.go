@@ -2,7 +2,6 @@ package gitlabbot
 
 import (
 	"fmt"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -121,34 +120,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shouldNotifyConvs := len(convs) == 0
-	if shouldNotifyConvs {
-		notSubscribedConvs, err := h.db.GetNotSubscribedToBranchConvs(repo, branch)
-		if err != nil {
-			h.Errorf("Error getting subscriptions for repo: %s", err)
-			return
-		}
-
-		notifiedConvs, err := h.db.GetNotifiedBranches(repo, branch)
-		if err != nil {
-			h.Errorf("Error getting notified branches for repo: %s", err)
-			return
-		}
-
-		notifiedMap := make(map[chat1.ConvIDStr]bool)
-		for _, convID := range notifiedConvs {
-			notifiedMap[convID] = true
-		}
-
-		for _, convID := range notSubscribedConvs {
-			// add the convs that are not notified
-			if _, ok := notifiedMap[convID]; !ok {
-				convs = append(convs, convID)
-			}
-		}
-
-		message = formatNotifyBranchMsg(repo, branch)
-	}
+	h.notifyUnsubscribedConvs(repo, branch, signature)
 
 	for _, convID := range convs {
 		var secretToken = base.MakeSecret(repo, convID, h.secret)
@@ -157,13 +129,30 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		h.ChatEcho(convID, message)
+	}
+}
 
-		if shouldNotifyConvs {
-			err = h.db.PutNotifiedBranchConv(convID, repo, branch)
-			if err != nil {
-				h.Errorf("Error putting notified branch for repo: %s", err)
-				return
-			}
+func (h *HTTPSrv) notifyUnsubscribedConvs(repo string, branch string, signature string) {
+	convsToNotify, err := h.db.GetNotifiedBranches(repo, branch)
+	if err != nil {
+		h.Errorf("Error getting notified branches for repo: %s", err)
+		return
+	}
+
+	message := formatNotifyBranchMsg(repo, branch)
+
+	for _, convID := range convsToNotify {
+		var secretToken = base.MakeSecret(repo, convID, h.secret)
+		if signature != secretToken {
+			h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
+			continue
+		}
+		h.ChatEcho(convID, message)
+
+		err = h.db.PutNotifiedBranchConv(convID, repo, branch)
+		if err != nil {
+			h.Errorf("Error putting notified branch for repo: %s", err)
+			return
 		}
 	}
 }

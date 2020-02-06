@@ -74,26 +74,6 @@ func (d *DB) GetSubscribedConvs(repo string, branch string) (res []chat1.ConvIDS
 	return res, nil
 }
 
-func (d *DB) GetNotSubscribedToBranchConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {
-	rows, err := d.DB.Query(`
-		SELECT conv_id
-		FROM subscriptions
-		WHERE (repo = ? AND branch != ?)
-		GROUP BY conv_id
-	`, repo, branch)
-	if err != nil {
-		return res, err
-	}
-	for rows.Next() {
-		var convID chat1.ConvIDStr
-		if err := rows.Scan(&convID); err != nil {
-			return res, err
-		}
-		res = append(res, convID)
-	}
-	return res, nil
-}
-
 func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 	SELECT 1
@@ -135,11 +115,12 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 
 func (d *DB) GetNotifiedBranches(repo string, branch string) (res []chat1.ConvIDStr, err error) {
 	rows, err := d.DB.Query(`
-		SELECT conv_id
-		FROM notified_branches
-		WHERE (repo = ? AND branch = ?)
-		GROUP BY conv_id
-	`, repo, branch)
+		SELECT s.conv_id
+		FROM subscriptions s
+		LEFT JOIN notified_branches nb ON (nb.repo = s.repo AND nb.branch = s.branch)
+		LEFT JOIN notified_branches nb2 ON (nb2.conv_id=s.conv_id and nb2.repo =s.repo and nb2.branch = ?)
+		WHERE s.repo = ? AND s.branch != ? AND nb.conv_id IS NULL AND nb2.conv_id IS NULL
+	`, branch, repo, branch)
 	if err != nil {
 		return res, err
 	}
