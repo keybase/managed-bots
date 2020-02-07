@@ -178,7 +178,8 @@ func (l *LogWatch) runOnce() {
 		From(0).Size(10000).
 		Do(context.Background())
 	if err != nil {
-		l.Errorf("failed to run Elasticsearch query: %s", err)
+		l.Debug("failed to run Elasticsearch query: %s", err)
+		return
 	}
 
 	var entries []*entry
