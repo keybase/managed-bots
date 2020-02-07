@@ -413,7 +413,7 @@ export const parseMessage = async (
       return {
         context: messageContext,
         type: BotMessageType.Create,
-        name: rest[0],
+        name: Utils.linebreaksToSpaces(rest[0]),
         project: getProjectRet.result,
         assignee,
         description: rest.slice(1).join(' '),
@@ -460,7 +460,7 @@ export const parseMessage = async (
       return {
         context: messageContext,
         type: BotMessageType.Search,
-        query: rest.join(' '),
+        query: Utils.linebreaksToSpaces(rest.join(' ')),
         project: getProjectRet.result,
         assignee,
         status: args.status,
