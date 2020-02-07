@@ -61,6 +61,7 @@ const onMessage = async (
       return
     }
     logger.debug({msg: 'parsed message', messageContext: parsedMessage.context})
+    context.stathat.postCount(`messageType ${parsedMessage.type}`, 1)
     switch (parsedMessage.type) {
       case Message.BotMessageType.Unknown:
         reportError(context, parsedMessage)
