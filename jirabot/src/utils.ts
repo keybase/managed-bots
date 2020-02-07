@@ -13,8 +13,8 @@ const quotes: {
   '‘': '’',
 }
 
-const spaces = [' ', '\n', '\t']
-const spacesRE = / |\n|\t/
+const spaces = [' ', '\n', '\r', '\t']
+const spacesRE = / |\r\n|\n|\r|\t/
 
 // splits a string by white space, but respect quotes
 export const split2 = (s: string) => {
@@ -112,3 +112,6 @@ export const randomString = (prefix: string): Promise<string> =>
       err ? reject(err) : resolve(`${prefix}-${buf.toString('hex')}`)
     })
   )
+
+export const linebreaksToSpaces = (str: string): string =>
+  str.replace(/\r\n|\r|\n/g, ' ')

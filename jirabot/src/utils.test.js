@@ -9,6 +9,6 @@ test('split2', () => {
     {input: `5abc  it's it`, output: ['5abc', "it's", 'it']},
     {input: `6abc it's "it it"`, output: ['6abc', "it's", 'it it']},
     {input: `7abc 'abc "it it"'`, output: ['7abc', `abc "it it"`]},
+    {input: `a\nb\r\nc\rd`, output: ['a', 'b', 'c', 'd']},
   ].forEach(({input, output}) => expect(Utils.split2(input)).toEqual(output))
 })
-
