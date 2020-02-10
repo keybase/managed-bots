@@ -18,14 +18,20 @@ const tmplHeader = `<!DOCTYPE html>
 	{{.Title}}
   </title>
   <style>
-	body {
-	  padding: 50px;
+	body, select, button {
 	  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva,
 		Verdana, sans-serif;
 	  font-size: 22px;
 	}
+	body {
+	  padding: 50px;
+	}
 	a {
 	  color: black;
+	}
+	input[type=checkbox] {
+	  height: 22px;
+      width: 22px;
 	}
 
 	.row {
@@ -107,11 +113,12 @@ type ReminderType struct {
 
 const tmplConfig = `{{template "header" .}}
   <div id="divContainer" class="column">
-	<form action="/gcalbot" method="post">
+	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.KeybaseConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">
 
+		<div class="row">
 		<label for="account">Account:</label>
 		<select name="account" onchange="this.form.submit()">
 			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
@@ -119,8 +126,10 @@ const tmplConfig = `{{template "header" .}}
 			<option value="{{.}}" {{if eq . $.Account}} selected {{end}}>{{.}}</option>
 			{{end}}
 		</select>
+		</div>
 		<br>
 
+		<div class="row">
 		<label for="calendar">Calendar:</label>
 		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
@@ -128,8 +137,10 @@ const tmplConfig = `{{template "header" .}}
 				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
 			{{end}}
 		</select>
+		</div>
 		<br>
 
+		<div class="row">
 		<label for="reminder">Reminders:</label>
 		<select name="reminder" {{if .CalendarID | not}} disabled {{end}}>
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
@@ -137,13 +148,16 @@ const tmplConfig = `{{template "header" .}}
 				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{.Summary}}</option>
 			{{end}}
 		</select>
+		</div>
 		<br>
 
+		<div class="row">
 		<label for="invite">Invites:</label>
 		<input type="checkbox" name="invite" {{if .CalendarID | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
+		</div>
 		<br>
 
-		<input type="submit" value="Submit">
+		<button type="submit" value="Submit">Submit</button>
 	</form>
   </div>
 {{template "footer" .}}`
