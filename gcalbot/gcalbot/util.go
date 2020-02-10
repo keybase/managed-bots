@@ -158,3 +158,11 @@ func GetDurationBeforeFromBytes(minutesBeforeBytes []byte) (durationBefore []tim
 	}
 	return durationBefore, nil
 }
+
+func MinutesBeforeString(minutesBefore int) string {
+	if minutesBefore == 1 {
+		return "1 minute"
+	} else {
+		return fmt.Sprintf("%d minutes", minutesBefore)
+	}
+}

@@ -67,7 +67,3 @@ func getCalendarList(srv *calendar.Service) (list []*calendar.CalendarListEntry,
 	}
 	return list, nil
 }
-
-func getPrimaryCalendar(srv *calendar.Service) (*calendar.Calendar, error) {
-	return srv.Calendars.Get("primary").Do()
-}

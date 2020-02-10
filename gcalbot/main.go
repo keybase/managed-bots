@@ -24,8 +24,9 @@ import (
 
 type Options struct {
 	*base.Options
-	KBFSRoot   string
-	HTTPPrefix string
+	KBFSRoot    string
+	LoginSecret string
+	HTTPPrefix  string
 }
 
 func NewOptions() *Options {
@@ -77,52 +78,6 @@ Examples:%s
 !gcal calendars list work%s`,
 		back, back, backs, backs)
 
-	invitesSubscribeDesc := fmt.Sprintf(`Subscribes to event invites over direct message for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-
-Examples:%s
-!gcal invites subscribe personal
-!gcal invites subscribe work%s`,
-		back, back, backs, backs)
-
-	invitesUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event invites for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-
-Examples:%s
-!gcal invites unsubscribe personal
-!gcal invites unsubscribe work%s`,
-		back, back, backs, backs)
-
-	remindersSubscribeDesc := fmt.Sprintf(`Subscribes to event reminders over direct message for the primary calendar of a Google account given the account connection's nickname.
-Reminders can be set for 0 minutes up to 60 minutes before the start of an event.
-You can configure multiple event reminders per account.
-View your connected Google accounts using %s!gcal accounts list%s
-View existing reminder configurations using %s!gcal reminders list%s
-
-Examples:%s
-!gcal reminders subscribe personal 0
-!gcal reminders subscribe family 5
-!gcal reminders subscribe work 60%s`,
-		back, back, back, back, backs, backs)
-
-	remindersUnsubscribeDesc := fmt.Sprintf(`Unsubscribes from event reminders for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-View existing reminder configurations using %s!gcal reminders list%s
-
-Examples:%s
-!gcal reminders unsubscribe personal 0
-!gcal reminders unsubscribe family 5
-!gcal reminders unsubscribe work 60%s`,
-		back, back, back, back, backs, backs)
-
-	remindersListDesc := fmt.Sprintf(`Lists event reminders configured for the primary calendar of a Google account given the account connection's nickname.
-View your connected Google accounts using %s!gcal accounts list%s
-
-Examples:%s
-!gcal reminders list personal
-!gcal reminders list work%s`,
-		back, back, backs, backs)
-
 	commands := []chat1.UserBotCommandInput{
 		{
 			Name:        "gcal accounts list",
@@ -161,56 +116,10 @@ Examples:%s
 		},
 
 		{
-			Name:        "gcal invites subscribe",
-			Description: "Subscribe to event invites over direct message for your primary calendar",
-			Usage:       "<account nickname>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal invites subscribe* <account nickname>",
-				DesktopBody: invitesSubscribeDesc,
-				MobileBody:  invitesSubscribeDesc,
-			},
-		},
-		{
-			Name:        "gcal invites unsubscribe",
-			Description: "Unsubscribe from event invites for your primary calendar",
-			Usage:       "<account nickname>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal invites unsubscribe* <account nickname>",
-				DesktopBody: invitesUnsubscribeDesc,
-				MobileBody:  invitesUnsubscribeDesc,
-			},
+			Name:        "gcal configure",
+			Description: "Configure Google Calendar notifications for the current conversation",
 		},
 
-		{
-			Name:        "gcal reminders subscribe",
-			Description: "Subscribe to event reminders over direct message for your primary calendar",
-			Usage:       "<account nickname> <minutes before start of event>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders subscribe* <account nickname> <minutes before start of event>",
-				DesktopBody: remindersSubscribeDesc,
-				MobileBody:  remindersSubscribeDesc,
-			},
-		},
-		{
-			Name:        "gcal reminders unsubscribe",
-			Description: "Unsubscribe from event reminders for your primary calendar",
-			Usage:       "<account nickname> <minutes before start of event>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders unsubscribe* <account nickname> <minutes before start of event>",
-				DesktopBody: remindersUnsubscribeDesc,
-				MobileBody:  remindersUnsubscribeDesc,
-			},
-		},
-		{
-			Name:        "gcal reminders list",
-			Description: "List event reminder configurations for your primary calendar",
-			Usage:       "<account nickname>",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       "*!gcal reminders list* <account nickname>",
-				DesktopBody: remindersListDesc,
-				MobileBody:  remindersListDesc,
-			},
-		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 
@@ -225,10 +134,22 @@ Examples:%s
 	}
 }
 
-func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
-	if len(s.opts.KBFSRoot) == 0 {
-		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+func (s *BotServer) getLoginSecret() (string, error) {
+	if s.opts.LoginSecret != "" {
+		return s.opts.LoginSecret, nil
 	}
+	secretPath := filepath.Join(s.opts.KBFSRoot, "login.secret")
+	cmd := s.opts.Command("fs", "read", secretPath)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", secretPath)
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
+func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
 	cmd := s.opts.Command("fs", "read", configPath)
 	var out bytes.Buffer
@@ -250,9 +171,17 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 }
 
 func (s *BotServer) Go() (err error) {
+	if len(s.opts.KBFSRoot) == 0 {
+		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+	}
+
 	config, err := s.getOAuthConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config %v", err)
+	}
+	secret, err := s.getLoginSecret()
+	if err != nil {
+		return fmt.Errorf("failed to get secret %v", err)
 	}
 
 	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
@@ -283,7 +212,7 @@ func (s *BotServer) Go() (err error) {
 	stats = stats.SetPrefix(s.Name())
 	renewScheduler := gcalbot.NewRenewChannelScheduler(debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(debugConfig, db, config)
-	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, reminderScheduler, s.opts.HTTPPrefix)
+	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, reminderScheduler, secret, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, config, reminderScheduler, handler)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
@@ -307,6 +236,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
+	fs.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of the bot's web server")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
