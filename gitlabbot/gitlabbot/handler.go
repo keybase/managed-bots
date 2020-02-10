@@ -1,7 +1,6 @@
 package gitlabbot
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 
@@ -60,6 +59,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
 		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false)
+	case strings.HasPrefix(cmd, "!gitlab list"):
+		h.stats.Count("list")
+		return h.handleListSubscriptions(msg)
 	}
 	return nil
 }
@@ -73,17 +75,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		return nil
 	}
 
-	var list bool
-	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
-	flags.BoolVar(&list, "list", false, "")
-	if err := flags.Parse(toks[2:]); err != nil {
-		return fmt.Errorf("failed to parse command: %s", err)
-	}
-	if list {
-		return h.handleListSubscriptions(msg)
-	}
-
-	args := flags.Args()
+	args := toks[2:]
 	if len(args) < 1 {
 		h.ChatEcho(msg.ConvID, "bad args for subscribe: %v", args)
 		return nil
