@@ -152,7 +152,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 	branch = defaultBranch
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetIssue().GetUser().GetLogin(), convID)
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
 		return git.FormatIssueMsg(
 			*event.Action,
 			author.String(),
