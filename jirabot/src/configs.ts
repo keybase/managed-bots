@@ -391,6 +391,41 @@ export default class Configs {
     )
   }
 
+  async listAllJiraSubscriptionIndices(): Promise<
+    Errors.ResultOrError<
+      Array<JiraSubscriptionIndex>,
+      Errors.KVStoreNotFoundError | Errors.UnknownError
+    >
+  > {
+    const indicesRet = await Promise.all(
+      await this.bot.kvstore
+        .listEntryKeys(
+          `${this.botConfig.keybase.username},${this.botConfig.keybase.username}`,
+          jiraSubscriptionIndexNamespace
+        )
+        .then(res =>
+          (res.entryKeys || []).map(({entryKey}) =>
+            this.getFromCacheOrKVStore(
+              this.cache.jiraSubscriptionIndex,
+              jiraSubscriptionIndexNamespace,
+              entryKey,
+              jsonToJiraSubscriptionIndex
+            )
+          )
+        )
+    )
+
+    const result: Array<JiraSubscriptionIndex> = []
+    for (const indRet of indicesRet) {
+      if (indRet.type !== Errors.ReturnType.Ok) {
+        return indRet
+      }
+      result.push(indRet.result.config)
+    }
+
+    return Errors.makeResult(result)
+  }
+
   async updateTeamJiraConfig(
     teamname: string,
     oldConfig: CachedConfig<TeamJiraConfig> | undefined,
