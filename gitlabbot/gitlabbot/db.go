@@ -112,25 +112,26 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
-func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string, err error) {
+func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (repos []string, branches []string, err error) {
 	rows, err := d.DB.Query(`
-		SELECT repo
+		SELECT repo, branch
 		FROM subscriptions
 		WHERE conv_id = ?
-		GROUP BY repo
+		ORDER BY repo
 	`, convID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var repo string
-		if err := rows.Scan(&repo); err != nil {
-			return res, err
+		var repo, branch string
+		if err := rows.Scan(&repo, &branch); err != nil {
+			return repos, branches, err
 		}
-		res = append(res, repo)
+		repos = append(repos, repo)
+		branches = append(branches, branch)
 	}
-	return res, nil
+	return repos, branches, nil
 }
 
 // notified_branches methods
