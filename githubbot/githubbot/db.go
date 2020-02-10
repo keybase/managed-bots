@@ -145,6 +145,25 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
+func (d *DB) GetAllBranchesForRepo(convID chat1.ConvIDStr, repo string) ([]string, error) {
+	rows, err := d.DB.Query(`SELECT branch
+		FROM branches
+		WHERE conv_id = ? AND repo = ?`, convID, repo)
+	if err != nil {
+		return nil, err
+	}
+	res := []string{}
+	defer rows.Close()
+	for rows.Next() {
+		var branch string
+		if err := rows.Scan(&branch); err != nil {
+			return res, err
+		}
+		res = append(res, branch)
+	}
+	return res, nil
+}
+
 // subscription preferences
 
 type Features struct {

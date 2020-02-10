@@ -82,6 +82,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
 		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false, client)
+	case strings.HasPrefix(cmd, "!github list"):
+		h.stats.Count("list")
+		return h.handleListSubscriptions(msg)
 	default:
 		h.Debug("ignoring unknown command %q", cmd)
 	}
@@ -105,6 +108,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 	if list {
+		// TODO: this should be removed once we're pretty sure nobody is using it
+		h.stats.Count("subscribe - list")
 		return h.handleListSubscriptions(msg)
 	}
 
@@ -213,6 +218,16 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 	var res string
 	for repo, f := range features {
 		res += fmt.Sprintf("- *%s* (%s)\n", repo, &f)
+		if f.Commits {
+			branches, err := h.db.GetAllBranchesForRepo(msg.ConvID, repo)
+			if err != nil {
+				return fmt.Errorf("error getting branches for repo: %s", err)
+			}
+
+			for _, branch := range branches {
+				res += fmt.Sprintf("   - %s\n", branch)
+			}
+		}
 	}
 	h.ChatEcho(msg.ConvID, res)
 	return nil
@@ -347,7 +362,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		return fmt.Errorf("error deleting branch subscription: %s", err)
 	}
 
-	h.ChatEcho("Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
+	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
 	return nil
 }
 

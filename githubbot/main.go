@@ -65,8 +65,7 @@ Event type must be one of %sissues, pulls, commits, statuses%s
 Examples:%s
 !github subscribe keybase/client
 !github subscribe microsoft/typescript pulls
-!github subscribe facebook/react gh-pages
-!github subscribe --list%s`,
+!github subscribe facebook/react gh-pages%s`,
 		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitHub repository to this conversation.
@@ -115,6 +114,10 @@ Examples:%s
 				DesktopBody: mentionsExtended,
 				MobileBody:  mentionsExtended,
 			},
+		},
+		{
+			Name:        "github list",
+			Description: "List subscriptions in the current conversation.",
 		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
