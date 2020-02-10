@@ -213,7 +213,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 				break
 			}
 		}
-		if runPR != nil {
+		if runPR == nil {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckRun().GetCheckSuite().GetHeadBranch()
 			// don't provide an author since it's not a PR
@@ -251,6 +251,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 		for _, pr := range pullRequests {
 			if pr.GetBase().GetRepo().GetFullName() == repo {
 				runPR = pr
+				break
 			}
 		}
 
