@@ -1,6 +1,7 @@
 package gitlabbot
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -71,7 +72,18 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		h.ChatEcho(msg.ConvID, userErr)
 		return nil
 	}
-	args := toks[2:]
+
+	var list bool
+	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
+	flags.BoolVar(&list, "list", false, "")
+	if err := flags.Parse(toks[2:]); err != nil {
+		return fmt.Errorf("failed to parse command: %s", err)
+	}
+	if list {
+		return h.handleListSubscriptions(msg)
+	}
+
+	args := flags.Args()
 	if len(args) < 1 {
 		h.ChatEcho(msg.ConvID, "bad args for subscribe: %v", args)
 		return nil
@@ -180,5 +192,24 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 	}
 
 	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
+	return nil
+}
+
+func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
+	repos, err := h.db.GetAllSubscriptionsForConvID(msg.ConvID)
+	if err != nil {
+		return fmt.Errorf("error getting current repos: %s", err)
+	}
+
+	if len(repos) == 0 {
+		h.ChatEcho(msg.ConvID, "Not subscribed to any projects yet.")
+		return nil
+	}
+
+	var res string
+	for _, repo := range repos {
+		res += fmt.Sprintf("- *%s*\n", repo)
+	}
+	h.ChatEcho(msg.ConvID, res)
 	return nil
 }

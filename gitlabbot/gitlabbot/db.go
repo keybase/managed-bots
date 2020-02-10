@@ -112,6 +112,27 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
+func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string, err error) {
+	rows, err := d.DB.Query(`
+		SELECT repo
+		FROM subscriptions
+		WHERE conv_id = ?
+		GROUP BY repo
+	`, convID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var repo string
+		if err := rows.Scan(&repo); err != nil {
+			return res, err
+		}
+		res = append(res, repo)
+	}
+	return res, nil
+}
+
 // notified_branches methods
 
 func (d *DB) GetUnnotifiedConvs(repo string, branch string) (res []chat1.ConvIDStr, err error) {

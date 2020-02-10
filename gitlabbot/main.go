@@ -55,7 +55,8 @@ Example:%s
 !gitlab subscribe keybase/client%s
 
 Subscribe to a specific branch:%s
-!gitlab subscribe facebook/react gh-pages%s`,
+!gitlab subscribe facebook/react gh-pages
+!gitlab subscribe --list%s`,
 		backs, backs, backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitLab project to this conversation.
