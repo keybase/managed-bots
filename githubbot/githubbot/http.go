@@ -202,7 +202,18 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 
 	case *github.CheckRunEvent:
 		var author username
-		if len(event.GetCheckRun().PullRequests) == 0 {
+
+		// this is a branch test, not associated with a PR
+		var runPR *github.PullRequest
+		// the repo object returned by the GetCheckRun call is very sparse, so we really only can check against the api url
+		repoAPIUrl := fmt.Sprintf("https://api.github.com/repos/%s", repo)
+		for _, pr := range event.GetCheckRun().PullRequests {
+			if pr.GetBase().GetRepo().GetURL() == repoAPIUrl {
+				runPR = pr
+				break
+			}
+		}
+		if runPR == nil {
 			// this is a branch test, not associated with a PR
 			branch = event.GetCheckRun().GetCheckSuite().GetHeadBranch()
 			// don't provide an author since it's not a PR
@@ -210,7 +221,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 		}
 
 		// fetch the pull request object so we can get the right author
-		pr, _, err := client.PullRequests.Get(context.TODO(), parsedRepo[0], parsedRepo[1], event.GetCheckRun().PullRequests[0].GetNumber())
+		pr, _, err := client.PullRequests.Get(context.TODO(), parsedRepo[0], parsedRepo[1], runPR.GetNumber())
 		if err != nil {
 			h.Errorf("Error getting pull request object: %s", err)
 			return formatCheckRunMessage(event, ""), branch
@@ -235,8 +246,17 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 			h.Errorf("error getting pull requests from commit: %s", err)
 		}
 
-		if len(pullRequests) >= 1 {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pullRequests[0].GetUser().GetLogin(), convID)
+		// look for PR where the base is the provided repo
+		var runPR *github.PullRequest
+		for _, pr := range pullRequests {
+			if pr.GetBase().GetRepo().GetFullName() == repo {
+				runPR = pr
+				break
+			}
+		}
+
+		if runPR != nil {
+			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, runPR.GetUser().GetLogin(), convID)
 		} else if len(event.Branches) >= 1 {
 			// this is a branch test, not associated with a PR
 			branch = event.Branches[0].GetName()
