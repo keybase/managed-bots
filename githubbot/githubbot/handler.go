@@ -340,7 +340,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 			return fmt.Errorf("error creating branch subscription: %s", err)
 		}
 
-		h.ChatEcho(msg.ConvID, "Now subscribed to commits on `%s/%s`.", repo, branch)
+		h.ChatEcho(msg.ConvID, "Now subscribed to notifications for `%s/%s`.", repo, branch)
 		return nil
 	}
 	err = h.db.UnwatchBranch(msg.ConvID, repo, branch)
@@ -348,7 +348,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		return fmt.Errorf("error deleting branch subscription: %s", err)
 	}
 
-	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
+	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for `%s/%s`.", repo, branch)
 	return nil
 }
 
