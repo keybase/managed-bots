@@ -88,9 +88,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			o.Errorf("oauthHandler: %v", err)
-			if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "error", "Unable to complete request, please try again!", o.htmlLogoSrc)); err != nil {
-				o.Errorf("oauthHandler: unable to write: %v", err)
-			}
+			o.showOAuthError(w)
 		}
 	}()
 
@@ -103,8 +101,12 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	state := query.Get("state")
 
 	req, err := o.storage.GetState(state)
-	if err != nil || req == nil {
-		err = fmt.Errorf("state %q not found %v", state, err)
+	if err != nil {
+		err = fmt.Errorf("could not get state %q: %v", state, err)
+		return
+	} else if req == nil {
+		// no state is found
+		o.showOAuthError(w)
 		return
 	}
 
@@ -120,6 +122,11 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := query.Get("code")
+	if code == "" {
+		// no code is provided
+		o.showOAuthError(w)
+		return
+	}
 	token, err := o.oauth.Exchange(context.TODO(), code)
 	if err != nil {
 		return
@@ -145,6 +152,13 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		<div>You can now close this page and return to the Keybase app.</div>`,
 		o.htmlLogoSrc))
 	if err != nil {
+		o.Errorf("oauthHandler: unable to write: %v", err)
+	}
+}
+
+func (o *OAuthHTTPSrv) showOAuthError(w http.ResponseWriter) {
+	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, fmt.Sprintf("%s | error", o.htmlTitle),
+		"Unable to complete request, please try running the bot command again!", o.htmlLogoSrc)); err != nil {
 		o.Errorf("oauthHandler: unable to write: %v", err)
 	}
 }
