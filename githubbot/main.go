@@ -117,7 +117,7 @@ Examples:%s
 		},
 		{
 			Name:        "github list",
-			Description: "List subscriptions in the current conversation.",
+			Description: "List subscriptions for the current conversation.",
 		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
