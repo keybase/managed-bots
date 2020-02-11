@@ -265,7 +265,7 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	}
 
 	// auth checked, now we create the subscription
-	defaultBranch, err := getDefaultBranch(repo, userClient)
+	defaultBranch, err := GetDefaultBranch(repo, userClient)
 	if err != nil {
 		return false, fmt.Errorf("error getting default branch: %s", err)
 	}
