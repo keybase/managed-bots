@@ -2,7 +2,6 @@ package githubbot
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -100,20 +99,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	var list bool
-	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
-	flags.BoolVar(&list, "list", false, "")
-	if err := flags.Parse(toks[2:]); err != nil {
-		h.ChatEcho(msg.ConvID, "failed to parse subscribe command: %s", err)
-		return nil
-	}
-	if list {
-		// TODO: this should be removed once we're pretty sure nobody is using it
-		h.stats.Count("subscribe - list")
-		return h.handleListSubscriptions(msg)
-	}
-
-	args := flags.Args()
+	args := toks[2:]
 	if len(args) < 1 {
 		if create {
 			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github subscribe <owner/repo>`")
