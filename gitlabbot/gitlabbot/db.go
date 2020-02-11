@@ -19,6 +19,11 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
+type subscription struct {
+	repo string
+	branch string
+}
+
 // webhook subscription methods
 
 func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, branch string, oauthIdentifier string) error {
@@ -112,7 +117,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
-func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (repos []string, branches []string, err error) {
+func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []subscription, err error) {
 	rows, err := d.DB.Query(`
 		SELECT repo, branch
 		FROM subscriptions
@@ -120,18 +125,17 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (repos []strin
 		ORDER BY repo
 	`, convID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var repo, branch string
-		if err := rows.Scan(&repo, &branch); err != nil {
-			return repos, branches, err
+		var sub subscription
+		if err := rows.Scan(&sub.repo, &sub.branch); err != nil {
+			return res, err
 		}
-		repos = append(repos, repo)
-		branches = append(branches, branch)
+		res = append(res, sub)
 	}
-	return repos, branches, nil
+	return res, nil
 }
 
 // notified_branches methods

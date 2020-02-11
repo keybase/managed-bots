@@ -188,28 +188,28 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 }
 
 func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
-	repos, branches, err := h.db.GetAllSubscriptionsForConvID(msg.ConvID)
+	subscriptions, err := h.db.GetAllSubscriptionsForConvID(msg.ConvID)
 	if err != nil {
 		return fmt.Errorf("error getting current repos: %s", err)
 	}
 
-	if len(repos) == 0 {
+	if len(subscriptions) == 0 {
 		h.ChatEcho(msg.ConvID, "Not subscribed to any projects yet.")
 		return nil
 	}
 
 	var res, prevRepo string
-	for i, repo := range repos {
+	for _, sub := range subscriptions {
 
-		if repo != prevRepo {
-			res += fmt.Sprintf("- *%s*\n", repo)
+		if sub.repo != prevRepo {
+			res += fmt.Sprintf("- *%s*\n", sub.repo)
 		}
 
-		if branches[i] != "master" {
-			res += fmt.Sprintf("\t- %s\n", branches[i])
+		if sub.branch != "master" {
+			res += fmt.Sprintf("\t- %s\n", sub.branch)
 		}
 
-		prevRepo = repo
+		prevRepo = sub.repo
 	}
 	h.ChatEcho(msg.ConvID, res)
 	return nil
