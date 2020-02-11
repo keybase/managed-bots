@@ -129,9 +129,8 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	query.Add("token", token)
 	query.Add("username", keybaseUsername)
 	query.Add("conv_id", string(msg.ConvID))
-	link := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
+	body := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
 
-	body := link
 	if _, err := h.kbc.SendMessageByTlfName(keybaseUsername, body); err != nil {
 		h.Debug("failed to send login attempt: %s", err)
 	}
