@@ -95,15 +95,16 @@ const tmplLogin = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title         string
-	KeybaseConvID chat1.ConvIDStr
-	Account       string
-	Accounts      []string
-	CalendarID    string
-	Calendars     []*calendar.CalendarListEntry
-	Reminder      string
-	Reminders     []ReminderType
-	Invite        bool
+	Title           string
+	KeybaseConvID   chat1.ConvIDStr
+	KeybaseConvName string
+	Account         string
+	Accounts        []string
+	CalendarID      string
+	Calendars       []*calendar.CalendarListEntry
+	Reminder        string
+	Reminders       []ReminderType
+	Invite          bool
 }
 
 type ReminderType struct {
@@ -113,6 +114,9 @@ type ReminderType struct {
 
 const tmplConfig = `{{template "header" .}}
   <div id="divContainer" class="column">
+	<span style="font-size: 32px; margin-bottom: 24px; text-align: center;">
+	  Configure Google Calendar notifications for {{.KeybaseConvName}}:
+	</span>
 	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.KeybaseConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">

@@ -85,6 +85,12 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	keybaseConv, err := h.handler.kbc.GetConversation(keybaseConvID)
+	if err != nil {
+		return
+	}
+	keybaseConvName := keybaseConv.Channel.Name
+
 	accountNickname := r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")
 
@@ -100,11 +106,12 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := ConfigPage{
-		Title:         "gcalbot | config",
-		KeybaseConvID: keybaseConvID,
-		Account:       accountNickname,
-		Accounts:      accounts,
-		Reminders:     reminders,
+		Title:           "gcalbot | config",
+		KeybaseConvID:   keybaseConvID,
+		KeybaseConvName: keybaseConvName,
+		Account:         accountNickname,
+		Accounts:        accounts,
+		Reminders:       reminders,
 	}
 
 	if accountNickname == "" {
