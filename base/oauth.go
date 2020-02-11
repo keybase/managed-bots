@@ -102,7 +102,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	req, err := o.storage.GetState(state)
 	if err != nil {
-		err = fmt.Errorf("state %q not found %v", state, err)
+		err = fmt.Errorf("could not get state %q: %v", state, err)
 		return
 	} else if req == nil {
 		// no state is found
