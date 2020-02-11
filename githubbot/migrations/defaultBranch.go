@@ -91,7 +91,7 @@ func mainInner() int {
 
 		err = db.WatchBranch(subscription.ConvID, subscription.Repo, defaultBranch)
 		if err != nil {
-			fmt.Printf("Error watching branch", err)
+			fmt.Printf("Error watching branch: %s", err)
 			return 1
 		}
 	}
