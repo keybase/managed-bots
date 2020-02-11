@@ -135,7 +135,7 @@ func formatStatusMessage(evt *github.StatusEvent, pullRequests []*github.PullReq
 	}
 }
 
-func getDefaultBranch(repo string, client *github.Client) (branch string, err error) {
+func GetDefaultBranch(repo string, client *github.Client) (branch string, err error) {
 	args := strings.Split(repo, "/")
 	if len(args) != 2 {
 		return "", fmt.Errorf("getDefaultBranch: invalid repo %s", repo)

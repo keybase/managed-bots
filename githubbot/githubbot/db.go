@@ -341,3 +341,29 @@ func (d *DB) SetUserPreferences(username string, convID chat1.ConvIDStr, prefs *
 	})
 	return err
 }
+
+// util
+type DBSubscription struct {
+	ConvID         chat1.ConvIDStr
+	Repo           string
+	InstallationID int64
+}
+
+func (d *DB) GetAllSubscriptions() (res []DBSubscription, err error) {
+	rows, err := d.DB.Query(`
+	SELECT conv_id, repo, installation_id
+	FROM subscriptions
+`)
+	if err != nil {
+		return res, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var subscription DBSubscription
+		if err := rows.Scan(&subscription.ConvID, &subscription.Repo, &subscription.InstallationID); err != nil {
+			return res, err
+		}
+		res = append(res, subscription)
+	}
+	return res, nil
+}
