@@ -21,12 +21,6 @@ func main() {
 	os.Exit(rc)
 }
 
-type Options struct {
-	PrivateKeyPath string
-	AppID          int64
-	DSN            string
-}
-
 func getAppKey(privateKeyPath string) ([]byte, error) {
 	keyFile, err := os.Open(privateKeyPath)
 	if err != nil {
@@ -95,7 +89,11 @@ func mainInner() int {
 			return 1
 		}
 
-		db.WatchBranch(subscription.ConvID, subscription.Repo, defaultBranch)
+		err = db.WatchBranch(subscription.ConvID, subscription.Repo, defaultBranch)
+		if err != nil {
+			fmt.Printf("Error watching branch", err)
+			return 1
+		}
 	}
 
 	return 0
