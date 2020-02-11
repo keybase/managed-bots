@@ -157,7 +157,8 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *OAuthHTTPSrv) showOAuthError(w http.ResponseWriter) {
-	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "error", "Unable to complete request, please try again!", o.htmlLogoSrc)); err != nil {
+	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, fmt.Sprintf("%s | error", o.htmlTitle),
+		"Unable to complete request, please try running the bot command again!", o.htmlLogoSrc)); err != nil {
 		o.Errorf("oauthHandler: unable to write: %v", err)
 	}
 }
