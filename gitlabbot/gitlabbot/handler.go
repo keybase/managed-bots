@@ -59,6 +59,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
 		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false)
+	case strings.HasPrefix(cmd, "!gitlab list"):
+		h.stats.Count("list")
+		return h.handleListSubscriptions(msg)
 	}
 	return nil
 }
@@ -71,6 +74,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		h.ChatEcho(msg.ConvID, userErr)
 		return nil
 	}
+
 	args := toks[2:]
 	if len(args) < 1 {
 		h.ChatEcho(msg.ConvID, "bad args for subscribe: %v", args)
@@ -180,5 +184,33 @@ func (h *Handler) handleSubscribeToBranch(cmd string, msg chat1.MsgSummary, crea
 	}
 
 	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
+	return nil
+}
+
+func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
+	subscriptions, err := h.db.GetAllSubscriptionsForConvID(msg.ConvID)
+	if err != nil {
+		return fmt.Errorf("error getting current repos: %s", err)
+	}
+
+	if len(subscriptions) == 0 {
+		h.ChatEcho(msg.ConvID, "Not subscribed to any projects yet.")
+		return nil
+	}
+
+	var res, prevRepo string
+	for _, sub := range subscriptions {
+
+		if sub.repo != prevRepo {
+			res += fmt.Sprintf("- *%s*\n", sub.repo)
+		}
+
+		if sub.branch != "master" {
+			res += fmt.Sprintf("\t- %s\n", sub.branch)
+		}
+
+		prevRepo = sub.repo
+	}
+	h.ChatEcho(msg.ConvID, res)
 	return nil
 }

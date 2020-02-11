@@ -86,6 +86,10 @@ Unsubscribe from a specific branch:%s
 				MobileBody:  unsubExtended,
 			},
 		},
+		{
+			Name:        "gitlab list",
+			Description: "Lists all your project and branch subscriptions, woot!",
+		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 	return kbchat.Advertisement{
