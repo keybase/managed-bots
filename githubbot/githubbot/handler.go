@@ -2,7 +2,6 @@ package githubbot
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"strings"
@@ -82,6 +81,9 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
 		h.stats.Count("unsubscribe")
 		return h.handleSubscribe(cmd, msg, false, client)
+	case strings.HasPrefix(cmd, "!github list"):
+		h.stats.Count("list")
+		return h.handleListSubscriptions(msg)
 	default:
 		h.Debug("ignoring unknown command %q", cmd)
 	}
@@ -97,18 +99,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	var list bool
-	flags := flag.NewFlagSet(toks[0], flag.ContinueOnError)
-	flags.BoolVar(&list, "list", false, "")
-	if err := flags.Parse(toks[2:]); err != nil {
-		h.ChatEcho(msg.ConvID, "failed to parse subscribe command: %s", err)
-		return nil
-	}
-	if list {
-		return h.handleListSubscriptions(msg)
-	}
-
-	args := flags.Args()
+	args := toks[2:]
 	if len(args) < 1 {
 		if create {
 			h.ChatEcho(msg.ConvID, "I don't understand! Try `!github subscribe <owner/repo>`")
@@ -213,6 +204,16 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 	var res string
 	for repo, f := range features {
 		res += fmt.Sprintf("- *%s* (%s)\n", repo, &f)
+		if f.Commits {
+			branches, err := h.db.GetAllBranchesForRepo(msg.ConvID, repo)
+			if err != nil {
+				return fmt.Errorf("error getting branches for repo: %s", err)
+			}
+
+			for _, branch := range branches {
+				res += fmt.Sprintf("   - %s\n", branch)
+			}
+		}
 	}
 	h.ChatEcho(msg.ConvID, res)
 	return nil
@@ -264,6 +265,16 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	}
 
 	// auth checked, now we create the subscription
+	defaultBranch, err := getDefaultBranch(repo, userClient)
+	if err != nil {
+		return false, fmt.Errorf("error getting default branch: %s", err)
+	}
+
+	err = h.db.WatchBranch(msg.ConvID, repo, defaultBranch)
+	if err != nil {
+		return false, fmt.Errorf("error watching branch: %s", err)
+	}
+
 	err = h.db.CreateSubscription(msg.ConvID, repo, repoInstallation.GetID())
 	if err != nil {
 		return false, fmt.Errorf("error creating subscription: %s", err)
@@ -339,7 +350,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 			return fmt.Errorf("error creating branch subscription: %s", err)
 		}
 
-		h.ChatEcho(msg.ConvID, "Now subscribed to commits on `%s/%s`.", repo, branch)
+		h.ChatEcho(msg.ConvID, "Now subscribed to notifications for `%s/%s`.", repo, branch)
 		return nil
 	}
 	err = h.db.UnwatchBranch(msg.ConvID, repo, branch)
@@ -347,7 +358,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		return fmt.Errorf("error deleting branch subscription: %s", err)
 	}
 
-	h.ChatEcho("Okay, you won't receive notifications for commits in `%s/%s`.", repo, branch)
+	h.ChatEcho(msg.ConvID, "Okay, you won't receive notifications for `%s/%s`.", repo, branch)
 	return nil
 }
 

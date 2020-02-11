@@ -205,10 +205,7 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 			res += fmt.Sprintf("- *%s*\n", sub.repo)
 		}
 
-		if sub.branch != "master" {
-			res += fmt.Sprintf("\t- %s\n", sub.branch)
-		}
-
+		res += fmt.Sprintf("   - %s\n", sub.branch)
 		prevRepo = sub.repo
 	}
 	h.ChatEcho(msg.ConvID, res)

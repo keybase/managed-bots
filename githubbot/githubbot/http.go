@@ -90,11 +90,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defaultBranch, err := getDefaultBranch(repo, client)
-	if err != nil {
-		h.Errorf("Error getting default branch: %s", err)
-	}
-
 	convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
 	if err != nil {
 		h.Errorf("Error getting subscriptions for repo: %s", err)
@@ -114,14 +109,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		message, branch := h.formatMessage(convID, event, repo, defaultBranch, client)
+		message, branch := h.formatMessage(convID, event, repo, client)
 		if message == "" {
 			// if we don't have a message to send, bail
 			continue
 		}
 
-		if branch != defaultBranch {
-			// if the event is not on the default branch, check if we're subscribed to that branch
+		if branch != "" {
+			// if the event has a branch associated with it, check if we're subscribed to that branch
 			subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
 			if err != nil {
 				h.Errorf("could not get subscription: %s\n", err)
@@ -142,14 +137,12 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo string, defaultBranch string, client *github.Client) (message string, branch string) {
+func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo string, client *github.Client) (message string, branch string) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
 		h.Debug("invalid repo: %s", repo)
 		return
 	}
-
-	branch = defaultBranch
 	switch event := event.(type) {
 	case *github.IssuesEvent:
 		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
@@ -160,7 +153,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 			event.GetIssue().GetNumber(),
 			event.GetIssue().GetTitle(),
 			event.GetIssue().GetHTMLURL(),
-		), branch
+		), ""
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
@@ -183,7 +176,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 			event.GetPullRequest().GetTitle(),
 			event.GetPullRequest().GetHTMLURL(),
 			event.GetRepo().GetName(),
-		), branch
+		), ""
 	case *github.PushEvent:
 		if len(event.Commits) == 0 {
 			break
