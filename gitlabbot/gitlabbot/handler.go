@@ -206,7 +206,7 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 		}
 
 		if branches[i] != "master" {
-			res += fmt.Sprintf("  - %s\n", branches[i])
+			res += fmt.Sprintf("\t- %s\n", branches[i])
 		}
 
 		prevRepo = repo
