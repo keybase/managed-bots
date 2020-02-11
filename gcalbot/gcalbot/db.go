@@ -408,26 +408,27 @@ func (d *DB) GetAggregatedSubscriptionsByTypeForUserAndCal(
 	return subscriptions, nil
 }
 
-func (d *DB) GetReminderDurationBeforeList(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (durationBeforeList []time.Duration, err error) {
+func (d *DB) GetSubscriptions(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (subscriptions []*Subscription, err error) {
 	rows, err := d.DB.Query(`
-		SELECT minutes_before
+		SELECT account_id, calendar_id, keybase_conv_id, minutes_before, type
 			FROM subscription
-			WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND type = ?
-			ORDER BY minutes_before
-	`, accountID, calendarID, keybaseConvID, SubscriptionTypeReminder)
+			WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ?
+	`, accountID, calendarID, keybaseConvID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var subscription Subscription
 		var minutesBefore int
-		err = rows.Scan(&minutesBefore)
+		err = rows.Scan(&subscription.AccountID, &subscription.CalendarID, &subscription.KeybaseConvID, &minutesBefore, &subscription.Type)
 		if err != nil {
 			return nil, err
 		}
-		durationBeforeList = append(durationBeforeList, GetDurationFromMinutes(minutesBefore))
+		subscription.DurationBefore = GetDurationFromMinutes(minutesBefore)
+		subscriptions = append(subscriptions, &subscription)
 	}
-	return durationBeforeList, nil
+	return subscriptions, nil
 }
 
 func (d *DB) DeleteSubscription(subscription Subscription) (exists bool, err error) {
