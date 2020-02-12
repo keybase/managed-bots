@@ -47,7 +47,7 @@ func NewHTTPSrv(
 	}
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	http.HandleFunc("/gcalbot", h.configHandler)
-	http.HandleFunc("/gcalbot/health_check", h.healthCheckHandler)
+	http.HandleFunc("/gcalbot/healthcheck", h.healthCheckHandler)
 	http.HandleFunc("/gcalbot/home", h.homeHandler)
 	http.HandleFunc("/gcalbot/oauth", h.oauthHandler)
 	http.HandleFunc("/gcalbot/image/logo", h.logoHandler)
