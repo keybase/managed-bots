@@ -206,7 +206,7 @@ func GetOAuthClient(
 	if token == nil {
 		// if required, check if the user is an admin before executing auth
 		if !opts.AllowNonAdminForTeamAuth {
-			isAdmin, err := IsAdmin(kbc, callbackMsg)
+			isAdmin, err := IsAdmin(kbc, callbackMsg.Sender.Username, callbackMsg.Channel)
 			if err != nil {
 				return nil, err
 			}
@@ -249,7 +249,7 @@ func GetOAuthClient(
 		}
 
 		// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-		if !IsDirectPrivateMessage(kbc.GetUsername(), callbackMsg) {
+		if !IsDirectPrivateMessage(kbc.GetUsername(), callbackMsg.Sender.Username, callbackMsg.Channel) {
 			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID,
 				"OK! I've sent a message to @%s to authorize me.", callbackMsg.Sender.Username)
 			if err != nil {

@@ -42,7 +42,7 @@ func (h *Handler) formURL(id string) string {
 var errNeedAdmin = errors.New("only admins can administer webhooks")
 
 func (h *Handler) checkAdmin(msg chat1.MsgSummary) error {
-	ok, err := base.IsAdmin(h.kbc, msg)
+	ok, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
 		return fmt.Errorf("handleCreate: failed to check admin: %s", err)
 	}

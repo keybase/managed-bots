@@ -127,19 +127,19 @@ func HandleNewTeam(stats *StatsRegistry, log *DebugOutput, kbc *kbchat.API, conv
 	return err
 }
 
-func IsAdmin(kbc *kbchat.API, msg chat1.MsgSummary) (bool, error) {
-	switch msg.Channel.MembersType {
+func IsAdmin(kbc *kbchat.API, senderUsername string, channel chat1.ChatChannel) (bool, error) {
+	switch channel.MembersType {
 	case "team": // make sure the member is an admin or owner
 	default: // authorization is per user so let anything through
 		return true, nil
 	}
-	res, err := kbc.ListMembersOfTeam(msg.Channel.Name)
+	res, err := kbc.ListMembersOfTeam(channel.Name)
 	if err != nil {
 		return false, err
 	}
 	adminLike := append(res.Owners, res.Admins...)
 	for _, member := range adminLike {
-		if member.Username == msg.Sender.Username {
+		if member.Username == senderUsername {
 			return true, nil
 		}
 	}
@@ -300,16 +300,16 @@ func SplitTokens(cmd string) (tokens []string, userErrorMessage string, err erro
 	}
 }
 
-func IsDirectPrivateMessage(ownUsername string, msg chat1.MsgSummary) bool {
-	if msg.Channel.MembersType == "team" {
+func IsDirectPrivateMessage(botUsername, senderUsername string, channel chat1.ChatChannel) bool {
+	if channel.MembersType == "team" {
 		return false
 	}
-	if msg.Sender.Username == msg.Channel.Name {
+	if senderUsername == channel.Name {
 		return true
 	}
-	if len(strings.Split(msg.Channel.Name, ",")) == 2 {
-		if strings.Contains(msg.Channel.Name, ownUsername+",") ||
-			strings.Contains(msg.Channel.Name, ","+ownUsername) {
+	if len(strings.Split(channel.Name, ",")) == 2 {
+		if strings.Contains(channel.Name, botUsername+",") ||
+			strings.Contains(channel.Name, ","+botUsername) {
 			return true
 		}
 	}

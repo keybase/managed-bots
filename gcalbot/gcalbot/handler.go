@@ -122,7 +122,7 @@ func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	isAdmin, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	}
 
 	// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg.Sender.Username, msg.Channel) {
 		h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to configure me.", msg.Sender.Username)
 	}
 

@@ -94,24 +94,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	keybaseConvName := keybaseConv.Channel.Name
 
-	isAdmin, err := func() (bool, error) {
-		switch keybaseConv.Channel.MembersType {
-		case "team": // make sure the member is an admin or owner
-		default: // authorization is per user so let anything through
-			return true, nil
-		}
-		res, err := h.kbc.ListMembersOfTeam(keybaseConv.Channel.Name)
-		if err != nil {
-			return false, err
-		}
-		adminLike := append(res.Owners, res.Admins...)
-		for _, member := range adminLike {
-			if member.Username == keybaseUsername {
-				return true, nil
-			}
-		}
-		return false, nil
-	}()
+	isAdmin, err := base.IsAdmin(h.kbc, keybaseUsername, keybaseConv.Channel)
 	if err != nil {
 		return
 	} else if !isAdmin {
@@ -120,22 +103,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isPrivate := func() bool {
-		botUsername := h.kbc.GetUsername()
-		if keybaseConv.Channel.MembersType == "team" {
-			return false
-		}
-		if keybaseUsername == keybaseConv.Channel.Name {
-			return true
-		}
-		if len(strings.Split(keybaseConv.Channel.Name, ",")) == 2 {
-			if strings.Contains(keybaseConv.Channel.Name, botUsername+",") ||
-				strings.Contains(keybaseConv.Channel.Name, ","+botUsername) {
-				return true
-			}
-		}
-		return false
-	}()
+	isPrivate := base.IsDirectPrivateMessage(h.kbc.GetUsername(), keybaseUsername, keybaseConv.Channel)
 
 	accountNickname := r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")

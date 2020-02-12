@@ -117,7 +117,7 @@ func (h *Handler) requestOAuth(msg chat1.MsgSummary, accountNickname string) err
 	}
 
 	// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg.Sender.Username, msg.Channel) {
 		h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to authorize me.", msg.Sender.Username)
 	}
 
