@@ -14,38 +14,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-//func (h *Handler) HandleAuth(msg chat1.MsgSummary, accountID string) (err error) {
-//	defer func() {
-//		if err != nil {
-//			h.ChatEcho(msg.ConvID, "Something went wrong!")
-//		}
-//	}()
-//
-//	keybaseUsername := msg.Sender.Username
-//	if !strings.HasPrefix(accountID, keybaseUsername+":") {
-//		return fmt.Errorf("wrong account ID '%s' for username '%s'", accountID, keybaseUsername)
-//	}
-//	accountNickname := strings.TrimPrefix(accountID, keybaseUsername+":")
-//
-//	err = h.db.InsertAccount(Account{
-//		KeybaseUsername: keybaseUsername,
-//		AccountNickname: accountNickname,
-//		AccountID:       accountID,
-//	})
-//	if err != nil {
-//		return fmt.Errorf("error connecting account '%s': %s", accountNickname, err)
-//	}
-//
-//	h.ChatEcho(msg.ConvID, "Account '%s' has been connected.", accountNickname)
-//	cmd := strings.TrimSpace(msg.Content.Text.Body)
-//	if !strings.HasPrefix(cmd, "!gcal accounts connect") {
-//		if err = h.HandleCommand(msg); err != nil {
-//			h.ChatErrorf(msg.ConvID, err.Error())
-//		}
-//	}
-//	return nil
-//}
-//
 func (h *Handler) handleAccountsList(msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
 	accounts, err := h.db.GetAccountListForUsername(username)
@@ -120,8 +88,7 @@ func (h *Handler) deleteAccount(keybaseUsername, accountNickname string) error {
 		return fmt.Errorf("error getting account: %s", err)
 	}
 
-	client := h.oauth.Client(context.Background(), &account.Token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(account, h.oauth)
 	if err != nil {
 		return err
 	}

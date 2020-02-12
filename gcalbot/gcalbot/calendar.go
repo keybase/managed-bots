@@ -4,10 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"google.golang.org/api/calendar/v3"
 )
 
 func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error {
@@ -27,8 +25,7 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 		return nil
 	}
 
-	client := h.oauth.Client(context.Background(), &account.Token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(account, h.oauth)
 	if err != nil {
 		return err
 	}

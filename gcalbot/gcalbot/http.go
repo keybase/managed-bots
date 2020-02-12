@@ -90,6 +90,22 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keybaseConvName := keybaseConv.Channel.Name
+	isPrivate := func() bool {
+		botUsername := h.kbc.GetUsername()
+		if keybaseConv.Channel.MembersType == "team" {
+			return false
+		}
+		if keybaseUsername == keybaseConvName {
+			return true
+		}
+		if len(strings.Split(keybaseConvName, ",")) == 2 {
+			if strings.Contains(keybaseConvName, botUsername+",") ||
+				strings.Contains(keybaseConvName, ","+botUsername) {
+				return true
+			}
+		}
+		return false
+	}
 
 	accountNickname := r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")
@@ -106,12 +122,13 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := ConfigPage{
-		Title:           "gcalbot | config",
-		KeybaseConvID:   keybaseConvID,
-		KeybaseConvName: keybaseConvName,
-		Account:         accountNickname,
-		Accounts:        accounts,
-		Reminders:       reminders,
+		Title:         "gcalbot | config",
+		ConvID:        keybaseConvID,
+		ConvName:      keybaseConvName,
+		ConvIsPrivate: isPrivate(),
+		Account:       accountNickname,
+		Accounts:      accounts,
+		Reminders:     reminders,
 	}
 
 	if accountNickname == "" {
@@ -163,32 +180,35 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
-		// if the calendar hasn't changed, update the settings
-		inviteSubscription := Subscription{
-			CalendarID:    calendarID,
-			KeybaseConvID: keybaseConvID,
-			Type:          SubscriptionTypeInvite,
-		}
-		var invite bool
-		if inviteInput != "" {
-			invite = true
-		}
+		// the conv must be private (direct message) for the user to subscribe to invites
+		if page.ConvIsPrivate {
+			inviteSubscription := Subscription{
+				CalendarID:    calendarID,
+				KeybaseConvID: keybaseConvID,
+				Type:          SubscriptionTypeInvite,
+			}
+			var invite bool
+			if inviteInput != "" {
+				invite = true
+			}
 
-		if page.Invite && !invite {
-			// remove invite subscription
-			err = h.handler.removeSubscription(selectedAccount, inviteSubscription)
-			if err != nil {
-				return
+			if page.Invite && !invite {
+				// remove invite subscription
+				err = h.handler.removeSubscription(selectedAccount, inviteSubscription)
+				if err != nil {
+					return
+				}
+			} else if !page.Invite && invite {
+				// create invite subscription
+				_, err = h.handler.createSubscription(selectedAccount, inviteSubscription)
+				if err != nil {
+					return
+				}
 			}
-		} else if !page.Invite && invite {
-			// create invite subscription
-			_, err = h.handler.createSubscription(selectedAccount, inviteSubscription)
-			if err != nil {
-				return
-			}
+			page.Invite = invite
 		}
-		page.Invite = invite
 
 		if page.Reminder != "" {
 			// remove old reminder subscription

@@ -95,16 +95,17 @@ const tmplLogin = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title           string
-	KeybaseConvID   chat1.ConvIDStr
-	KeybaseConvName string
-	Account         string
-	Accounts        []*Account
-	CalendarID      string
-	Calendars       []*calendar.CalendarListEntry
-	Reminder        string
-	Reminders       []ReminderType
-	Invite          bool
+	Title         string
+	ConvID        chat1.ConvIDStr
+	ConvName      string
+	ConvIsPrivate bool
+	Account       string
+	Accounts      []*Account
+	CalendarID    string
+	Calendars     []*calendar.CalendarListEntry
+	Reminder      string
+	Reminders     []ReminderType
+	Invite        bool
 }
 
 type ReminderType struct {
@@ -115,10 +116,10 @@ type ReminderType struct {
 const tmplConfig = `{{template "header" .}}
   <div id="divContainer" class="column">
 	<span style="font-size: 32px; margin-bottom: 24px; text-align: center;">
-	  Configure Google Calendar notifications for {{.KeybaseConvName}}:
+	  Configure Google Calendar notifications for {{.ConvName}}:
 	</span>
 	<form action="/gcalbot" method="post" class="column">
-		<input type="hidden" name="conv_id" value="{{.KeybaseConvID}}">
+		<input type="hidden" name="conv_id" value="{{.ConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">
 
@@ -157,7 +158,7 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="row">
 		<label for="invite">Invites:</label>
-		<input type="checkbox" name="invite" {{if .CalendarID | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
+		<input type="checkbox" name="invite" {{if or (.CalendarID | not) (.ConvIsPrivate | not)}} disabled {{end}} {{if .Invite}} checked {{end}}>
 		</div>
 		<br>
 
