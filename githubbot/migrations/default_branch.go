@@ -79,14 +79,15 @@ func mainInner() int {
 		return 1
 	}
 
-	for _, subscription := range subs {
+	fmt.Printf("Found %d subscriptions to migrate\n", len(subs))
+	for i, subscription := range subs {
 		itr := ghinstallation.NewFromAppsTransport(atr, subscription.InstallationID)
 		client := github.NewClient(&http.Client{Transport: itr})
 
 		defaultBranch, err := githubbot.GetDefaultBranch(subscription.Repo, client)
 		if err != nil {
-			fmt.Printf("Error getting default branch: %s", err)
-			return 1
+			fmt.Printf("Error getting default branch for subscription %d/%d: %s\n", i, len(subs), err)
+			continue
 		}
 
 		err = db.WatchBranch(subscription.ConvID, subscription.Repo, defaultBranch)
