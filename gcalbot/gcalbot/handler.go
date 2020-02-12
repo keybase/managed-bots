@@ -122,6 +122,15 @@ func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
+	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		h.ChatEcho(msg.ConvID,
+			"Sorry, but you need to be an admin in order to configure Google Calendar notifications for this channel.")
+		return nil
+	}
 	keybaseUsername := msg.Sender.Username
 	token := h.LoginToken(keybaseUsername)
 

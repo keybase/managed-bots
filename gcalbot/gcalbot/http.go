@@ -93,22 +93,49 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keybaseConvName := keybaseConv.Channel.Name
+
+	isAdmin, err := func() (bool, error) {
+		switch keybaseConv.Channel.MembersType {
+		case "team": // make sure the member is an admin or owner
+		default: // authorization is per user so let anything through
+			return true, nil
+		}
+		res, err := h.kbc.ListMembersOfTeam(keybaseConv.Channel.Name)
+		if err != nil {
+			return false, err
+		}
+		adminLike := append(res.Owners, res.Admins...)
+		for _, member := range adminLike {
+			if member.Username == keybaseUsername {
+				return true, nil
+			}
+		}
+		return false, nil
+	}()
+	if err != nil {
+		return
+	} else if !isAdmin {
+		// should only be able to configure notifications if isAdmin
+		h.showConfigError(w)
+		return
+	}
+
 	isPrivate := func() bool {
 		botUsername := h.kbc.GetUsername()
 		if keybaseConv.Channel.MembersType == "team" {
 			return false
 		}
-		if keybaseUsername == keybaseConvName {
+		if keybaseUsername == keybaseConv.Channel.Name {
 			return true
 		}
-		if len(strings.Split(keybaseConvName, ",")) == 2 {
-			if strings.Contains(keybaseConvName, botUsername+",") ||
-				strings.Contains(keybaseConvName, ","+botUsername) {
+		if len(strings.Split(keybaseConv.Channel.Name, ",")) == 2 {
+			if strings.Contains(keybaseConv.Channel.Name, botUsername+",") ||
+				strings.Contains(keybaseConv.Channel.Name, ","+botUsername) {
 				return true
 			}
 		}
 		return false
-	}
+	}()
 
 	accountNickname := r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")
@@ -128,7 +155,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		Title:         "gcalbot | config",
 		ConvID:        keybaseConvID,
 		ConvName:      keybaseConvName,
-		ConvIsPrivate: isPrivate(),
+		ConvIsPrivate: isPrivate,
 		Account:       accountNickname,
 		Accounts:      accounts,
 		Reminders:     reminders,
@@ -186,7 +213,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		// the conv must be private (direct message) for the user to subscribe to invites
-		if page.ConvIsPrivate {
+		if isPrivate {
 			inviteSubscription := Subscription{
 				CalendarID:    calendarID,
 				KeybaseConvID: keybaseConvID,
