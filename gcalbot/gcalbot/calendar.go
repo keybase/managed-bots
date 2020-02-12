@@ -4,11 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/keybase/managed-bots/base"
+	"google.golang.org/api/calendar/v3"
 )
 
 func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error {
@@ -17,17 +14,18 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 		return nil
 	}
 
-	username := msg.Sender.Username
+	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
 
-	identifier := GetAccountID(username, accountNickname)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
-		h.getAccountOAuthOpts(msg, accountNickname))
-	if err != nil || client == nil {
+	account, err := h.db.GetAccount(keybaseUsername, accountNickname)
+	if err != nil {
 		return err
+	} else if account == nil {
+		h.ChatEcho(msg.ConvID, "I couldn't find an account connection called '%s' :disappointed:", accountNickname)
+		return nil
 	}
 
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(account, h.oauth)
 	if err != nil {
 		return err
 	}

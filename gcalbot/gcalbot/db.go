@@ -6,8 +6,6 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
-	"golang.org/x/oauth2"
-
 	"github.com/keybase/managed-bots/base"
 )
 
@@ -21,43 +19,113 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-// Account
-
-type Account struct {
-	KeybaseUsername string
-	AccountNickname string
-	AccountID       string
+// OAuth state
+func (d *DB) GetState(state string) (*OAuthRequest, error) {
+	var oauthState OAuthRequest
+	row := d.DB.QueryRow(`
+		SELECT keybase_username, account_nickname, keybase_conv_id, is_complete
+		FROM oauth_state
+		WHERE state = ?
+	`, state)
+	err := row.Scan(&oauthState.KeybaseUsername, &oauthState.AccountNickname, &oauthState.KeybaseConvID,
+		&oauthState.IsComplete)
+	switch err {
+	case nil:
+		return &oauthState, nil
+	case sql.ErrNoRows:
+		return nil, nil
+	default:
+		return nil, err
+	}
 }
 
+func (d *DB) PutState(state string, oauthState OAuthRequest) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO oauth_state
+			(state, keybase_username, account_nickname, keybase_conv_id)
+			VALUES (?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			keybase_username=VALUES(keybase_username),
+			account_nickname=VALUES(account_nickname),
+			keybase_conv_id=VALUES(keybase_conv_id)
+		`, state, oauthState.KeybaseUsername, oauthState.AccountNickname, oauthState.KeybaseConvID)
+		return err
+	})
+	return err
+}
+
+func (d *DB) CompleteState(state string) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			UPDATE oauth_state
+			SET is_complete = true
+			WHERE state = ?
+		`, state)
+		return err
+	})
+	return err
+}
+
+// Account
 func (d *DB) InsertAccount(account Account) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO account
-				(keybase_username, account_nickname, account_id)
-				VALUES (?, ?, ?)
-		`, account.KeybaseUsername, account.AccountNickname, account.AccountID)
+			(keybase_username, account_nickname, access_token, token_type, refresh_token, expiry, ctime, mtime)
+			VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+			ON DUPLICATE KEY UPDATE 
+			access_token=VALUES(access_token),
+			refresh_token=VALUES(refresh_token),
+			expiry=VALUES(expiry),
+			mtime=VALUES(mtime)
+		`, account.KeybaseUsername, account.AccountNickname, account.Token.AccessToken, account.Token.TokenType,
+			account.Token.RefreshToken, account.Token.Expiry)
 		return err
 	})
 }
 
-func (d *DB) GetAccountByAccountID(accountID string) (account *Account, err error) {
+func (d *DB) GetAccount(keybaseUsername, accountNickname string) (account *Account, err error) {
 	account = &Account{}
+	var expiry int64
 	row := d.DB.QueryRow(`
-		SELECT keybase_username, account_nickname, account_id FROM account
-			WHERE account_id = ?
-	`, accountID)
-	err = row.Scan(&account.KeybaseUsername, &account.AccountNickname, &account.AccountID)
+		SELECT keybase_username, account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+		FROM account
+		WHERE keybase_username = ? AND account_nickname = ?
+	`, keybaseUsername, accountNickname)
+	err = row.Scan(&account.KeybaseUsername, &account.AccountNickname, &account.Token.AccessToken,
+		&account.Token.TokenType, &account.Token.RefreshToken, &expiry)
 	switch err {
 	case sql.ErrNoRows:
 		return nil, nil
 	case nil:
+		account.Token.Expiry = time.Unix(expiry, 0)
 		return account, nil
 	default:
 		return nil, err
 	}
 }
 
-func (d *DB) ExistsAccountForUsernameAndNickname(keybaseUsername string, accountNickname string) (exists bool, err error) {
+func (d *DB) DeleteAccount(keybaseUsername, accountNickname string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		// remove subscriptions first due to foreign key constraint
+		_, err := tx.Exec(`
+			DELETE FROM subscription
+			WHERE keybase_username = ? AND account_nickname = ?
+		`, keybaseUsername, accountNickname)
+		if err != nil {
+			return err
+		}
+		// remove account (and cascading remove associated channels and invites)
+		_, err = tx.Exec(`
+			DELETE FROM account
+			WHERE keybase_username = ? AND account_nickname = ?
+		`, keybaseUsername, accountNickname)
+		return err
+	})
+}
+
+func (d *DB) ExistsAccount(keybaseUsername string, accountNickname string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(SELECT * FROM account WHERE keybase_username = ? AND account_nickname = ?)
 	`, keybaseUsername, accountNickname)
@@ -65,84 +133,40 @@ func (d *DB) ExistsAccountForUsernameAndNickname(keybaseUsername string, account
 	return exists, err
 }
 
-func (d *DB) GetAccountNicknameListForUsername(keybaseUsername string) (accounts []string, err error) {
+func (d *DB) GetAccountListForUsername(keybaseUsername string) (accounts []*Account, err error) {
 	rows, err := d.DB.Query(`
-		SELECT account_nickname
-			FROM account
-			WHERE keybase_username = ?
-			ORDER BY account_nickname
+		SELECT keybase_username, account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+		FROM account
+		WHERE keybase_username = ?
+		ORDER BY account_nickname
 	`, keybaseUsername)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var account string
-		err = rows.Scan(&account)
+		var account Account
+		var expiry int64
+		err = rows.Scan(&account.KeybaseUsername, &account.AccountNickname, &account.Token.AccessToken,
+			&account.Token.TokenType, &account.Token.RefreshToken, &expiry)
+		account.Token.Expiry = time.Unix(expiry, 0)
 		if err != nil {
 			return nil, err
 		}
-		accounts = append(accounts, account)
+		accounts = append(accounts, &account)
 	}
 	return accounts, nil
 }
 
-func (d *DB) DeleteAccountByAccountID(accountID string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE from invite
-				WHERE account_id = ?
-		`, accountID)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(`
-			DELETE from subscription
-				WHERE account_id = ?
-		`, accountID)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(`
-			DELETE from channel
-				WHERE account_id = ?
-		`, accountID)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(`
-			DELETE from oauth
-				WHERE identifier = ?
-		`, accountID)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(`
-			DELETE from account
-				WHERE account_id = ?
-		`, accountID)
-		return err
-	})
-}
-
 // Channel
-
-type Channel struct {
-	ChannelID     string
-	AccountID     string
-	CalendarID    string
-	ResourceID    string
-	Expiry        time.Time
-	NextSyncToken string
-}
-
-func (d *DB) InsertChannel(channel Channel) error {
+func (d *DB) InsertChannel(account *Account, channel Channel) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO channel
-				(channel_id, account_id, calendar_id, resource_id, expiry, next_sync_token)
-				VALUES (?, ?, ?, ?, ?, ?)
-		`, channel.ChannelID, channel.AccountID, channel.CalendarID, channel.ResourceID, channel.Expiry, channel.NextSyncToken)
+			(channel_id, keybase_username, account_nickname, calendar_id, resource_id, expiry, next_sync_token)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, channel.ChannelID, account.KeybaseUsername, account.AccountNickname, channel.CalendarID, channel.ResourceID,
+			channel.Expiry, channel.NextSyncToken)
 		return err
 	})
 }
@@ -151,114 +175,9 @@ func (d *DB) UpdateChannel(oldChannelID, newChannelID string, expiry time.Time) 
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			UPDATE channel
-				SET channel_id = ?, expiry = ?
-				WHERE channel_id = ?
-		`, newChannelID, expiry, oldChannelID)
-		return err
-	})
-}
-
-func (d *DB) GetChannelByAccountAndCalendarID(accountID, calendarID string) (channel *Channel, err error) {
-	channel = &Channel{}
-	var expiry int64
-	row := d.DB.QueryRow(`
-		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
-			WHERE account_id = ? and calendar_id = ?
-	`, accountID, calendarID)
-	err = row.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
-		&channel.ResourceID, &expiry, &channel.NextSyncToken)
-	switch err {
-	case sql.ErrNoRows:
-		return nil, nil
-	case nil:
-		channel.Expiry = time.Unix(expiry, 0)
-		return channel, nil
-	default:
-		return nil, err
-	}
-}
-
-func (d *DB) GetChannelByChannelID(channelID string) (channel *Channel, err error) {
-	channel = &Channel{}
-	var expiry int64
-	row := d.DB.QueryRow(`
-		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
+			SET channel_id = ?, expiry = ?
 			WHERE channel_id = ?
-	`, channelID)
-	err = row.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
-		&channel.ResourceID, &expiry, &channel.NextSyncToken)
-	switch err {
-	case sql.ErrNoRows:
-		return nil, nil
-	case nil:
-		channel.Expiry = time.Unix(expiry, 0)
-		return channel, nil
-	default:
-		return nil, err
-	}
-}
-
-func (d *DB) GetChannelListByAccountID(accountID string) (channels []*Channel, err error) {
-	rows, err := d.DB.Query(`
-		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
-			WHERE account_id = ?
-	`, accountID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		channel := &Channel{}
-		var expiry int64
-		err = rows.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
-			&channel.ResourceID, &expiry, &channel.NextSyncToken)
-		if err != nil {
-			return nil, err
-		}
-		channel.Expiry = time.Unix(expiry, 0)
-		channels = append(channels, channel)
-	}
-	return channels, nil
-}
-
-func (d *DB) GetExpiringChannelList() (channels []*Channel, err error) {
-	// query all channels that are expiring in less than a day
-	rows, err := d.DB.Query(`
-		SELECT channel_id, account_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token FROM channel
-			WHERE expiry < DATE_ADD(NOW(), INTERVAL 1 DAY)
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		channel := &Channel{}
-		var expiry int64
-		err = rows.Scan(&channel.ChannelID, &channel.AccountID, &channel.CalendarID,
-			&channel.ResourceID, &expiry, &channel.NextSyncToken)
-		if err != nil {
-			return nil, err
-		}
-		channel.Expiry = time.Unix(expiry, 0)
-		channels = append(channels, channel)
-	}
-	return channels, nil
-}
-
-func (d *DB) ExistsChannelByAccountAndCalID(accountID, calendarID string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
-		SELECT EXISTS(SELECT * FROM channel WHERE account_id = ? AND calendar_id = ?)
-	`, accountID, calendarID)
-	err = row.Scan(&exists)
-	return exists, err
-}
-
-func (d *DB) DeleteChannelByChannelID(channelID string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM channel
-				WHERE channel_id = ?
-		`, channelID)
+		`, newChannelID, expiry, oldChannelID)
 		return err
 	})
 }
@@ -267,161 +186,217 @@ func (d *DB) UpdateChannelNextSyncToken(channelID, nextSyncToken string) error {
 	return d.DB.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			UPDATE channel
-				SET next_sync_token = ?
-				WHERE channel_id = ?
+			SET next_sync_token = ?
+			WHERE channel_id = ?
 		`, nextSyncToken, channelID)
 		return err
 	})
 }
 
-// Subscription
-
-type SubscriptionType string
-
-const (
-	SubscriptionTypeInvite   SubscriptionType = "invite"
-	SubscriptionTypeReminder SubscriptionType = "reminder"
-)
-
-type Subscription struct {
-	AccountID      string
-	CalendarID     string
-	KeybaseConvID  chat1.ConvIDStr
-	DurationBefore time.Duration
-	Type           SubscriptionType
-}
-
-type AggregatedSubscription struct {
-	Subscription
-	Account        Account
-	DurationBefore []time.Duration // aggregate MinutesBefore into an array
-}
-
-type AggregatedSubscriptionWithToken struct {
-	AggregatedSubscription
-	Token *oauth2.Token
-}
-
-func (d *DB) InsertSubscription(subscription Subscription) error {
-	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT into subscription
-				(account_id, calendar_id, keybase_conv_id, minutes_before, type)
-				VALUES (?, ?, ?, ?, ?)
-		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
-			minutesBefore, subscription.Type)
-		return err
-	})
-}
-
-func (d *DB) ExistsSubscription(subscription Subscription) (exists bool, err error) {
-	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
+func (d *DB) GetChannel(account *Account, calendarID string) (channel *Channel, err error) {
+	channel = &Channel{}
+	var expiry int64
 	row := d.DB.QueryRow(`
-		SELECT EXISTS(
-		    SELECT * FROM subscription WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
-	)`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID, minutesBefore, subscription.Type)
+		SELECT channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token
+		FROM channel
+		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID)
+	err = row.Scan(&channel.ChannelID, &channel.CalendarID, &channel.ResourceID, &expiry, &channel.NextSyncToken)
+	switch err {
+	case sql.ErrNoRows:
+		return nil, nil
+	case nil:
+		channel.Expiry = time.Unix(expiry, 0)
+		return channel, nil
+	default:
+		return nil, err
+	}
+}
+
+func (d *DB) GetChannelAndAccountByID(channelID string) (channel *Channel, account *Account, err error) {
+	channel = &Channel{}
+	account = &Account{}
+	var channelExpiry int64
+	var tokenExpiry int64
+	row := d.DB.QueryRow(`
+		SELECT
+		    channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token,
+			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(account.expiry))
+		FROM channel
+		JOIN account USING(keybase_username, account_nickname)
+		WHERE channel_id = ?
+	`, channelID)
+	err = row.Scan(&channel.ChannelID, &channel.CalendarID, &channel.ResourceID, &channelExpiry, &channel.NextSyncToken,
+		&account.KeybaseUsername, &account.AccountNickname, &account.Token.AccessToken, &account.Token.TokenType,
+		&account.Token.RefreshToken, &channelExpiry)
+	switch err {
+	case sql.ErrNoRows:
+		return nil, nil, nil
+	case nil:
+		channel.Expiry = time.Unix(channelExpiry, 0)
+		account.Token.Expiry = time.Unix(tokenExpiry, 0)
+		return channel, account, nil
+	default:
+		return nil, nil, err
+	}
+}
+
+func (d *DB) GetChannelListByAccount(account *Account) (channels []*Channel, err error) {
+	rows, err := d.DB.Query(`
+		SELECT channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token
+		FROM channel
+		WHERE keybase_username = ? AND account_nickname = ?
+	`, account.KeybaseUsername, account.AccountNickname)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var channel Channel
+		var expiry int64
+		err = rows.Scan(&channel.ChannelID, &channel.CalendarID, &channel.ResourceID, &expiry, &channel.NextSyncToken)
+		if err != nil {
+			return nil, err
+		}
+		channel.Expiry = time.Unix(expiry, 0)
+		channels = append(channels, &channel)
+	}
+	return channels, nil
+}
+
+func (d *DB) GetExpiringChannelAndAccountList() (pairs []*ChannelAndAccount, err error) {
+	// query all channels that are expiring in less than a day
+	rows, err := d.DB.Query(`
+		SELECT
+		    channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token,
+			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(account.expiry))
+		FROM channel
+		JOIN account USING(keybase_username, account_nickname)
+		WHERE channel.expiry < DATE_ADD(NOW(), INTERVAL 1 DAY)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pair ChannelAndAccount
+		var channelExpiry int64
+		err = rows.Scan(&pair.Channel.ChannelID, &pair.Channel.CalendarID, &pair.Channel.ResourceID, &channelExpiry,
+			&pair.Channel.NextSyncToken,
+			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken,
+			&pair.Account.Token.TokenType, &pair.Account.Token.RefreshToken, &channelExpiry)
+		if err != nil {
+			return nil, err
+		}
+		pair.Channel.Expiry = time.Unix(channelExpiry, 0)
+		pairs = append(pairs, &pair)
+	}
+	return pairs, nil
+}
+
+func (d *DB) ExistsChannelByAccountAndCalendar(account *Account, calendarID string) (exists bool, err error) {
+	row := d.DB.QueryRow(`
+		SELECT EXISTS(SELECT * FROM channel WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?)
+	`, account.KeybaseUsername, account.AccountNickname, calendarID)
 	err = row.Scan(&exists)
 	return exists, err
 }
 
-func (d *DB) CountSubscriptionsByAccountAndCalID(accountID, calendarID string) (count int, err error) {
+func (d *DB) DeleteChannelByChannelID(channelID string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM channel
+			WHERE channel_id = ?
+		`, channelID)
+		return err
+	})
+}
+
+// Subscription
+func (d *DB) InsertSubscription(account *Account, subscription Subscription) error {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO subscription
+			(keybase_username, account_nickname, calendar_id, keybase_conv_id, minutes_before, type)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID,
+			subscription.KeybaseConvID, minutesBefore, subscription.Type)
+		return err
+	})
+}
+
+func (d *DB) ExistsSubscription(account *Account, subscription Subscription) (exists bool, err error) {
+	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
 	row := d.DB.QueryRow(`
-		SELECT COUNT(*) FROM subscription WHERE account_id = ? AND calendar_id = ?
-	`, accountID, calendarID)
+		SELECT EXISTS(
+		    SELECT *
+		    FROM subscription
+		    WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ? AND
+		    	  minutes_before = ? AND type = ?
+		)
+	`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
+		minutesBefore, subscription.Type)
+	err = row.Scan(&exists)
+	return exists, err
+}
+
+func (d *DB) CountSubscriptionsByAccountAndCalender(account *Account, calendarID string) (count int, err error) {
+	row := d.DB.QueryRow(`
+		SELECT COUNT(*) FROM subscription WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID)
 	err = row.Scan(&count)
 	return count, err
 }
 
-func (d *DB) GetAggregatedReminderSubscriptionsWithToken() (reminders []*AggregatedSubscriptionWithToken, err error) {
+func (d *DB) GetReminderSubscriptionAndAccountPairs() (pairs []*SubscriptionAndAccount, err error) {
 	row, err := d.DB.Query(`
 		SELECT
-		       keybase_username, account_nickname, -- account
-		       access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry)), -- token
-		       subscription.account_id, calendar_id, keybase_conv_id, GROUP_CONCAT(minutes_before), type -- subscription
+		       calendar_id, keybase_conv_id, minutes_before, type, -- subscription
+		       account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry)) -- account
 		FROM subscription
-		JOIN oauth ON subscription.account_id = oauth.identifier
-		JOIN account USING(account_id)
+		JOIN account USING(keybase_username, account_nickname)
 		WHERE subscription.type = ?
-		GROUP BY subscription.calendar_id
 	`, SubscriptionTypeReminder)
 	if err != nil {
 		return nil, err
 	}
 	defer row.Close()
 	for row.Next() {
-		var reminder AggregatedSubscriptionWithToken
-		reminder.Token = &oauth2.Token{}
-		var expiry int64
-		var minutesBeforeBytes []byte
-		err = row.Scan(&reminder.Account.KeybaseUsername, &reminder.Account.AccountNickname,
-			&reminder.Token.AccessToken, &reminder.Token.TokenType, &reminder.Token.RefreshToken, &expiry,
-			&reminder.AccountID, &reminder.CalendarID, &reminder.KeybaseConvID, &minutesBeforeBytes, &reminder.Type)
+		var pair SubscriptionAndAccount
+		var subscriptionMinutesBefore int
+		var tokenExpiry int64
+		err = row.Scan(&pair.Subscription.CalendarID, &pair.Subscription.KeybaseConvID, &subscriptionMinutesBefore, &pair.Subscription.Type,
+			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken,
+			&pair.Account.Token.TokenType, &pair.Account.Token.RefreshToken, &tokenExpiry)
 		if err != nil {
 			return nil, err
 		}
-		// parse MinutesBefore from GROUP_CONCAT bytes
-		reminder.DurationBefore, err = GetDurationBeforeFromBytes(minutesBeforeBytes)
-		if err != nil {
-			return nil, err
-		}
-		reminder.Account.AccountID = reminder.AccountID
-		reminder.Token.Expiry = time.Unix(expiry, 0)
-		reminders = append(reminders, &reminder)
+		pair.Subscription.DurationBefore = GetDurationFromMinutes(subscriptionMinutesBefore)
+		pair.Account.Token.Expiry = time.Unix(tokenExpiry, 0)
+		pairs = append(pairs, &pair)
 	}
-	return reminders, nil
+	return pairs, nil
 }
 
-func (d *DB) GetAggregatedSubscriptionsByTypeForUserAndCal(
-	accountID, calendarID string,
+func (d *DB) GetReminderSubscriptionsByAccountAndCalendar(
+	account *Account,
+	calendarID string,
 	subscriptionType SubscriptionType,
-) (subscriptions []*AggregatedSubscription, err error) {
+) (subscriptions []*Subscription, err error) {
 	row, err := d.DB.Query(`
-		SELECT
-		       keybase_username, account_nickname, -- account
-		       subscription.account_id, calendar_id, keybase_conv_id, GROUP_CONCAT(minutes_before), type -- subscription
+		SELECT calendar_id, keybase_conv_id, minutes_before, type
 		FROM subscription
-		JOIN account ON subscription.account_id = account.account_id
-		WHERE subscription.account_id = ? AND subscription.calendar_id = ? AND subscription.type = ?
-		GROUP BY subscription.calendar_id
-	`, accountID, calendarID, subscriptionType)
+		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND type = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID, subscriptionType)
 	if err != nil {
 		return nil, err
 	}
 	defer row.Close()
 	for row.Next() {
-		var subscription AggregatedSubscription
-		var minutesBeforeBytes []byte
-		err = row.Scan(&subscription.Account.KeybaseUsername, &subscription.Account.AccountNickname,
-			&subscription.AccountID, &subscription.CalendarID, &subscription.KeybaseConvID, &minutesBeforeBytes, &subscription.Type)
-		if err != nil {
-			return nil, err
-		}
-		// parse MinutesBefore from GROUP_CONCAT bytes
-		subscription.DurationBefore, err = GetDurationBeforeFromBytes(minutesBeforeBytes)
-		if err != nil {
-			return nil, err
-		}
-		subscription.Account.AccountID = subscription.AccountID
-		subscriptions = append(subscriptions, &subscription)
-	}
-	return subscriptions, nil
-}
-
-func (d *DB) GetSubscriptions(accountID, calendarID string, keybaseConvID chat1.ConvIDStr) (subscriptions []*Subscription, err error) {
-	rows, err := d.DB.Query(`
-		SELECT account_id, calendar_id, keybase_conv_id, minutes_before, type
-			FROM subscription
-			WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ?
-	`, accountID, calendarID, keybaseConvID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
 		var subscription Subscription
 		var minutesBefore int
-		err = rows.Scan(&subscription.AccountID, &subscription.CalendarID, &subscription.KeybaseConvID, &minutesBefore, &subscription.Type)
+		err = row.Scan(&subscription.CalendarID, &subscription.KeybaseConvID, &minutesBefore, &subscription.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -431,71 +406,86 @@ func (d *DB) GetSubscriptions(accountID, calendarID string, keybaseConvID chat1.
 	return subscriptions, nil
 }
 
-func (d *DB) DeleteSubscription(subscription Subscription) (exists bool, err error) {
+func (d *DB) GetSubscriptions(account *Account, calendarID string, keybaseConvID chat1.ConvIDStr) (subscriptions []*Subscription, err error) {
+	rows, err := d.DB.Query(`
+		SELECT calendar_id, keybase_conv_id, minutes_before, type
+		FROM subscription
+		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID, keybaseConvID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var subscription Subscription
+		var minutesBefore int
+		err = rows.Scan(&subscription.CalendarID, &subscription.KeybaseConvID, &minutesBefore, &subscription.Type)
+		if err != nil {
+			return nil, err
+		}
+		subscription.DurationBefore = GetDurationFromMinutes(minutesBefore)
+		subscriptions = append(subscriptions, &subscription)
+	}
+	return subscriptions, nil
+}
+
+func (d *DB) DeleteSubscription(account *Account, subscription Subscription) error {
 	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
-	err = d.RunTxn(func(tx *sql.Tx) error {
-		res, err := tx.Exec(`
-			DELETE from subscription
-				WHERE account_id = ? AND calendar_id = ? AND keybase_conv_id = ? AND minutes_before = ? AND type = ?
-		`, subscription.AccountID, subscription.CalendarID, subscription.KeybaseConvID,
-			minutesBefore, subscription.Type)
-		if err != nil {
-			return err
-		}
-		num, err := res.RowsAffected()
-		if err != nil {
-			return err
-		}
-		exists = num == 1
-		return nil
-	})
-	return exists, err
-}
-
-// Invite
-
-type Invite struct {
-	AccountID       string
-	CalendarID      string
-	EventID         string
-	KeybaseUsername string
-	MessageID       uint
-}
-
-func (d *DB) InsertInvite(invite Invite) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
-			INSERT INTO invite
-				(account_id, calendar_id, event_id, keybase_username, message_id)
-				VALUES (?, ?, ?, ?, ?)
-		`, invite.AccountID, invite.CalendarID, invite.EventID, invite.KeybaseUsername, invite.MessageID)
+			DELETE FROM subscription
+			WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ? AND
+				  minutes_before = ? AND type = ?
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID,
+			subscription.KeybaseConvID, minutesBefore, subscription.Type)
 		return err
 	})
 }
 
-func (d *DB) ExistsInvite(accountID, calendarID, eventID string) (exists bool, err error) {
+// Invite
+func (d *DB) InsertInvite(account *Account, invite Invite) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO invite
+			(keybase_username, account_nickname, calendar_id, event_id, message_id)
+			VALUES (?, ?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, invite.CalendarID, invite.EventID, invite.MessageID)
+		return err
+	})
+}
+
+func (d *DB) ExistsInvite(account *Account, calendarID, eventID string) (exists bool, err error) {
 	row := d.DB.QueryRow(`
 		SELECT EXISTS(
-			SELECT * FROM invite WHERE account_id = ? AND calendar_id = ? AND event_id = ?
+			SELECT * FROM invite WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND event_id = ?
 		)
-	`, accountID, calendarID, eventID)
+	`, account.KeybaseUsername, account.AccountNickname, calendarID, eventID)
 	err = row.Scan(&exists)
 	return exists, err
 }
 
-func (d *DB) GetInviteEventByUserMessage(keybaseUsername string, messageID uint) (invite *Invite, err error) {
+func (d *DB) GetInviteAndAccountByUserMessage(keybaseUsername string, messageID chat1.MessageID) (invite *Invite, account *Account, err error) {
 	invite = &Invite{}
+	account = &Account{}
+	var expiry int64
 	row := d.DB.QueryRow(`
-		SELECT account_id, calendar_id, event_id, keybase_username, message_id FROM invite
-			WHERE keybase_username = ? and message_id = ?
+		SELECT
+			calendar_id, event_id, message_id,
+			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+		FROM invite
+		JOIN account USING(keybase_username, account_nickname)
+		WHERE invite.keybase_username = ? and message_id = ?
 	`, keybaseUsername, messageID)
-	err = row.Scan(&invite.AccountID, &invite.CalendarID, &invite.EventID, &invite.KeybaseUsername, &invite.MessageID)
+	err = row.Scan(&invite.CalendarID, &invite.EventID, &invite.MessageID,
+		&account.KeybaseUsername, &account.AccountNickname, &account.Token.AccessToken, &account.Token.TokenType,
+		&account.Token.RefreshToken, &expiry)
 	switch err {
 	case sql.ErrNoRows:
-		return nil, nil
+		return nil, nil, nil
 	case nil:
-		return invite, nil
+		account.Token.Expiry = time.Unix(expiry, 0)
+		return invite, account, nil
 	default:
-		return nil, err
+		return nil, nil, err
 	}
 }

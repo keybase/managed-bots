@@ -13,7 +13,6 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/option"
 )
 
 func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +31,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 
 	channelID := r.Header.Get("X-Goog-Channel-ID")
 	resourceID := r.Header.Get("X-Goog-Resource-ID")
-	channel, err := h.db.GetChannelByChannelID(channelID)
+	channel, account, err := h.db.GetChannelAndAccountByID(channelID)
 	if err != nil {
 		return
 	} else if channel == nil {
@@ -47,22 +46,18 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	token, err := h.db.GetToken(channel.AccountID)
+	reminderSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
+		account, channel.CalendarID, SubscriptionTypeReminder)
+	if err != nil {
+		return
+	}
+	inviteSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
+		account, channel.CalendarID, SubscriptionTypeInvite)
 	if err != nil {
 		return
 	}
 
-	reminderSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeReminder)
-	if err != nil {
-		return
-	}
-	inviteSubscriptions, err := h.db.GetAggregatedSubscriptionsByTypeForUserAndCal(channel.AccountID, channel.CalendarID, SubscriptionTypeInvite)
-	if err != nil {
-		return
-	}
-
-	client := h.handler.config.Client(context.Background(), token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(account, h.oauth)
 	if err != nil {
 		return
 	}
@@ -75,7 +70,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		// check if the event starts in the next 3 hours before registering it
 		if time.Now().Before(start) && time.Now().Add(3*time.Hour).After(start) {
 			for _, subscription := range reminderSubscriptions {
-				err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
+				err = h.reminderScheduler.UpdateOrCreateReminderEvent(account, subscription, event)
 				if err != nil {
 					return
 				}
@@ -93,7 +88,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		var exists bool
-		exists, err = h.db.ExistsInvite(channel.AccountID, channel.CalendarID, event.Id)
+		exists, err = h.db.ExistsInvite(account, channel.CalendarID, event.Id)
 		if err != nil {
 			return
 		}
@@ -101,7 +96,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			// user was recently invited to the event
 			for range inviteSubscriptions {
 				// TODO(marcel): use subscription convid
-				err = h.handler.sendEventInvite(srv, channel, event)
+				err = h.handler.sendEventInvite(account, channel, event)
 				if err != nil {
 					return
 				}
@@ -128,8 +123,8 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	default:
-		err = fmt.Errorf("error updating events for account ID '%s', cal '%s': %s",
-			channel.AccountID, channel.CalendarID, typedErr)
+		err = fmt.Errorf("error updating events for user '%s' account '%s', cal '%s': %s",
+			account.KeybaseUsername, account.AccountNickname, channel.CalendarID, typedErr)
 		return
 	}
 
@@ -138,7 +133,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 
 		if status == EventStatusCancelled {
 			for _, subscription := range reminderSubscriptions {
-				err = h.reminderScheduler.UpdateOrCreateReminderEvent(srv, event, subscription)
+				err = h.reminderScheduler.UpdateOrCreateReminderEvent(account, subscription, event)
 				if err != nil {
 					return
 				}
@@ -180,53 +175,57 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) createSubscription(
-	srv *calendar.Service, subscription Subscription,
+	account *Account, subscription Subscription,
 ) (exists bool, err error) {
-	exists, err = h.db.ExistsSubscription(subscription)
+	exists, err = h.db.ExistsSubscription(account, subscription)
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
 		return exists, err
 	}
 
-	err = h.createEventChannel(srv, subscription.AccountID, subscription.CalendarID)
+	err = h.createEventChannel(account, subscription.CalendarID)
 	if err != nil {
 		return exists, err
 	}
 
-	err = h.db.InsertSubscription(subscription)
+	err = h.db.InsertSubscription(account, subscription)
 	if err != nil {
 		return exists, err
 	}
 
-	h.reminderScheduler.AddSubscription(subscription)
+	h.reminderScheduler.AddSubscription(account, subscription)
 
 	return false, nil
 }
 
 func (h *Handler) removeSubscription(
-	srv *calendar.Service, subscription Subscription,
-) (exists bool, err error) {
-	exists, err = h.db.DeleteSubscription(subscription)
-	if err != nil || !exists {
+	account *Account, subscription Subscription,
+) error {
+	err := h.db.DeleteSubscription(account, subscription)
+	if err != nil {
 		// if no error, subscription doesn't exist, short circuit
-		return exists, err
+		return err
 	}
 
-	h.reminderScheduler.RemoveSubscription(subscription)
+	h.reminderScheduler.RemoveSubscription(account, subscription)
 
-	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalID(subscription.AccountID, subscription.CalendarID)
+	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalender(account, subscription.CalendarID)
 	if err != nil {
-		return exists, err
+		return err
 	}
 
 	if subscriptionCount == 0 {
 		// if there are no more subscriptions for this account + calendar, remove the channel
-		channel, err := h.db.GetChannelByAccountAndCalendarID(subscription.AccountID, subscription.CalendarID)
+		channel, err := h.db.GetChannel(account, subscription.CalendarID)
 		if err != nil {
-			return exists, err
+			return err
 		}
 
 		if channel != nil {
+			srv, err := GetCalendarService(account, h.oauth)
+			if err != nil {
+				return err
+			}
 			err = srv.Channels.Stop(&calendar.Channel{
 				Id:         channel.ChannelID,
 				ResourceId: channel.ResourceID,
@@ -235,28 +234,29 @@ func (h *Handler) removeSubscription(
 			case nil:
 			case *googleapi.Error:
 				if err.Code != 404 {
-					return exists, err
+					return err
 				}
 				// if the channel wasn't found, don't return
 			default:
-				return exists, err
+				return err
 			}
 
 			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
 			if err != nil {
-				return exists, err
+				return err
 			}
 		}
 	}
 
-	return true, nil
+	return nil
 }
 
-func (h *Handler) createEventChannel(
-	srv *calendar.Service,
-	accountID, calendarID string,
-) error {
-	exists, err := h.db.ExistsChannelByAccountAndCalID(accountID, calendarID)
+func (h *Handler) createEventChannel(account *Account, calendarID string) error {
+	srv, err := GetCalendarService(account, h.oauth)
+	if err != nil {
+		return err
+	}
+	exists, err := h.db.ExistsChannelByAccountAndCalendar(account, calendarID)
 	if err != nil || exists {
 		// if err is nil but the channel exists, return
 		return err
@@ -292,9 +292,8 @@ func (h *Handler) createEventChannel(
 		return err
 	}
 
-	err = h.db.InsertChannel(Channel{
+	err = h.db.InsertChannel(account, Channel{
 		ChannelID:     channelID,
-		AccountID:     accountID,
 		CalendarID:    calendarID,
 		ResourceID:    res.ResourceId,
 		Expiry:        time.Unix(res.Expiration/1e3, 0),
@@ -359,33 +358,27 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 		case <-shutdownCh:
 			return
 		case <-ticker.C:
-			channels, err := r.db.GetExpiringChannelList()
+			pairs, err := r.db.GetExpiringChannelAndAccountList()
 			if err != nil {
-				r.Errorf("error getting expiring channels: %s", err)
+				r.Errorf("error getting expiring pairs: %s", err)
 			}
-			for _, channel := range channels {
+			for _, pair := range pairs {
 				select {
 				case <-shutdownCh:
 					return
 				default:
 				}
-				err = r.renewChannel(channel)
+				err = r.renewChannel(&pair.Account, &pair.Channel)
 				if err != nil {
-					r.Errorf("error renewing channel '%s': %s", channel.ChannelID, err)
+					r.Errorf("error renewing channel '%s': %s", pair.Channel.ChannelID, err)
 				}
 			}
 		}
 	}
 }
 
-func (r *RenewChannelScheduler) renewChannel(channel *Channel) error {
-	token, err := r.db.GetToken(channel.AccountID)
-	if err != nil {
-		return err
-	}
-
-	client := r.config.Client(context.Background(), token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) error {
+	srv, err := GetCalendarService(account, r.config)
 	if err != nil {
 		return err
 	}

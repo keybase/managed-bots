@@ -17,10 +17,10 @@ import (
 type Handler struct {
 	*base.DebugOutput
 
-	stats  *base.StatsRegistry
-	kbc    *kbchat.API
-	db     *DB
-	config *oauth2.Config
+	stats *base.StatsRegistry
+	kbc   *kbchat.API
+	db    *DB
+	oauth *oauth2.Config
 
 	reminderScheduler ReminderScheduler
 
@@ -36,7 +36,7 @@ func NewHandler(
 	kbc *kbchat.API,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
-	config *oauth2.Config,
+	oauth *oauth2.Config,
 	reminderScheduler ReminderScheduler,
 	tokenSecret string,
 	httpPrefix string,
@@ -46,7 +46,7 @@ func NewHandler(
 		stats:             stats.SetPrefix("Handler"),
 		kbc:               kbc,
 		db:                db,
-		config:            config,
+		oauth:             oauth,
 		reminderScheduler: reminderScheduler,
 		tokenSecret:       tokenSecret,
 		httpPrefix:        httpPrefix,
@@ -108,14 +108,14 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
-	messageID := uint(msg.Content.Reaction.MessageID)
+	messageID := msg.Content.Reaction.MessageID
 	reaction := msg.Content.Reaction.Body
 
-	invite, err := h.db.GetInviteEventByUserMessage(username, messageID)
+	invite, account, err := h.db.GetInviteAndAccountByUserMessage(username, messageID)
 	if err != nil {
 		return err
-	} else if invite != nil {
-		return h.updateEventResponseStatus(invite, InviteReaction(reaction))
+	} else if invite != nil && account != nil {
+		return h.updateEventResponseStatus(invite, account, InviteReaction(reaction))
 	}
 
 	return nil
@@ -129,10 +129,17 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	query.Add("token", token)
 	query.Add("username", keybaseUsername)
 	query.Add("conv_id", string(msg.ConvID))
-	body := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
+	link := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
 
+	body := fmt.Sprintf("Configure Google Calendar notifications for conversation '%s': %s",
+		msg.Channel.Name, link)
 	if _, err := h.kbc.SendMessageByTlfName(keybaseUsername, body); err != nil {
 		h.Debug("failed to send login attempt: %s", err)
+	}
+
+	// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
+		h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to configure me.", msg.Sender.Username)
 	}
 
 	return nil

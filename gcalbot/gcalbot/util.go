@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"google.golang.org/api/calendar/v3"
@@ -144,19 +143,6 @@ func GetMinutesFromDuration(duration time.Duration) int {
 
 func GetDurationFromMinutes(minutes int) time.Duration {
 	return time.Duration(minutes) * time.Minute
-}
-
-func GetDurationBeforeFromBytes(minutesBeforeBytes []byte) (durationBefore []time.Duration, err error) {
-	minutesBeforeStrings := strings.Split(string(minutesBeforeBytes), ",")
-	durationBefore = make([]time.Duration, len(minutesBeforeStrings))
-	for index, minutesBeforeItem := range minutesBeforeStrings {
-		minutesBefore, err := strconv.Atoi(minutesBeforeItem)
-		if err != nil {
-			return nil, err
-		}
-		durationBefore[index] = GetDurationFromMinutes(minutesBefore)
-	}
-	return durationBefore, nil
 }
 
 func MinutesBeforeString(minutesBefore int) string {

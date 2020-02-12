@@ -1,12 +1,10 @@
 package gcalbot
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
 )
 
 type InviteReaction string
@@ -26,7 +24,7 @@ const (
 	ResponseStatusAccepted    ResponseStatus = "accepted"
 )
 
-func (h *Handler) sendEventInvite(srv *calendar.Service, channel *Channel, event *calendar.Event) error {
+func (h *Handler) sendEventInvite(account *Account, channel *Channel, event *calendar.Event) error {
 	message := `You've been invited to %s: %s
 Awaiting your response. *Are you going?*`
 
@@ -37,15 +35,15 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
+	srv, err := GetCalendarService(account, h.oauth)
+	if err != nil {
+		return err
+	}
 	timezone, err := GetUserTimezone(srv)
 	if err != nil {
 		return err
 	}
 	format24HourTime, err := GetUserFormat24HourTime(srv)
-	if err != nil {
-		return err
-	}
-	account, err := h.db.GetAccountByAccountID(channel.AccountID)
 	if err != nil {
 		return err
 	}
@@ -63,12 +61,10 @@ Awaiting your response. *Are you going?*`
 		return err
 	}
 
-	err = h.db.InsertInvite(Invite{
-		AccountID:       channel.AccountID,
-		CalendarID:      invitedCalendar.Id,
-		EventID:         event.Id,
-		KeybaseUsername: account.KeybaseUsername,
-		MessageID:       uint(*sendRes.Result.MessageID),
+	err = h.db.InsertInvite(account, Invite{
+		CalendarID: invitedCalendar.Id,
+		EventID:    event.Id,
+		MessageID:  *sendRes.Result.MessageID,
 	})
 	if err != nil {
 		return err
@@ -85,7 +81,7 @@ Awaiting your response. *Are you going?*`
 	return nil
 }
 
-func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReaction) error {
+func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, reaction InviteReaction) error {
 	var responseStatus ResponseStatus
 	var confirmationMessageStatus string
 	switch reaction {
@@ -103,16 +99,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 		return nil
 	}
 
-	token, err := h.db.GetToken(invite.AccountID)
-	if err != nil {
-		return err
-	} else if token == nil {
-		h.Debug("token not found for '%s'", invite.AccountID)
-		return nil
-	}
-
-	client := h.config.Client(context.Background(), token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(account, h.oauth)
 	if err != nil {
 		return err
 	}
@@ -144,17 +131,13 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, reaction InviteReact
 		return err
 	}
 
-	account, err := h.db.GetAccountByAccountID(invite.AccountID)
-	if err != nil {
-		return err
-	}
 	invitedCalendar, err := srv.Calendars.Get(invite.CalendarID).Do()
 	if err != nil {
 		return err
 	}
 	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
 
-	_, err = h.kbc.SendMessageByTlfName(invite.KeybaseUsername, "I've set your status as *%s* for event *%s* on calendar %s.",
+	_, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername, "I've set your status as *%s* for event *%s* on calendar %s.",
 		confirmationMessageStatus, event.Summary, accountCalendar)
 	if err != nil {
 		return err
