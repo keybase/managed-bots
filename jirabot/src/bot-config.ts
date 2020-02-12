@@ -14,6 +14,11 @@ export type BotConfig = {
     prefix: string
   }
   allowedTeams?: Array<string>
+  // Optional. A list of keybase usernames that are allowed to use the `!jira
+  // debug` command.
+  admins?: Array<string>
+
+  _adminsSet: Set<string>
 }
 
 const checkBotConfig = (obj: any): null | BotConfig => {
@@ -84,6 +89,18 @@ const checkBotConfig = (obj: any): null | BotConfig => {
       return null
     }
   }
+
+  if (obj.admins) {
+    if (!Array.isArray(obj.admins)) {
+      logger.error('unexpect obj.admins type: not an array')
+      return null
+    }
+    if (obj.admins.some((item: any) => typeof item !== 'string')) {
+      logger.error('unexpect obj.admins: at least one item is not a string')
+      return null
+    }
+  }
+  obj._adminsSet = new Set(obj.admins || [])
 
   return obj as BotConfig
 }

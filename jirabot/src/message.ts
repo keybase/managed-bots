@@ -15,6 +15,7 @@ export enum BotMessageType {
   Config = 'config',
   Auth = 'auth',
   Feed = 'feed',
+  Debug = 'debug',
 }
 
 export type MessageContext = Readonly<{
@@ -118,6 +119,24 @@ export type FeedMessage =
   | FeedUnsubscribeMessage
   | FeedListMessage
 
+export enum DebugType {
+  LogSend = 'logSend',
+  Pprof = 'pprof',
+}
+export type DebugLogSendMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Debug
+  debugType: DebugType.LogSend
+}>
+export type DebugPprofMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Debug
+  debugType: DebugType.Pprof
+  pprofType: 'trace' | 'cpu' | 'heap'
+  duration?: number
+}>
+export type DebugMessage = DebugLogSendMessage | DebugPprofMessage
+
 export type Message =
   | UnknownMessage
   | SearchMessage
@@ -127,6 +146,7 @@ export type Message =
   | ConfigMessage
   | AuthMessage
   | FeedMessage
+  | DebugMessage
 
 const getTextMessage = (message: ChatTypes.MsgSummary): string | undefined => {
   if (!message || !message.content) {
@@ -628,6 +648,66 @@ export const parseMessage = async (
             context: messageContext,
             type: BotMessageType.Unknown,
             error: `unknown feed command ${fields[2]}`,
+          }
+      }
+    }
+    case 'debug': {
+      if (!context.botConfig._adminsSet.has(messageContext.senderUsername)) {
+        return {
+          context: messageContext,
+          type: BotMessageType.Unknown,
+          error: 'You do not have the permission to use this command.',
+        }
+      }
+
+      switch (fields[2]) {
+        case undefined:
+          return {
+            context: messageContext,
+            type: BotMessageType.Unknown,
+            error: `invalid debug command`,
+          }
+        case 'logSend':
+        case 'logsend':
+          return {
+            context: messageContext,
+            type: BotMessageType.Debug,
+            debugType: DebugType.LogSend,
+          }
+        case 'pprof':
+          switch (fields[3]) {
+            case 'trace':
+            case 'cpu':
+            case 'heap':
+              const matches = (fields[4] ?? '').match(/^(\d+)s$/)
+              if (fields[3] !== 'heap' && !matches) {
+                return {
+                  context: messageContext,
+                  type: BotMessageType.Unknown,
+                  error: `invalid debug pprof duration ${fields[4]}`,
+                }
+              }
+              return {
+                context: messageContext,
+                type: BotMessageType.Debug,
+                debugType: DebugType.Pprof,
+                pprofType: fields[3],
+                duration: matches
+                  ? Number.parseInt(matches[1]) * 1000
+                  : undefined,
+              }
+            default:
+              return {
+                context: messageContext,
+                type: BotMessageType.Unknown,
+                error: `unknown debug pprof type ${fields[3]}`,
+              }
+          }
+        default:
+          return {
+            context: messageContext,
+            type: BotMessageType.Unknown,
+            error: `unknown debug command ${fields[2]}`,
           }
       }
     }

@@ -8,6 +8,7 @@ import reacji from './reacji'
 import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
 import CmdFeed from './cmd-feed'
+import CmdDebug from './cmd-debug'
 import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
@@ -117,6 +118,14 @@ const onMessage = async (
           : reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
+      case Message.BotMessageType.Debug: {
+        reactAck(context, parsedMessage.context, kbMessage.id)
+        const {type} = await CmdDebug(context, parsedMessage)
+        type === Errors.ReturnType.Ok
+          ? reactDone(context, parsedMessage.context, kbMessage.id)
+          : reactFail(context, parsedMessage.context, kbMessage.id)
+        return
+      }
       default:
         let _: never = parsedMessage
     }
@@ -188,6 +197,9 @@ const commands = [
       '!jira subscribe design\n' +
       '!jira subscribe frontend with updates\n' +
       '!jira unsubscribe 123',
+  },
+  {
+    name: 'jira debug',
   },
 ]
 
