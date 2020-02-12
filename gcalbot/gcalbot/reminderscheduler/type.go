@@ -16,9 +16,10 @@ type ReminderMessage struct {
 
 	EventID string
 
-	AccountID     string
-	CalendarID    string
-	KeybaseConvID chat1.ConvIDStr
+	KeybaseUsername string
+	AccountNickname string
+	CalendarID      string
+	KeybaseConvID   chat1.ConvIDStr
 
 	StartTime  time.Time
 	MsgContent string
@@ -32,10 +33,10 @@ type ReminderMessage struct {
 type SubscriptionKey string
 
 func getSubscriptionKey(
-	accountID, calendarID string,
+	keybaseUsername, accountNickname, calendarID string,
 	keybaseConvID chat1.ConvIDStr,
 ) SubscriptionKey {
-	return SubscriptionKey(fmt.Sprintf("%s:%s:%s", accountID, calendarID, keybaseConvID))
+	return SubscriptionKey(fmt.Sprintf("%s:%s:%s:%s", keybaseUsername, accountNickname, calendarID, keybaseConvID))
 }
 
 type SubscriptionReminders struct {
@@ -50,7 +51,7 @@ func NewSubscriptionReminders() *SubscriptionReminders {
 }
 
 func (r *SubscriptionReminders) AddReminderMessageToSubscription(msg *ReminderMessage) {
-	key := getSubscriptionKey(msg.AccountID, msg.CalendarID, msg.KeybaseConvID)
+	key := getSubscriptionKey(msg.KeybaseUsername, msg.AccountNickname, msg.CalendarID, msg.KeybaseConvID)
 	r.Lock()
 	defer r.Unlock()
 	messages, ok := r.reminderMessages[key]
@@ -63,7 +64,7 @@ func (r *SubscriptionReminders) AddReminderMessageToSubscription(msg *ReminderMe
 }
 
 func (r *SubscriptionReminders) RemoveReminderMessageFromSubscription(msg *ReminderMessage) {
-	key := getSubscriptionKey(msg.AccountID, msg.CalendarID, msg.KeybaseConvID)
+	key := getSubscriptionKey(msg.KeybaseUsername, msg.AccountNickname, msg.CalendarID, msg.KeybaseConvID)
 	r.Lock()
 	defer r.Unlock()
 
@@ -75,11 +76,11 @@ func (r *SubscriptionReminders) RemoveReminderMessageFromSubscription(msg *Remin
 }
 
 func (r *SubscriptionReminders) ForEachReminderMessageInSubscription(
-	accountID, calendarID string,
+	keybaseUsername, accountNickname, calendarID string,
 	keybaseConvID chat1.ConvIDStr,
 	callback func(msg *ReminderMessage, removeReminderMessageFromSubscription func()),
 ) {
-	key := getSubscriptionKey(accountID, calendarID, keybaseConvID)
+	key := getSubscriptionKey(keybaseUsername, accountNickname, calendarID, keybaseConvID)
 	// note: this lock could be moved to the map value in order to improve performance
 	r.Lock()
 	defer r.Unlock()

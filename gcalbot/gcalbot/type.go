@@ -1,15 +1,71 @@
 package gcalbot
 
 import (
+	"time"
+
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+
+	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 )
 
+type OAuthRequest struct {
+	KeybaseUsername string
+	AccountNickname string
+	KeybaseConvID   chat1.ConvIDStr
+	IsComplete      bool
+}
+
+type Account struct {
+	KeybaseUsername string
+	AccountNickname string
+	Token           oauth2.Token
+}
+
+type Channel struct {
+	ChannelID     string
+	CalendarID    string
+	ResourceID    string
+	Expiry        time.Time
+	NextSyncToken string
+}
+
+type ChannelAndAccount struct {
+	Channel Channel
+	Account Account
+}
+
+type SubscriptionType string
+
+const (
+	SubscriptionTypeInvite   SubscriptionType = "invite"
+	SubscriptionTypeReminder SubscriptionType = "reminder"
+)
+
+type Subscription struct {
+	CalendarID     string
+	KeybaseConvID  chat1.ConvIDStr
+	DurationBefore time.Duration
+	Type           SubscriptionType
+}
+
+type SubscriptionAndAccount struct {
+	Subscription Subscription
+	Account      Account
+}
+
+type Invite struct {
+	CalendarID string
+	EventID    string
+	MessageID  chat1.MessageID
+}
+
 type ReminderScheduler interface {
 	UpdateOrCreateReminderEvent(
-		srv *calendar.Service,
+		account *Account,
+		subscription *Subscription,
 		event *calendar.Event,
-		subscriptionSet *AggregatedSubscription,
 	) error
-	AddSubscription(subscription Subscription)
-	RemoveSubscription(subscription Subscription)
+	AddSubscription(account *Account, subscription Subscription)
+	RemoveSubscription(account *Account, subscription Subscription)
 }

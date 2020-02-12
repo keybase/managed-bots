@@ -2,7 +2,6 @@ package gcalbot
 
 import (
 	"bytes"
-	"context"
 	"crypto/hmac"
 	"encoding/base64"
 	"fmt"
@@ -12,9 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -23,8 +19,10 @@ import (
 )
 
 type HTTPSrv struct {
-	*base.OAuthHTTPSrv
+	*base.HTTPSrv
 
+	kbc     *kbchat.API
+	oauth   *oauth2.Config
 	db      *DB
 	handler *Handler
 
@@ -41,14 +39,17 @@ func NewHTTPSrv(
 	handler *Handler,
 ) *HTTPSrv {
 	h := &HTTPSrv{
+		kbc:               kbc,
+		oauth:             oauthConfig,
 		db:                db,
 		handler:           handler,
 		reminderScheduler: reminderScheduler,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
-		"gcalbot", base.Images["logo"], "/gcalbot")
+	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	http.HandleFunc("/gcalbot", h.configHandler)
 	http.HandleFunc("/gcalbot/home", h.homeHandler)
+	http.HandleFunc("/gcalbot/oauth", h.oauthHandler)
+	http.HandleFunc("/gcalbot/image/logo", h.logoHandler)
 	http.HandleFunc("/gcalbot/image/screenshot", h.screenshotHandler)
 	http.HandleFunc("/gcalbot/events/webhook", h.handleEventUpdateWebhook)
 	return h
@@ -69,8 +70,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err != nil {
 			h.Errorf("error in configHandler: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("something went wrong :("))
+			h.showConfigError(w)
 		}
 	}()
 
@@ -100,7 +100,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	reminderInput := r.Form.Get("reminder")
 	inviteInput := r.Form.Get("invite")
 
-	accounts, err := h.db.GetAccountNicknameListForUsername(keybaseUsername)
+	accounts, err := h.db.GetAccountListForUsername(keybaseUsername)
 	if err != nil {
 		return
 	}
@@ -119,15 +119,18 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accountID := GetAccountID(keybaseUsername, accountNickname)
-
-	token, err := h.db.GetToken(accountID)
-	if err != nil || token == nil {
+	var selectedAccount *Account
+	for _, account := range accounts {
+		if account.AccountNickname == accountNickname {
+			selectedAccount = account
+		}
+	}
+	if selectedAccount == nil {
+		h.showConfigError(w)
 		return
 	}
 
-	client := h.handler.config.Client(context.Background(), token)
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := GetCalendarService(selectedAccount, h.oauth)
 	if err != nil {
 		return
 	}
@@ -147,7 +150,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var subscriptions []*Subscription
-	subscriptions, err = h.db.GetSubscriptions(accountID, calendarID, keybaseConvID)
+	subscriptions, err = h.db.GetSubscriptions(selectedAccount, calendarID, keybaseConvID)
 	if err != nil {
 		return
 	}
@@ -163,7 +166,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	if calendarID == previousCalendarID {
 		// if the calendar hasn't changed, update the settings
 		inviteSubscription := Subscription{
-			AccountID:     accountID,
 			CalendarID:    calendarID,
 			KeybaseConvID: keybaseConvID,
 			Type:          SubscriptionTypeInvite,
@@ -175,13 +177,13 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 		if page.Invite && !invite {
 			// remove invite subscription
-			_, err = h.handler.removeSubscription(srv, inviteSubscription)
+			err = h.handler.removeSubscription(selectedAccount, inviteSubscription)
 			if err != nil {
 				return
 			}
 		} else if !page.Invite && invite {
 			// create invite subscription
-			_, err = h.handler.createSubscription(srv, inviteSubscription)
+			_, err = h.handler.createSubscription(selectedAccount, inviteSubscription)
 			if err != nil {
 				return
 			}
@@ -196,8 +198,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			_, err = h.handler.removeSubscription(srv, Subscription{
-				AccountID:      accountID,
+			err = h.handler.removeSubscription(selectedAccount, Subscription{
 				CalendarID:     calendarID,
 				KeybaseConvID:  keybaseConvID,
 				DurationBefore: GetDurationFromMinutes(oldMinutesBefore),
@@ -215,8 +216,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			_, err = h.handler.createSubscription(srv, Subscription{
-				AccountID:      accountID,
+			_, err = h.handler.createSubscription(selectedAccount, Subscription{
 				CalendarID:     calendarID,
 				KeybaseConvID:  keybaseConvID,
 				DurationBefore: GetDurationFromMinutes(newMinutesBefore),
@@ -232,6 +232,13 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	h.servePage(w, "config", page)
 }
 
+func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusInternalServerError)
+	if _, err := w.Write([]byte("something went wrong :(")); err != nil {
+		h.Errorf("configHandler: unable to write: %s", err)
+	}
+}
+
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	h.Stats.Count("home")
 	homePage := `Google Calendar Bot is a <a href="https://keybase.io">Keybase</a> chatbot
@@ -242,6 +249,14 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	`
 	if _, err := w.Write(base.MakeOAuthHTML("gcalbot", "home", homePage, "/gcalbot/image/logo")); err != nil {
 		h.Errorf("homeHandler: unable to write: %v", err)
+	}
+}
+
+func (h *HTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+	dat, _ := base64.StdEncoding.DecodeString(base.Images["logo"])
+	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 }
 

@@ -4,6 +4,7 @@ CREATE TABLE `oauth_state` (
   `state` char(24) NOT NULL,
   `keybase_username` varchar(128) NOT NULL,
   `account_nickname` varchar(128) NOT NULL,
+  `keybase_conv_id` varchar(128) NOT NULL,
   `is_complete` boolean NOT NULL DEFAULT 0,
   PRIMARY KEY (`state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -34,7 +35,9 @@ CREATE TABLE `channel` (
     `next_sync_token` varchar(128) NOT NULL,    -- token used for incremental syncs on each webhook
     PRIMARY KEY (`channel_id`),
     UNIQUE KEY (`keybase_username`, `account_nickname`, `calendar_id`),
-    FOREIGN KEY (`keybase_username`, `account_nickname`) REFERENCES account(`keybase_username`, `account_nickname`),
+    FOREIGN KEY (`keybase_username`, `account_nickname`)
+        REFERENCES account(`keybase_username`, `account_nickname`)
+        ON DELETE CASCADE,
     INDEX (`expiry`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -48,8 +51,11 @@ CREATE TABLE `subscription` (
     `minutes_before` int(11) NOT NULL DEFAULT 0,    -- minutes until event that a notification should be sent (for reminder)
     `type` ENUM ('invite', 'reminder'),             -- type of subscription
     PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `keybase_conv_id`, `minutes_before`, `type`),
-    FOREIGN KEY (`keybase_username`, `account_nickname`) REFERENCES account(`keybase_username`, `account_nickname`),
-    FOREIGN KEY (`keybase_username`, `account_nickname`, `calendar_id`) REFERENCES channel(`keybase_username`, `account_nickname`, `calendar_id`)
+    FOREIGN KEY (`keybase_username`, `account_nickname`)
+        REFERENCES account(`keybase_username`, `account_nickname`)
+        ON DELETE CASCADE,
+    FOREIGN KEY (`keybase_username`, `account_nickname`, `calendar_id`)
+        REFERENCES channel(`keybase_username`, `account_nickname`, `calendar_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `invite`;
@@ -62,6 +68,8 @@ CREATE TABLE `invite` (
     `message_id` int(11) unsigned NOT NULL,     -- message id of the keybase message invite sent to the user over chat
     PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `event_id`),
     UNIQUE KEY (`keybase_username`, `message_id`),
-    FOREIGN KEY (`keybase_username`, `account_nickname`) REFERENCES account(`keybase_username`, `account_nickname`)
+    FOREIGN KEY (`keybase_username`, `account_nickname`)
+        REFERENCES account(`keybase_username`, `account_nickname`)
+        ON DELETE CASCADE
     -- no foreign key to subscription, want to keep invites after unsubscribe so that users can still react to invites
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

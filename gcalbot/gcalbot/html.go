@@ -99,7 +99,7 @@ type ConfigPage struct {
 	KeybaseConvID   chat1.ConvIDStr
 	KeybaseConvName string
 	Account         string
-	Accounts        []string
+	Accounts        []*Account
 	CalendarID      string
 	Calendars       []*calendar.CalendarListEntry
 	Reminder        string
@@ -127,7 +127,7 @@ const tmplConfig = `{{template "header" .}}
 		<select name="account" onchange="this.form.submit()">
 			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
 			{{range .Accounts}}
-			<option value="{{.}}" {{if eq . $.Account}} selected {{end}}>{{.}}</option>
+			<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
 			{{end}}
 		</select>
 		</div>
