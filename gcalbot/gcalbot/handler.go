@@ -129,10 +129,17 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	query.Add("token", token)
 	query.Add("username", keybaseUsername)
 	query.Add("conv_id", string(msg.ConvID))
-	body := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
+	link := fmt.Sprintf("%s/%s?%s", h.httpPrefix, "gcalbot", query.Encode())
 
+	body := fmt.Sprintf("Configure Google Calendar notifications for conversation '%s': %s",
+		msg.Channel.Name, link)
 	if _, err := h.kbc.SendMessageByTlfName(keybaseUsername, body); err != nil {
 		h.Debug("failed to send login attempt: %s", err)
+	}
+
+	// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
+		h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to configure me.", msg.Sender.Username)
 	}
 
 	return nil
