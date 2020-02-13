@@ -97,7 +97,7 @@ const tmplLogin = `{{template "header" .}}
 type ConfigPage struct {
 	Title         string
 	ConvID        chat1.ConvIDStr
-	ConvName      string
+	ConvHelpText  string
 	ConvIsPrivate bool
 	Account       string
 	Accounts      []*Account
@@ -116,7 +116,7 @@ type ReminderType struct {
 const tmplConfig = `{{template "header" .}}
   <div id="divContainer" class="column">
 	<span style="font-size: 32px; margin-bottom: 24px; text-align: center;">
-	  Configure Google Calendar notifications for {{.ConvName}}:
+	  {{.ConvHelpText}}:
 	</span>
 	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.ConvID}}">
