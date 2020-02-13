@@ -66,7 +66,7 @@ Example:%s
 			Name:        "gitlab subscribe",
 			Description: "Enable updates from GitLab projects",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab subscribe* <username/project> [branch]`,
+				Title:       `*!gitlab subscribe* <username/project>`,
 				DesktopBody: subExtended,
 				MobileBody:  subExtended,
 			},
@@ -75,14 +75,14 @@ Example:%s
 			Name:        "gitlab unsubscribe",
 			Description: "Disable updates from GitLab projects",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!gitlab unsubscribe* <username/project> [branch]`,
+				Title:       `*!gitlab unsubscribe* <username/project>`,
 				DesktopBody: unsubExtended,
 				MobileBody:  unsubExtended,
 			},
 		},
 		{
 			Name:        "gitlab list",
-			Description: "Lists all your project and branch subscriptions, woot!",
+			Description: "Lists all your project subscriptions, woot!",
 		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
