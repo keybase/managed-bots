@@ -72,6 +72,7 @@ Happy coding!`,
 	return message
 }
 
+// parseRepoInput checks if url or <owner/repo> form
 func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string) {
 	parsedURL, err := url.ParseRequestURI(urlOrRepoPath)
 	if err != nil {
