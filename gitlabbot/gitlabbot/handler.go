@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -81,7 +82,17 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		return nil
 	}
 
-	repo := args[0]
+	var repo string
+	hostedURL := "https://gitlab.com"
+
+	parsedURL, err := url.ParseRequestURI(args[0])
+	if err != nil {
+		repo = args[0]
+	} else {
+		hostedURL = parsedURL.Scheme + "://" + parsedURL.Host
+		repo = parsedURL.Path[1:] // Remove the preceding slash '/owner/repo'
+	}
+
 	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
@@ -98,7 +109,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, msg, h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, hostedURL, msg, h.httpPrefix, h.secret))
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}

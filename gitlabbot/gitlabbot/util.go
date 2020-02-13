@@ -25,7 +25,7 @@ func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) 
 	suite := evt.ObjectAttributes
 	repo := evt.Project.PathWithNamespace
 	isMergeRequest := evt.MergeRequest.IID != 0
-	pipelineURL := fmt.Sprintf("https://gitlab.com/%s/pipelines/%d", repo, evt.ObjectAttributes.ID)
+	pipelineURL := fmt.Sprintf("%s/pipelines/%d", evt.Project.WebURL, evt.ObjectAttributes.ID)
 
 	defer func() {
 		if strings.HasPrefix(username, "@") && isMergeRequest && res != "" {
@@ -57,16 +57,16 @@ func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) 
 	}
 }
 
-func formatSetupInstructions(repo string, msg chat1.MsgSummary, httpAddress string, secret string) (res string) {
+func formatSetupInstructions(repo string, hostedURL string, msg chat1.MsgSummary, httpAddress string, secret string) (res string) {
 	back := "`"
 	message := fmt.Sprintf(`
-To configure your project to send notifications, go to https://gitlab.com/%s/-/settings/integrations and add a new webhook.
+To configure your project to send notifications, go to %s/%s/-/settings/integrations and add a new webhook.
 For “URL”, enter %s%s/gitlabbot/webhook%s.
 For “Secret Token”, enter %s%s%s.
 Remember to check all the triggers you would like me to update you on.
 Note that I currently support the following Webhook Events: Push, Issues, Merge Request, Pipeline
 
 Happy coding!`,
-		repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
+		hostedURL, repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
 	return message
 }
