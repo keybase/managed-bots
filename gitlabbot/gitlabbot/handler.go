@@ -2,7 +2,6 @@ package gitlabbot
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -82,16 +81,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		return nil
 	}
 
-	var repo string
-	hostedURL := "https://gitlab.com"
-
-	parsedURL, err := url.ParseRequestURI(args[0])
-	if err != nil {
-		repo = args[0]
-	} else {
-		hostedURL = parsedURL.Scheme + "://" + parsedURL.Host
-		repo = parsedURL.Path[1:] // Remove the preceding slash '/owner/repo'
-	}
+	hostedURL, repo := parseRepoInput(args[0])
 
 	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {

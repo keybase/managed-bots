@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -69,4 +70,17 @@ Note that I currently support the following Webhook Events: Push, Issues, Merge 
 Happy coding!`,
 		hostedURL, repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
 	return message
+}
+
+func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string) {
+	parsedURL, err := url.ParseRequestURI(urlOrRepoPath)
+	if err != nil {
+		repo = urlOrRepoPath
+		hostedURL = "https://gitlab.com"
+	} else {
+		hostedURL = parsedURL.Scheme + "://" + parsedURL.Host
+		repo = parsedURL.Path[1:] // Remove the preceding slash '/owner/repo'
+	}
+
+	return hostedURL, repo
 }
