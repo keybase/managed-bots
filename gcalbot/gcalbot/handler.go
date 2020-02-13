@@ -122,6 +122,15 @@ func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
+	isAdmin, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
+	if err != nil {
+		return err
+	}
+	if !isAdmin {
+		h.ChatEcho(msg.ConvID,
+			"Sorry, but you need to be an admin in order to configure Google Calendar notifications for this channel.")
+		return nil
+	}
 	keybaseUsername := msg.Sender.Username
 	token := h.LoginToken(keybaseUsername)
 
@@ -138,7 +147,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	}
 
 	// If we are in a 1-1 conv directly or as a bot user with the sender, skip this message.
-	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg) {
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg.Sender.Username, msg.Channel) {
 		h.ChatEcho(msg.ConvID, "OK! I've sent a message to @%s to configure me.", msg.Sender.Username)
 	}
 

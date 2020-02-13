@@ -93,22 +93,17 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	keybaseConvName := keybaseConv.Channel.Name
-	isPrivate := func() bool {
-		botUsername := h.kbc.GetUsername()
-		if keybaseConv.Channel.MembersType == "team" {
-			return false
-		}
-		if keybaseUsername == keybaseConvName {
-			return true
-		}
-		if len(strings.Split(keybaseConvName, ",")) == 2 {
-			if strings.Contains(keybaseConvName, botUsername+",") ||
-				strings.Contains(keybaseConvName, ","+botUsername) {
-				return true
-			}
-		}
-		return false
+
+	isAdmin, err := base.IsAdmin(h.kbc, keybaseUsername, keybaseConv.Channel)
+	if err != nil {
+		return
+	} else if !isAdmin {
+		// should only be able to configure notifications if isAdmin
+		h.showConfigError(w)
+		return
 	}
+
+	isPrivate := base.IsDirectPrivateMessage(h.kbc.GetUsername(), keybaseUsername, keybaseConv.Channel)
 
 	accountNickname := r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")
@@ -128,7 +123,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		Title:         "gcalbot | config",
 		ConvID:        keybaseConvID,
 		ConvName:      keybaseConvName,
-		ConvIsPrivate: isPrivate(),
+		ConvIsPrivate: isPrivate,
 		Account:       accountNickname,
 		Accounts:      accounts,
 		Reminders:     reminders,
@@ -186,7 +181,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		// the conv must be private (direct message) for the user to subscribe to invites
-		if page.ConvIsPrivate {
+		if isPrivate {
 			inviteSubscription := Subscription{
 				CalendarID:    calendarID,
 				KeybaseConvID: keybaseConvID,

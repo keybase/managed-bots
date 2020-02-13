@@ -109,7 +109,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	isAdmin, err := base.IsAdmin(h.kbc, msg)
+	isAdmin, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
 		return fmt.Errorf("Error getting admin status: %s", err)
 	}
