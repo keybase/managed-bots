@@ -73,9 +73,9 @@ Happy coding!`,
 }
 
 // parseRepoInput checks if url or <owner/repo> form
-func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string) {
+func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err error) {
 	parsedURL, err := url.ParseRequestURI(urlOrRepoPath)
-	if err != nil {
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 		repo = urlOrRepoPath
 		hostedURL = "https://gitlab.com"
 	} else {
@@ -83,5 +83,10 @@ func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string) {
 		repo = parsedURL.Path[1:] // Remove the preceding slash '/owner/repo'
 	}
 
-	return hostedURL, repo
+	splitRepo := strings.Split(repo, "/")
+	if len(splitRepo) != 2 {
+		return hostedURL, repo, fmt.Errorf("invalid arguments, expected `<owner/repo>`")
+	}
+
+	return hostedURL, repo, nil
 }
