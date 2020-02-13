@@ -1,6 +1,7 @@
 package gitlabbot
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -10,17 +11,10 @@ func TestParseRepoInputWithURL(t *testing.T) {
 	url := httpPrefix + "/" + urlRepo
 
 	hostedURL, repo, err := parseRepoInput(url)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	if hostedURL != httpPrefix {
-		t.Errorf("hostedURL is incorrect, got: %s, want: %s.", hostedURL, httpPrefix)
-	}
-
-	if repo != urlRepo {
-		t.Errorf("repo is incorrect, got: %s, want: %s.", repo, urlRepo)
-	}
+	require.Equal(t, httpPrefix, hostedURL)
+	require.Equal(t, repo, urlRepo)
 }
 
 func TestParseRepoInputWithNamespace(t *testing.T) {
@@ -28,57 +22,32 @@ func TestParseRepoInputWithNamespace(t *testing.T) {
 	namespace := "owner/repo"
 
 	hostedURL, repo, err := parseRepoInput(namespace)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
-	if hostedURL != httpPrefix {
-		t.Errorf("hostedURL is incorrect, got: %s, want: %s.", hostedURL, httpPrefix)
-	}
-
-	if repo != namespace {
-		t.Errorf("repo is incorrect, got: %s, want: %s.", repo, namespace)
-	}
+	require.Equal(t, httpPrefix, hostedURL)
+	require.Equal(t, repo, namespace)
 }
 
 func TestParseRepoInputInvalidHostname(t *testing.T) {
 	url := "/owner/repo"
-
-	hostedURL, repo, err := parseRepoInput(url)
-	if err == nil {
-		t.Errorf("expected error on invalid hostname, got: %s %s", hostedURL, repo)
-	}
+	_, _, err := parseRepoInput(url)
+	require.Error(t, err)
 }
 
 func TestParseRepoInputInvalidNoScheme(t *testing.T) {
-	httpPrefix := "mywebsite.com"
-	urlRepo := "owner/repo"
-	url := httpPrefix + "/" + urlRepo
-
+	url := "mywebsite.com/owner/repo"
 	_, _, err := parseRepoInput(url)
-	if err == nil {
-		t.Error(err)
-	}
+	require.Error(t, err)
 }
 
 func TestParseRepoInputInvalidScheme(t *testing.T) {
-	httpPrefix := "https:mywebsite.com"
-	urlRepo := "owner/repo"
-	url := httpPrefix + "/" + urlRepo
-
+	url := "https:mywebsite.com/owner/repo"
 	_, _, err := parseRepoInput(url)
-	if err == nil {
-		t.Error(err)
-	}
+	require.Error(t, err)
 }
 
 func TestParseRepoInputInvalidNoHostname(t *testing.T) {
-	httpPrefix := "https://"
-	urlRepo := "owner/repo"
-	url := httpPrefix + "/" + urlRepo
-
+	url := "https://owner/repo"
 	_, _, err := parseRepoInput(url)
-	if err == nil {
-		t.Error(err)
-	}
+	require.Error(t, err)
 }
