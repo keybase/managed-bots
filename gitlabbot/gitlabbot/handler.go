@@ -77,28 +77,28 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 
 	args := toks[2:]
 	if len(args) < 1 {
-		h.ChatEcho(msg.ConvID, "bad args for subscribe: %v", args)
+		h.ChatEcho(msg.ConvID, "Bad arguments for subscribe: %v", args)
 		return nil
 	}
 
-	repo := args[0]
+	hostedURL, repo, err := parseRepoInput(args[0])
+	if err != nil {
+		h.ChatEcho(msg.ConvID, "Invalid repo: %q, expected `<owner/repo>` or `https://domain.com/owner/repo`", repo)
+		return nil
+	}
+
 	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
 
-	parsedRepo := strings.Split(repo, "/")
-	if len(parsedRepo) <= 1 {
-		h.ChatEcho(msg.ConvID, "invalid repo: %q, expected `<owner/repo>`", repo)
-		return nil
-	}
 	if create {
 		if !alreadyExists {
 			err = h.db.CreateSubscription(msg.ConvID, repo, base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, msg, h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, hostedURL, msg, h.httpPrefix, h.secret))
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
