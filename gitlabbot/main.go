@@ -52,20 +52,14 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	subExtended := fmt.Sprintf(`Enables posting updates from the provided GitLab project to this conversation.
 
 Example:%s
-!gitlab subscribe keybase/client%s
-
-Subscribe to a specific branch:%s
-!gitlab subscribe facebook/react gh-pages%s`,
-		backs, backs, backs, backs)
+!gitlab subscribe keybase/client%s`,
+		backs, backs)
 
 	unsubExtended := fmt.Sprintf(`Disables updates from the provided GitLab project to this conversation.
 
 Example:%s
-!gitlab unsubscribe keybase/client%s
-
-Unsubscribe from a specific branch:%s
-!gitlab unsubscribe facebook/react gh-pages%s`,
-		backs, backs, backs, backs)
+!gitlab unsubscribe keybase/client%s`,
+		backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
 		{
