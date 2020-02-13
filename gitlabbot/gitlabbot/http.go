@@ -55,7 +55,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var message, repo string
-	branch := "master"
 	switch event := event.(type) {
 	case *gitlab.IssueEvent:
 		message = git.FormatIssueMsg(
@@ -67,7 +66,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.URL,
 		)
 		repo = event.Project.PathWithNamespace
-		branch = event.Project.DefaultBranch
 	case *gitlab.MergeEvent:
 		message = git.FormatPullRequestMsg(
 			git.GITLAB,
@@ -80,12 +78,11 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			event.ObjectAttributes.TargetBranch,
 		)
 		repo = event.Project.PathWithNamespace
-		branch = event.Project.DefaultBranch
 	case *gitlab.PushEvent:
 		if len(event.Commits) == 0 {
 			break
 		}
-		branch = git.RefToName(event.Ref)
+		branch := git.RefToName(event.Ref)
 		commitMsgs := getCommitMessages(event)
 		lastCommitDiffURL := event.Commits[len(event.Commits)-1].URL
 
@@ -99,11 +96,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		repo = event.Project.PathWithNamespace
 	case *gitlab.PipelineEvent:
 		repo = event.Project.PathWithNamespace
-		if event.MergeRequest.IID == 0 {
-			branch = event.ObjectAttributes.Ref
-		} else {
-			branch = event.Project.DefaultBranch
-		}
 		message = formatPipelineMsg(event, event.User.Username)
 	}
 
@@ -111,16 +103,14 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repo = strings.ToLower(repo)
-	branch = strings.ToLower(branch)
 	signature := r.Header.Get("X-Gitlab-Token")
 
-	convs, err := h.db.GetSubscribedConvs(repo, branch)
+	convs, err := h.db.GetSubscribedConvs(repo)
 	if err != nil {
 		h.Errorf("Error getting subscriptions for repo: %s", err)
 		return
 	}
 
-	h.notifyUnsubscribedConvs(repo, branch, signature)
 
 	for _, convID := range convs {
 		var secretToken = base.MakeSecret(repo, convID, h.secret)
@@ -129,30 +119,5 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		h.ChatEcho(convID, message)
-	}
-}
-
-func (h *HTTPSrv) notifyUnsubscribedConvs(repo string, branch string, signature string) {
-	convsToNotify, err := h.db.GetUnnotifiedConvs(repo, branch)
-	if err != nil {
-		h.Errorf("Error getting notified branches for repo: %s", err)
-		return
-	}
-
-	message := formatNotifyBranchMsg(repo, branch)
-
-	for _, convID := range convsToNotify {
-		var secretToken = base.MakeSecret(repo, convID, h.secret)
-		if signature != secretToken {
-			h.Debug("Error validating payload signature for conversation %s: %s", convID, err)
-			continue
-		}
-		h.ChatEcho(convID, message)
-
-		err = h.db.PutNotifiedBranchConv(convID, repo, branch)
-		if err != nil {
-			h.Errorf("Error putting notified branch for repo: %s", err)
-			return
-		}
 	}
 }

@@ -70,12 +70,3 @@ Happy coding!`,
 		repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
 	return message
 }
-
-func formatNotifyBranchMsg(repo string, branch string) (res string) {
-	back := "`"
-	message := fmt.Sprintf(`
-We just got an event for branch %s%s%s in %s%s%s but you aren't subscribed yet.
-If you want to subscribe, just send %s!gitlab subscribe %s %s%s
-`, back, repo, back, back, branch, back, back, repo, branch, back)
-	return message
-}
