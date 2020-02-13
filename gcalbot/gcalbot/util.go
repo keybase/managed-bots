@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+
 	"google.golang.org/api/calendar/v3"
 )
 
@@ -151,4 +153,15 @@ func MinutesBeforeString(minutesBefore int) string {
 	} else {
 		return fmt.Sprintf("%d minutes", minutesBefore)
 	}
+}
+
+func GetConvHelpText(channel chat1.ChatChannel, isKeybaseMessage bool) string {
+	if channel.MembersType == "team" {
+		teamName := channel.Name
+		if isKeybaseMessage {
+			teamName = fmt.Sprintf("@%s", teamName)
+		}
+		return fmt.Sprintf("Configure Google Calendar notifications for a channel in the team %s", teamName)
+	}
+	return fmt.Sprintf("Configure Google Calendar notifications for the conversation %s", channel.Name)
 }

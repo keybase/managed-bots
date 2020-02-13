@@ -92,7 +92,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	keybaseConvName := keybaseConv.Channel.Name
 
 	isAdmin, err := base.IsAdmin(h.kbc, keybaseUsername, keybaseConv.Channel)
 	if err != nil {
@@ -122,7 +121,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	page := ConfigPage{
 		Title:         "gcalbot | config",
 		ConvID:        keybaseConvID,
-		ConvName:      keybaseConvName,
+		ConvHelpText:  GetConvHelpText(keybaseConv.Channel, false),
 		ConvIsPrivate: isPrivate,
 		Account:       accountNickname,
 		Accounts:      accounts,
