@@ -2,12 +2,11 @@ package gitlabbot
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
-	"unicode"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/xanzy/go-gitlab"
+	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/keybase/managed-bots/base"
 )
@@ -104,11 +103,6 @@ func isValidArgs (args []string) bool {
 	}
 
 	// check that owner is only alphanumeric
-	for _, r := range args[0] {
-		if !unicode.IsLower(r) && !unicode.IsNumber(r) {
-			return false
-		}
-	}
-
-	return true
+	match, _ := regexp.MatchString("^[a-zA-Z0-9_]*$", args[0])
+	return match
 }
