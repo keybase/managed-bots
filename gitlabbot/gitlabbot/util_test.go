@@ -17,6 +17,18 @@ func TestParseRepoInputWithURL(t *testing.T) {
 	require.Equal(t, repo, urlRepo)
 }
 
+func TestParseRepoInputURLSubGroups(t *testing.T) {
+	httpPrefix := "https://bobsburgers.com"
+	urlRepo := "owner/sub1/sub2/sub3/repo"
+	url := httpPrefix + "/" + urlRepo
+
+	hostedURL, repo, err := parseRepoInput(url)
+	require.NoError(t, err)
+
+	require.Equal(t, httpPrefix, hostedURL)
+	require.Equal(t, repo, urlRepo)
+}
+
 func TestParseRepoInputWithNamespace(t *testing.T) {
 	httpPrefix := "https://gitlab.com"
 	namespace := "owner/repo"
@@ -28,7 +40,7 @@ func TestParseRepoInputWithNamespace(t *testing.T) {
 	require.Equal(t, repo, namespace)
 }
 
-func TestParseRepoInputSubGroups(t *testing.T) {
+func TestParseRepoInputNamespaceSubGroups(t *testing.T) {
 	httpPrefix := "https://gitlab.com"
 	namespace := "owner/sub1/sub2/sub3/repo"
 
