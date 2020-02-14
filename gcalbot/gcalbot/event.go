@@ -18,7 +18,7 @@ const (
 
 func FormatEvent(
 	event *calendar.Event,
-	accountNickname, calendarSummary string,
+	calendarSummary string,
 	timezone *time.Location,
 	format24HourTime bool,
 ) (string, error) {
@@ -84,8 +84,6 @@ func FormatEvent(
 		}
 	}
 
-	accountCalendar := fmt.Sprintf("%s [%s]", calendarSummary, accountNickname)
-
 	// note: description can contain HTML
 	var description string
 	if event.Description != "" {
@@ -99,5 +97,5 @@ func FormatEvent(
 	}
 
 	return fmt.Sprintf(message,
-		url, what, when, where, conferenceData, organizer, accountCalendar, description), nil
+		url, what, when, where, conferenceData, organizer, calendarSummary, description), nil
 }

@@ -51,7 +51,7 @@ Awaiting your response. *Are you going?*`
 	if err != nil {
 		return err
 	}
-	eventContent, err := FormatEvent(event, account.AccountNickname, invitedCalendar.Summary, timezone, format24HourTime)
+	eventContent, err := FormatEvent(event, invitedCalendar.Summary, timezone, format24HourTime)
 	if err != nil {
 		return err
 	}
