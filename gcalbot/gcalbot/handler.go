@@ -97,7 +97,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleCalendarsList(msg, tokens[3:])
 
 	case strings.HasPrefix(cmd, "!gcal configure"):
-		h.stats.Count("calendars configure")
+		h.stats.Count("configure")
 		return h.handleConfigure(msg)
 
 	default:

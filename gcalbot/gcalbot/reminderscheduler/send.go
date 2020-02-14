@@ -43,6 +43,7 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 						gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
 				}
 				delete(msg.MinuteReminders, duration)
+				r.stats.Count("sendReminders - reminder")
 			}
 		}
 		if len(msg.MinuteReminders) == 0 {
@@ -57,4 +58,5 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 	if sendDuration.Seconds() > 15 {
 		r.Errorf("sending reminders took %s", sendDuration.String())
 	}
+	r.stats.Value("sendReminders - duration - seconds", sendDuration.Seconds())
 }
