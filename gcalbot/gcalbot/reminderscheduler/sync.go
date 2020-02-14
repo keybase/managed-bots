@@ -121,8 +121,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	if err != nil {
 		return err
 	}
-	eventMsgContent, err := gcalbot.FormatEvent(event, account.AccountNickname,
-		subscribedCalendar.Summary, timezone, format24HourTime)
+	eventMsgContent, err := gcalbot.FormatEvent(event, subscribedCalendar.Summary, timezone, format24HourTime)
 	if err != nil {
 		return err
 	}
