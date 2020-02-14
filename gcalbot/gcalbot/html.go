@@ -44,7 +44,7 @@ const tmplHeader = `<!DOCTYPE html>
 	  display: flex;
 	  flex-direction: row;
 	  align-items: center;
-	  margin-bottom: 8px;
+	  margin-bottom: 12px;
 	}
 
 	.row label {
@@ -87,14 +87,15 @@ const tmplHeader = `<!DOCTYPE html>
 	}
 
 	.save-button {
-		cursor: pointer;
+		margin-top: 12px;
+		width:  100px;
+		height: 36px;
 		font-size: 18px;
 		background-color: #4c8eff;
 		color: white;
 		border: none;
-		width:  100px;
-		height: 36px;
 		border-radius: 5px;
+		cursor: pointer;
 	}
 
 	#divLogin {
@@ -110,9 +111,15 @@ const tmplHeader = `<!DOCTYPE html>
 	  align-items: center;
 	}
 
-	#imgLogo {
+	.logo-large {
 	  width: 300px;
 	  height: 300px;
+	}
+
+	.logo-small {
+		width: 150px;
+		height: 150px;
+		margin-bottom: 24px;
 	}
   </style>
 </head>
@@ -127,7 +134,7 @@ type LoginPage struct {
 
 const tmplLogin = `{{template "header" .}}
   <div class="container column">
-	<img src="/gcalbot/image/logo" id="imgLogo" />
+	<img src="/gcalbot/image/logo" class="logo-large" />
 	<div id="divLogin" class="column">
 	  <span style="font-size: 32px; margin-bottom: 24px; text-align: center;">Login Required</span>
 	  <span class="instructions">
@@ -159,13 +166,14 @@ type ReminderType struct {
 }
 
 const tmplConfig = `{{template "header" .}}
-  <div class="container column left">
+  <div class="container column">
+    <img src="/gcalbot/image/logo" class="logo-small" />
 	<h1 class="title">
 	  Configure Google Calendar
 	</h1>
-	<h3 class="conversation-title">
+	<h4 class="conversation-title">
 	  {{.ConvHelpText}}
-	</h3>
+	</h4>
 	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.ConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
@@ -181,7 +189,6 @@ const tmplConfig = `{{template "header" .}}
 				{{end}}
 			</select>
 			</div>
-			<br>
 
 			<div class="row">
 			<label for="calendar">Calendar:</label>
@@ -192,7 +199,6 @@ const tmplConfig = `{{template "header" .}}
 				{{end}}
 			</select>
 			</div>
-			<br>
 		</div>
 
 		{{if .CalendarID}}
@@ -205,16 +211,14 @@ const tmplConfig = `{{template "header" .}}
 			{{end}}
 		</select>
 		</div>
-		<br>
 
 		<div class="row">
 		<label for="invite">Send notifications for event invites?</label>
 		<input type="checkbox" name="invite" {{if .ConvIsPrivate | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
 		</div>
-		<br>
+		<button type="submit" value="Submit" class="save-button">Save</button>
 		{{end}}
 
-		<button type="submit" value="Submit" class="save-button">Save</button>
 	</form>
   </div>
 {{template "footer" .}}`
