@@ -16,15 +16,17 @@ order to store account and webhook data.
 3. Create an OAuth Client ID for a 'Web Application' via the [Google API
    Console](https://console.developers.google.com/apis/credentials). Download
    the credentials locally as `credentials.json`.
-4. The bot sets itself up to serve HTTP requests on `/gcalbot`. The HTTP server
+4. In order for users to login using a web browser, the bot needs a server side secret. You must pass this in with `--login-secret`.
+5. The bot sets itself up to serve HTTP requests on `/gcalbot`. The HTTP server
    runs on port 8080. You can configure nginx or any other reverse proxy
    software to route to this port and path.
-5. To start the Google Calendar bot, run a command like this:
+6. To start the Google Calendar bot, run a command like this:
    ```
    # NOTE --kbfs-root specifies the path to the crendentials.json file.
-   $GOPATH/bin/gcalbot --dsn 'root@/gcalbot' --kbfs-root ~/Downloads
+   # NOTE --http-prefix needs to be https for the Google API webhooks to function
+   $GOPATH/bin/gcalbot --dsn 'root@/gcalbot' --kbfs-root ~/Downloads --http-prefix https://mydomain.com --login-secret 'moony wormtail padfoot prongs'
    ```
-6. Run `gcalbot --help` for more options.
+7. Run `gcalbot --help` for more options.
 
 ### Helpful Tips
 
