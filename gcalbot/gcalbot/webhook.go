@@ -269,18 +269,24 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 	}
 
 	// TODO(marcel): possibly fill in existing invites into db
+	// TODO(marcel): this process can take seconds and forces the config page to load for that time
 	// get all events simply to get the NextSyncToken and begin receiving invites from there
-	// request no fields so that the responses are tiny and fast
+	// request only token fields so that the responses are tiny and fast
+	syncStart := time.Now()
 	var nextSyncToken string
-	err = srv.Events.List(calendarID).Fields().Pages(context.Background(), func(page *calendar.Events) error {
-		if page.NextPageToken == "" {
-			nextSyncToken = page.NextSyncToken
-		}
-		return nil
-	})
+	err = srv.Events.List(calendarID).
+		Fields("nextPageToken", "nextSyncToken").
+		Pages(context.Background(), func(page *calendar.Events) error {
+			if page.NextPageToken == "" {
+				// set the sync token when the page token is empty
+				nextSyncToken = page.NextSyncToken
+			}
+			return nil
+		})
 	if err != nil {
 		return err
 	}
+	h.stats.Value("createEventChannel - sync - duration - seconds", time.Since(syncStart).Seconds())
 
 	// open channel
 	res, err := srv.Events.Watch(calendarID, &calendar.Channel{
