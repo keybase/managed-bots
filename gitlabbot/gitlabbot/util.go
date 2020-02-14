@@ -103,6 +103,6 @@ func isValidArgs (args []string) bool {
 	}
 
 	// check that owner is only alphanumeric
-	match, _ := regexp.MatchString("^[a-zA-Z0-9_]*$", args[0])
+	match, _ := regexp.MatchString("^[a-zA-Z0-9]*$", args[0])
 	return match
 }
