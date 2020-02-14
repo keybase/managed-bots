@@ -2,11 +2,11 @@ package gitlabbot
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/xanzy/go-gitlab"
+	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/keybase/managed-bots/base"
 )
@@ -84,9 +84,36 @@ func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err er
 	}
 
 	splitRepo := strings.Split(repo, "/")
-	if len(splitRepo) != 2 {
+	if !isValidArgs(splitRepo) {
 		return hostedURL, repo, fmt.Errorf("invalid arguments, expected `<owner/repo>`")
 	}
 
 	return hostedURL, repo, nil
+}
+
+func isValidArgs (args []string) bool {
+	if len(args) < 2 {
+		return false
+	}
+
+	for i, arg := range args {
+		if arg == "" {
+			return false
+		}
+
+		var regexPattern string
+		// check that owner is only alphanumeric
+		if i == 0 {
+			regexPattern = `^[a-zA-Z0-9_-]*$`
+		} else {
+			regexPattern = `^[a-zA-Z0-9_\-\.]*$`
+		}
+
+		match, _ := regexp.MatchString(regexPattern, arg)
+		if !match {
+			return false
+		}
+	}
+
+	return true
 }
