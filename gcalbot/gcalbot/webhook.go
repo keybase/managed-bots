@@ -171,6 +171,9 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	h.Stats.Count("handleEventUpdateWebhook")
+	h.Stats.CountMult("handleEventUpdateWebhook - events", len(events))
+
 	w.WriteHeader(200)
 }
 
@@ -309,18 +312,21 @@ type RenewChannelScheduler struct {
 
 	shutdownCh chan struct{}
 
+	stats      *base.StatsRegistry
 	db         *DB
 	config     *oauth2.Config
 	httpPrefix string
 }
 
 func NewRenewChannelScheduler(
+	stats *base.StatsRegistry,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
 	config *oauth2.Config,
 	httpPrefix string,
 ) *RenewChannelScheduler {
 	return &RenewChannelScheduler{
+		stats:       stats.SetPrefix("RenewChannelScheduler"),
 		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", debugConfig),
 		db:          db,
 		config:      config,
@@ -357,7 +363,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 		select {
 		case <-shutdownCh:
 			return
-		case <-ticker.C:
+		case renewMinute := <-ticker.C:
 			pairs, err := r.db.GetExpiringChannelAndAccountList()
 			if err != nil {
 				r.Errorf("error getting expiring pairs: %s", err)
@@ -373,11 +379,13 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 					r.Errorf("error renewing channel '%s': %s", pair.Channel.ChannelID, err)
 				}
 			}
+			r.stats.Value("renewScheduler - duration", time.Since(renewMinute).Seconds())
 		}
 	}
 }
 
 func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) error {
+	r.stats.Count("renewChannel")
 	srv, err := GetCalendarService(account, r.config)
 	if err != nil {
 		return err

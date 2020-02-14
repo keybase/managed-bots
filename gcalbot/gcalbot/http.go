@@ -69,6 +69,7 @@ var reminders = []ReminderType{
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {}
 
 func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
+	h.Stats.Count("config")
 	var err error
 	defer func() {
 		if err != nil {
@@ -179,8 +180,10 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
+		h.Stats.Count("config - update")
 		// the conv must be private (direct message) for the user to subscribe to invites
 		if isPrivate {
+			h.Stats.Count("config - update - direct message")
 			inviteSubscription := Subscription{
 				CalendarID:    calendarID,
 				KeybaseConvID: keybaseConvID,
@@ -193,22 +196,27 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 			if page.Invite && !invite {
 				// remove invite subscription
+				h.Stats.Count("config - update - invite - remove")
 				err = h.handler.removeSubscription(selectedAccount, inviteSubscription)
 				if err != nil {
 					return
 				}
 			} else if !page.Invite && invite {
 				// create invite subscription
+				h.Stats.Count("config - update - invite - create")
 				_, err = h.handler.createSubscription(selectedAccount, inviteSubscription)
 				if err != nil {
 					return
 				}
 			}
 			page.Invite = invite
+		} else {
+			h.Stats.Count("config - update - team")
 		}
 
 		if page.Reminder != "" {
 			// remove old reminder subscription
+			h.Stats.Count("config - update - reminder - remove")
 			var oldMinutesBefore int
 			oldMinutesBefore, err = strconv.Atoi(page.Reminder)
 			if err != nil {
@@ -227,6 +235,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if reminderInput != "" {
 			// create new reminder subscription
+			h.Stats.Count("config - update - reminder - create")
 			var newMinutesBefore int
 			newMinutesBefore, err = strconv.Atoi(reminderInput)
 			if err != nil {
@@ -250,6 +259,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
+	h.Stats.Count("configError")
 	w.WriteHeader(http.StatusInternalServerError)
 	if _, err := w.Write([]byte("something went wrong :(")); err != nil {
 		h.Errorf("configHandler: unable to write: %s", err)
@@ -286,11 +296,13 @@ func (h *HTTPSrv) screenshotHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
+	h.Stats.Count("loginInstructions")
 	w.WriteHeader(http.StatusForbidden)
 	h.servePage(w, "login", LoginPage{Title: "gcalbot | login"})
 }
 
 func (h *HTTPSrv) authUser(w http.ResponseWriter, r *http.Request) (keybaseUsername string, keybaseConvID chat1.ConvIDStr, ok bool) {
+	h.Stats.Count("authUser")
 	keybaseUsername = r.Form.Get("username")
 	token := r.Form.Get("token")
 	keybaseConvID = chat1.ConvIDStr(r.Form.Get("conv_id"))

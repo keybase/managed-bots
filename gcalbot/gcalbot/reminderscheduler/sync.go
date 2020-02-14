@@ -16,8 +16,9 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 		r.Debug("shutting down eventSyncLoop")
 	}()
 
-	eventSync := func() {
+	eventSync := func(syncMinute time.Time) {
 		pairs, err := r.db.GetReminderSubscriptionAndAccountPairs()
+		r.stats.ValueInt("eventSyncLoop - subscription count", len(pairs))
 		if err != nil {
 			r.Errorf("error getting reminder subscriptions to sync: %s", err)
 		}
@@ -58,15 +59,16 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				}
 			}
 		}
+		r.stats.Value("eventSyncLoop - duration", time.Since(syncMinute).Seconds())
 	}
 
-	eventSync()
+	eventSync(time.Now())
 	for {
 		select {
 		case <-shutdownCh:
 			return nil
-		case <-ticker.C:
-			eventSync()
+		case syncMinute := <-ticker.C:
+			eventSync(syncMinute)
 		}
 	}
 }
@@ -76,10 +78,14 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	subscription *gcalbot.Subscription,
 	event *calendar.Event,
 ) error {
+	r.stats.Count("UpdateOrCreateReminderEvent")
 	status := gcalbot.EventStatus(event.Status)
 	if status == gcalbot.EventStatusCancelled {
-		r.Debug("removed cancelled event %s", event.Summary)
-		r.removeEventByID(event.Id)
+		if r.eventReminders.ExistsEvent(event.Id) {
+			r.stats.Count("UpdateOrCreateReminderEvent - cancel")
+			r.Debug("removed cancelled event %s", event.Summary)
+			r.removeEventByID(event.Id)
+		}
 		return nil
 	}
 
@@ -128,6 +134,8 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	}
 
 	if reminderMessage != nil {
+		// update the event
+		r.stats.Count("UpdateOrCreateReminderEvent - update")
 		reminderMessage.Lock()
 		defer reminderMessage.Unlock()
 
@@ -146,10 +154,10 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 			}
 		}
 
-		// update the event
 		reminderMessage.MsgContent = eventMsgContent
 	} else {
 		// create the event
+		r.stats.Count("UpdateOrCreateReminderEvent - create")
 		reminderMessage = &ReminderMessage{
 			EventID:         event.Id,
 			KeybaseUsername: account.KeybaseUsername,
@@ -194,6 +202,7 @@ func (r *ReminderScheduler) removeEventByID(eventID string) {
 }
 
 func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscription gcalbot.Subscription) {
+	r.stats.Count("AddSubscription")
 	r.subscriptionReminders.ForEachReminderMessageInSubscription(
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
 		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
@@ -206,6 +215,7 @@ func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscripti
 }
 
 func (r *ReminderScheduler) RemoveSubscription(account *gcalbot.Account, subscription gcalbot.Subscription) {
+	r.stats.Count("RemoveSubscription")
 	r.subscriptionReminders.ForEachReminderMessageInSubscription(
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
 		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {

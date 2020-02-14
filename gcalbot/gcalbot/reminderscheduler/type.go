@@ -124,6 +124,13 @@ func (r *EventReminders) AddReminderMessageToEvent(msg *ReminderMessage) {
 	msg.EventReminder = elem
 }
 
+func (r *EventReminders) ExistsEvent(eventID string) bool {
+	r.Lock()
+	defer r.Unlock()
+	_, ok := r.reminderMessages[eventID]
+	return ok
+}
+
 func (r *EventReminders) RemoveReminderMessageFromEvent(msg *ReminderMessage) {
 	r.Lock()
 	defer r.Unlock()

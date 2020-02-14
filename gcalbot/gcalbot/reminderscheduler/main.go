@@ -15,6 +15,7 @@ type ReminderScheduler struct {
 
 	shutdownCh chan struct{}
 
+	stats *base.StatsRegistry
 	db    *gcalbot.DB
 	oauth *oauth2.Config
 
@@ -24,11 +25,13 @@ type ReminderScheduler struct {
 }
 
 func NewReminderScheduler(
+	stats *base.StatsRegistry,
 	debugConfig *base.ChatDebugOutputConfig,
 	db *gcalbot.DB,
 	oauth *oauth2.Config,
 ) *ReminderScheduler {
 	return &ReminderScheduler{
+		stats:                 stats.SetPrefix("ReminderScheduler"),
 		DebugOutput:           base.NewDebugOutput("ReminderScheduler", debugConfig),
 		shutdownCh:            make(chan struct{}),
 		db:                    db,

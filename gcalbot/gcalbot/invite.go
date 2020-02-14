@@ -25,6 +25,8 @@ const (
 )
 
 func (h *Handler) sendEventInvite(account *Account, channel *Channel, event *calendar.Event) error {
+	h.stats.Count("sendEventInvite")
+
 	message := `You've been invited to %s: %s
 Awaiting your response. *Are you going?*`
 
@@ -82,6 +84,8 @@ Awaiting your response. *Are you going?*`
 }
 
 func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, reaction InviteReaction) error {
+	h.stats.Count("updateEventResponseStatus")
+
 	var responseStatus ResponseStatus
 	var confirmationMessageStatus string
 	switch reaction {
