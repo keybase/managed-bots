@@ -58,5 +58,5 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 	if sendDuration.Seconds() > 15 {
 		r.Errorf("sending reminders took %s", sendDuration.String())
 	}
-	r.stats.Value("sendReminders - duration", sendDuration.Seconds())
+	r.stats.Value("sendReminders - duration - seconds", sendDuration.Seconds())
 }

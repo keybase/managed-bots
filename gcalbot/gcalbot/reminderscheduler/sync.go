@@ -18,7 +18,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 
 	eventSync := func(syncMinute time.Time) {
 		pairs, err := r.db.GetReminderSubscriptionAndAccountPairs()
-		r.stats.ValueInt("eventSyncLoop - subscription count", len(pairs))
+		r.stats.ValueInt("eventSyncLoop - subscriptions - count", len(pairs))
 		if err != nil {
 			r.Errorf("error getting reminder subscriptions to sync: %s", err)
 		}
@@ -59,7 +59,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				}
 			}
 		}
-		r.stats.Value("eventSyncLoop - duration", time.Since(syncMinute).Seconds())
+		r.stats.Value("eventSyncLoop - duration - seconds", time.Since(syncMinute).Seconds())
 	}
 
 	eventSync(time.Now())

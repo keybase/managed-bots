@@ -379,7 +379,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 					r.Errorf("error renewing channel '%s': %s", pair.Channel.ChannelID, err)
 				}
 			}
-			r.stats.Value("renewScheduler - duration", time.Since(renewMinute).Seconds())
+			r.stats.Value("renewScheduler - duration - seconds", time.Since(renewMinute).Seconds())
 		}
 	}
 }
