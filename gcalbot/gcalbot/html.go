@@ -34,13 +34,35 @@ const tmplHeader = `<!DOCTYPE html>
       width: 22px;
 	}
 
+	select {
+		width: 248px;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
 	.row {
 	  display: flex;
 	  flex-direction: row;
+	  align-items: center;
+	  margin-bottom: 8px;
+	}
+
+	.row label {
+		margin-right: 12px;
+	}
+
+	.title {
+		font-size: 48px;
+		margin: 0;
+		align-self: left;
 	}
 	.column {
 	  display: flex;
 	  flex-direction: column;
+	}
+
+	.column.left {
+		align-items: flex-start;
 	}
 	.instructions {
 	  margin-top: 16px;
@@ -55,16 +77,39 @@ const tmplHeader = `<!DOCTYPE html>
 	  border-radius: 2px;
 	}
 
+	.first-row {
+		display: flex;
+		flex-direction: row;
+	}
+
+	.row.account {
+		margin-right: 12px;
+	}
+
+	.save-button {
+		cursor: pointer;
+		font-size: 18px;
+		background-color: #4c8eff;
+		color: white;
+		border: none;
+		width:  100px;
+		height: 36px;
+		border-radius: 5px;
+	}
+
 	#divLogin {
 	  justify-content: center;
 	  align-items: center;
 	  width: 600px;
 	  margin: auto;
 	}
-	#divContainer {
+	.container {
+	  max-width: 750px;
+	  margin: auto;
 	  justify-content: center;
 	  align-items: center;
 	}
+
 	#imgLogo {
 	  width: 300px;
 	  height: 300px;
@@ -81,7 +126,7 @@ type LoginPage struct {
 }
 
 const tmplLogin = `{{template "header" .}}
-  <div id="divContainer" class="column">
+  <div class="container column">
 	<img src="/gcalbot/image/logo" id="imgLogo" />
 	<div id="divLogin" class="column">
 	  <span style="font-size: 32px; margin-bottom: 24px; text-align: center;">Login Required</span>
@@ -114,40 +159,46 @@ type ReminderType struct {
 }
 
 const tmplConfig = `{{template "header" .}}
-  <div id="divContainer" class="column">
-	<span style="font-size: 32px; margin-bottom: 24px; text-align: center;">
-	  {{.ConvHelpText}}:
-	</span>
+  <div class="container column left">
+	<h1 class="title">
+	  Configure Google Calendar
+	</h1>
+	<h3 class="conversation-title">
+	  {{.ConvHelpText}}
+	</h3>
 	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.ConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">
 
-		<div class="row">
-		<label for="account">Account:</label>
-		<select name="account" onchange="this.form.submit()">
-			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
-			{{range .Accounts}}
-			<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
-			{{end}}
-		</select>
-		</div>
-		<br>
+		<div class="first-row">
+			<div class="account row">
+			<label for="account">Account:</label>
+			<select name="account" onchange="this.form.submit()">
+				<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
+				{{range .Accounts}}
+				<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
+				{{end}}
+			</select>
+			</div>
+			<br>
 
-		<div class="row">
-		<label for="calendar">Calendar:</label>
-		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
-			<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
-			{{range .Calendars}}
-				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
-			{{end}}
-		</select>
+			<div class="row">
+			<label for="calendar">Calendar:</label>
+			<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
+				<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
+				{{range .Calendars}}
+					<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
+				{{end}}
+			</select>
+			</div>
+			<br>
 		</div>
-		<br>
 
+		{{if .CalendarID}}
 		<div class="row">
-		<label for="reminder">Reminders:</label>
-		<select name="reminder" {{if .CalendarID | not}} disabled {{end}}>
+		<label for="reminder">Send reminders... </label>
+		<select name="reminder">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
 			{{range .Reminders}}
 				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{.Summary}}</option>
@@ -157,12 +208,13 @@ const tmplConfig = `{{template "header" .}}
 		<br>
 
 		<div class="row">
-		<label for="invite">Invites:</label>
-		<input type="checkbox" name="invite" {{if or (.CalendarID | not) (.ConvIsPrivate | not)}} disabled {{end}} {{if .Invite}} checked {{end}}>
+		<label for="invite">Send notifications for event invites?</label>
+		<input type="checkbox" name="invite" {{if .ConvIsPrivate | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
 		</div>
 		<br>
+		{{end}}
 
-		<button type="submit" value="Submit">Submit</button>
+		<button type="submit" value="Submit" class="save-button">Save</button>
 	</form>
   </div>
 {{template "footer" .}}`
