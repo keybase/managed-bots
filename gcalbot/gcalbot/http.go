@@ -58,12 +58,12 @@ func NewHTTPSrv(
 
 var reminders = []ReminderType{
 	{"0", "At time of event"},
-	{"1", "1 minute before"},
-	{"5", "5 minutes before"},
-	{"10", "10 minutes before"},
-	{"15", "15 minutes before"},
-	{"30", "30 minutes before"},
-	{"60", "60 minutes before"},
+	{"1", "1 minute before event"},
+	{"5", "5 minutes before event"},
+	{"10", "10 minutes before event"},
+	{"15", "15 minutes before event"},
+	{"30", "30 minutes before event"},
+	{"60", "60 minutes before event"},
 }
 
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {}
