@@ -65,6 +65,7 @@ func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {
 		return
 	}
 	session.stop()
+	delete(h.sessions, convID)
 	h.ChatEcho(convID, "Session stopped")
 }
 
