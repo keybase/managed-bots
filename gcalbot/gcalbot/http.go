@@ -163,12 +163,19 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	page.Calendars = calendarList.Items
 
-	if accountNickname == previousAccountNickname {
-		// if the account hasn't changed, display the selected calendar (otherwise clear selected calendar)
-		page.CalendarID = calendarID
-	} else {
-		h.servePage(w, "config", page)
-		return
+	// default to the primary calendar
+	if calendarID == "" {
+		for _, calendarItem := range calendarList.Items {
+			if calendarItem.Primary {
+				calendarID = calendarItem.Id
+			}
+		}
+	}
+	page.CalendarID = calendarID
+
+	if accountNickname != previousAccountNickname {
+		// if the account has changed, clear the previous calendarID
+		previousCalendarID = ""
 	}
 
 	var subscriptions []*Subscription

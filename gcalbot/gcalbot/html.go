@@ -246,7 +246,6 @@ const tmplConfig = `{{template "header" .}}
 		<div class="row">
 		<label for="calendar">Calendar:</label>
 		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
-			<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
 			{{range .Calendars}}
 				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 			{{end}}
@@ -267,7 +266,7 @@ const tmplConfig = `{{template "header" .}}
 		{{if .ConvIsPrivate}}
 		<div class="row">
 		<label for="invite">Send notifications for event invites?</label>
-		<input type="checkbox" name="invite" disabled {{if .Invite}} checked {{end}}>
+		<input type="checkbox" name="invite" {{if .Invite}} checked {{end}}>
 		</div>
 		{{end}}
 
