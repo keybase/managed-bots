@@ -98,6 +98,9 @@ const tmplHeader = `<!DOCTYPE html>
 		border-radius: 5px;
 		cursor: pointer;
 	}
+	.save-button:disabled {
+		opacity: 50%;
+	}
 
 	.conversation-title {
 		font-size: 24px;
@@ -222,7 +225,8 @@ const tmplConfig = `{{template "header" .}}
 		<label for="invite">Send notifications for event invites?</label>
 		<input type="checkbox" name="invite" {{if .ConvIsPrivate | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
 		</div>
-		<button type="submit" value="Submit" class="save-button">Save</button>
+		<input type="submit" value="Save" class="save-button"
+			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';">
 		{{end}}
 
 	</form>
