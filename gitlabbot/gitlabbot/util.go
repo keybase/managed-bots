@@ -2,14 +2,17 @@ package gitlabbot
 
 import (
 	"fmt"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/xanzy/go-gitlab"
 	"net/url"
 	"regexp"
 	"strings"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/xanzy/go-gitlab"
+
 	"github.com/keybase/managed-bots/base"
 )
+
+var repoRegex = regexp.MustCompile(`^[a-zA-Z0-9_\.-]*$`)
 
 func getCommitMessages(event *gitlab.PushEvent) []string {
 	var commitMsgs = make([]string, 0)
@@ -80,7 +83,7 @@ func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err er
 		hostedURL = "https://gitlab.com"
 	} else {
 		hostedURL = parsedURL.Scheme + "://" + parsedURL.Host
-		repo = parsedURL.Path[1:] // Remove the preceding slash '/owner/repo'
+		repo = strings.TrimPrefix(parsedURL.Path, "/")
 	}
 
 	splitRepo := strings.Split(repo, "/")
@@ -91,25 +94,16 @@ func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err er
 	return hostedURL, repo, nil
 }
 
-func isValidArgs (args []string) bool {
+func isValidArgs(args []string) bool {
 	if len(args) < 2 {
 		return false
 	}
 
-	for i, arg := range args {
+	for _, arg := range args {
 		if arg == "" {
 			return false
 		}
-
-		var regexPattern string
-		// check that owner is only alphanumeric
-		if i == 0 {
-			regexPattern = `^[a-zA-Z0-9_-]*$`
-		} else {
-			regexPattern = `^[a-zA-Z0-9_\-\.]*$`
-		}
-
-		match, _ := regexp.MatchString(regexPattern, arg)
+		match := repoRegex.MatchString(arg)
 		if !match {
 			return false
 		}

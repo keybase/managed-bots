@@ -1,8 +1,9 @@
 package gitlabbot
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseRepoInputWithURL(t *testing.T) {
@@ -31,7 +32,7 @@ func TestParseRepoInputURLSubGroups(t *testing.T) {
 
 func TestParseRepoInputWithNamespace(t *testing.T) {
 	httpPrefix := "https://gitlab.com"
-	namespace := "owner/repo"
+	namespace := "own.er/r.e_p-o"
 
 	hostedURL, repo, err := parseRepoInput(namespace)
 	require.NoError(t, err)
@@ -57,10 +58,14 @@ func TestParseRepoInputInvalidHostname(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestParseRepoInputInvalidNoScheme(t *testing.T) {
+func TestParseRepoInputNoScheme(t *testing.T) {
+	// NOTE unfortunately this is a valid gitlab hosted name and self-hosted
+	// name.
 	url := "mywebsite.com/owner/repo"
-	_, _, err := parseRepoInput(url)
-	require.Error(t, err)
+	hostedURL, repo, err := parseRepoInput(url)
+	require.NoError(t, err)
+	require.Equal(t, "https://gitlab.com", hostedURL)
+	require.Equal(t, url, repo)
 }
 
 func TestParseRepoInputInvalidScheme(t *testing.T) {
