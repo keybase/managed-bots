@@ -35,9 +35,14 @@ const tmplHeader = `<!DOCTYPE html>
 	}
 
 	select {
-		width: 248px;
+		min-width: 248px;
+		padding-right: 8px;
 		white-space: nowrap;
 		text-overflow: ellipsis;
+	}
+
+	select.dynamic {
+		width: initial;
 	}
 
 	.row {
@@ -98,6 +103,12 @@ const tmplHeader = `<!DOCTYPE html>
 		cursor: pointer;
 	}
 
+	.conversation-title {
+		font-size: 24px;
+		margin-top: 12px;
+		margin-bottom: 36px;
+	}
+
 	#divLogin {
 	  justify-content: center;
 	  align-items: center;
@@ -108,7 +119,7 @@ const tmplHeader = `<!DOCTYPE html>
 	  max-width: 750px;
 	  margin: auto;
 	  justify-content: center;
-	  align-items: center;
+	  align-items: flex-start;
 	}
 
 	.logo-large {
@@ -171,39 +182,37 @@ const tmplConfig = `{{template "header" .}}
 	<h1 class="title">
 	  Configure Google Calendar
 	</h1>
-	<h4 class="conversation-title">
+	<p class="conversation-title">
 	  {{.ConvHelpText}}
-	</h4>
+	</p>
 	<form action="/gcalbot" method="post" class="column">
 		<input type="hidden" name="conv_id" value="{{.ConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">
 
-		<div class="first-row">
-			<div class="account row">
-			<label for="account">Account:</label>
-			<select name="account" onchange="this.form.submit()">
-				<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
-				{{range .Accounts}}
-				<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
-				{{end}}
-			</select>
-			</div>
+		<div class="account row">
+		<label for="account">Account:</label>
+		<select name="account" onchange="this.form.submit()">
+			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
+			{{range .Accounts}}
+			<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
+			{{end}}
+		</select>
+		</div>
 
-			<div class="row">
-			<label for="calendar">Calendar:</label>
-			<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
-				<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
-				{{range .Calendars}}
-					<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
-				{{end}}
-			</select>
-			</div>
+		<div class="row">
+		<label for="calendar">Calendar:</label>
+		<select name="calendar" class="dynamic" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
+			<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
+			{{range .Calendars}}
+				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
+			{{end}}
+		</select>
 		</div>
 
 		{{if .CalendarID}}
 		<div class="row">
-		<label for="reminder">Send reminders... </label>
+		<label for="reminder">Send reminders for events... </label>
 		<select name="reminder">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
 			{{range .Reminders}}
