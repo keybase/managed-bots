@@ -100,6 +100,7 @@ const tmplHeader = `<!DOCTYPE html>
 	}
 	.save-button:disabled {
 		opacity: 50%;
+		cursor: not-allowed;
 	}
 
 	.conversation-title {
