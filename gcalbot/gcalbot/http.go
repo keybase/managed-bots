@@ -195,6 +195,8 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		h.Stats.Count("config - update")
+		page.Updated = true
+
 		// the conv must be private (direct message) for the user to subscribe to invites
 		if isPrivate {
 			h.Stats.Count("config - update - direct message")

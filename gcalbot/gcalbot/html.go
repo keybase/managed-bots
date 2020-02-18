@@ -101,6 +101,17 @@ const tmplHeader = `<!DOCTYPE html>
 		opacity: 50%;
 		cursor: not-allowed;
 	}
+	.save-status {
+		margin-top: 12px;
+		margin-left: 12px;
+		font-size: 18px;
+		color: grey;
+		animation: 1.5s ease-in forwards fade-out;
+	}
+	@keyframes fade-out {
+		from { opacity: 1; }
+		to { opacity: 0; }
+	}
 
 	.conversation-title {
 		font-size: 24px;
@@ -212,6 +223,7 @@ type ConfigPage struct {
 	Reminder      string
 	Reminders     []ReminderType
 	Invite        bool
+	Updated       bool
 }
 
 type ReminderType struct {
@@ -270,8 +282,11 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 		{{end}}
 
+		<div class="row">
 		<input type="submit" value="Save" class="save-button"
 			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';">
+		{{if .Updated}}<span class="save-status">Saved!</span>{{end}}
+		</div>
 
 		{{end}}
 
