@@ -153,7 +153,27 @@ const tmplLogin = `{{template "header" .}}
 		In order to configure your Google Calendar notifications, you must first login.
 	</p>
 	<p class="instructions">
-		To start the login process, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with the command <span class="quote">!gcal configure</span>.
+		To start the login process, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase
+		app with the command <span class="quote">!gcal configure</span>.
+	</p>
+{{template "footer" .}}`
+
+type ErrorPage struct {
+	Title string
+}
+
+const tmplError = `{{template "header" .}}
+  <div class="container column">
+    <img src="/gcalbot/image/logo" class="logo-small" />
+	<h1 class="title">
+		An error occurred :(
+	</h1>
+	<p class="instructions">
+		Please try again!
+	</p>
+	<p class="instructions">
+		If the error is recurring, report the issue by messaging <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a>
+		in the Keybase app with the command <span class="quote">!gcalbot feedback</span> and some details around what went wrong.
 	</p>
 {{template "footer" .}}`
 
@@ -168,13 +188,14 @@ const tmplAccountHelp = `{{template "header" .}}
 		No connected Google accounts
 	</h1>
 	<p class="instructions">
-	  You haven't connected any Google accounts.
+		You haven't connected any Google accounts.
 	</p>
 	<p class="instructions">
-      To connect an account, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with the command <span class="quote">!gcal accounts connect &lt;account nickname&gt;</span>.
+		To connect an account, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with
+		the command <span class="quote">!gcal accounts connect &lt;account nickname&gt;</span>.
 	</p>
 	<p class="instructions">
-	  For example, you can connect your work Google account using <span class="quote">!gcal accounts connect work</span>.
+		For example, you can connect your work Google account using <span class="quote">!gcal accounts connect work</span>.
 	</p>
   </div>
 {{template "footer" .}}`
@@ -259,10 +280,11 @@ const tmplConfig = `{{template "header" .}}
   </div>
 {{template "footer" .}}`
 
-var templates = template.Must(template.Must(template.Must(template.Must(template.Must(template.
+var templates = template.Must(template.Must(template.Must(template.Must(template.Must(template.Must(template.
 	New("header").Parse(tmplHeader)).
 	New("footer").Parse(tmplFooter)).
 	New("login").Parse(tmplLogin)).
+	New("error").Parse(tmplError)).
 	New("account help").Parse(tmplAccountHelp)).
 	New("config").Funcs(template.FuncMap{
 	"ellipsize": func(input string, length int) string {

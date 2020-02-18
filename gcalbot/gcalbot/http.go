@@ -267,10 +267,11 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
 	h.Stats.Count("configError")
+
 	w.WriteHeader(http.StatusInternalServerError)
-	if _, err := w.Write([]byte("something went wrong :(")); err != nil {
-		h.Errorf("configHandler: unable to write: %s", err)
-	}
+	h.servePage(w, "error", ErrorPage{
+		Title: "gcalbot | error",
+	})
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
