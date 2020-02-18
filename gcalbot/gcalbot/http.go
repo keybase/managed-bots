@@ -287,6 +287,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "max-age=86400")
 	dat, _ := base64.StdEncoding.DecodeString(base.Images["logo"])
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
