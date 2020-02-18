@@ -67,7 +67,6 @@ const tmplHeader = `<!DOCTYPE html>
 	}
 	.instructions {
 	  margin-top: 16px;
-	  text-align: center;
 	}
 	.quote {
 	  font-family: 'Courier New', Courier, monospace;
@@ -146,16 +145,16 @@ type LoginPage struct {
 
 const tmplLogin = `{{template "header" .}}
   <div class="container column">
-	<img src="/gcalbot/image/logo" class="logo-large" />
-	<div id="divLogin" class="column">
-	  <span style="font-size: 32px; margin-bottom: 24px; text-align: center;">Login Required</span>
-	  <span class="instructions">
+    <img src="/gcalbot/image/logo" class="logo-small" />
+	<h1 class="title">
+		Login Required
+	</h1>
+	<p class="instructions">
 		In order to configure your Google Calendar notifications, you must first login.
-	  </span>
-	  <span class="instructions">
+	</p>
+	<p class="instructions">
 		To start the login process, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with the command <span class="quote">!gcal configure</span>.
-	  </span>
-	</div>
+	</p>
 {{template "footer" .}}`
 
 type AccountHelpPage struct {
@@ -165,13 +164,16 @@ type AccountHelpPage struct {
 const tmplAccountHelp = `{{template "header" .}}
   <div class="container column">
     <img src="/gcalbot/image/logo" class="logo-small" />
-	<p class="conversation-title">
-	  There are no Google accounts connected.
+	<h1 class="title">
+		No connected Google accounts
+	</h1>
+	<p class="instructions">
+	  You haven't connected any Google accounts.
 	</p>
-	<p class="conversation-title">
+	<p class="instructions">
       To connect an account, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with the command <span class="quote">!gcal accounts connect &lt;account nickname&gt;</span>.
 	</p>
-	<p class="conversation-title">
+	<p class="instructions">
 	  For example, you can connect your work Google account using <span class="quote">!gcal accounts connect work</span>.
 	</p>
   </div>
