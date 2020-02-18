@@ -108,8 +108,7 @@ func (h *Handler) requestOAuth(msg chat1.MsgSummary, accountNickname string) err
 		return err
 	}
 
-	oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce, oauth2.AccessTypeOffline}
-	authURL := h.oauth.AuthCodeURL(state, oauthOpts...)
+	authURL := h.oauth.AuthCodeURL(state, oauth2.ApprovalForce, oauth2.AccessTypeOffline)
 	_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username,
 		"Visit %s to connect a Google account as '%s'.", authURL, accountNickname)
 	if err != nil {

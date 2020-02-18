@@ -228,7 +228,7 @@ func (d *DB) GetChannelAndAccountByID(channelID string) (channel *Channel, accou
 	`, channelID)
 	err = row.Scan(&channel.ChannelID, &channel.CalendarID, &channel.ResourceID, &channelExpiry, &channel.NextSyncToken,
 		&account.KeybaseUsername, &account.AccountNickname, &account.Token.AccessToken, &account.Token.TokenType,
-		&account.Token.RefreshToken, &channelExpiry)
+		&account.Token.RefreshToken, &tokenExpiry)
 	switch err {
 	case sql.ErrNoRows:
 		return nil, nil, nil
@@ -281,14 +281,16 @@ func (d *DB) GetExpiringChannelAndAccountList() (pairs []*ChannelAndAccount, err
 	for rows.Next() {
 		var pair ChannelAndAccount
 		var channelExpiry int64
+		var accountExpiry int64
 		err = rows.Scan(&pair.Channel.ChannelID, &pair.Channel.CalendarID, &pair.Channel.ResourceID, &channelExpiry,
 			&pair.Channel.NextSyncToken,
 			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken,
-			&pair.Account.Token.TokenType, &pair.Account.Token.RefreshToken, &channelExpiry)
+			&pair.Account.Token.TokenType, &pair.Account.Token.RefreshToken, &accountExpiry)
 		if err != nil {
 			return nil, err
 		}
 		pair.Channel.Expiry = time.Unix(channelExpiry, 0)
+		pair.Account.Token.Expiry = time.Unix(accountExpiry, 0)
 		pairs = append(pairs, &pair)
 	}
 	return pairs, nil
