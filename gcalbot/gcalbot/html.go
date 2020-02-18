@@ -158,6 +158,25 @@ const tmplLogin = `{{template "header" .}}
 	</div>
 {{template "footer" .}}`
 
+type AccountHelpPage struct {
+	Title string
+}
+
+const tmplAccountHelp = `{{template "header" .}}
+  <div class="container column">
+    <img src="/gcalbot/image/logo" class="logo-small" />
+	<p class="conversation-title">
+	  There are no Google accounts connected.
+	</p>
+	<p class="conversation-title">
+      To connect an account, message <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a> in the Keybase app with the command <span class="quote">!gcal accounts connect &lt;account nickname&gt;</span>.
+	</p>
+	<p class="conversation-title">
+	  For example, you can connect your work Google account using <span class="quote">!gcal accounts connect work</span>.
+	</p>
+  </div>
+{{template "footer" .}}`
+
 type ConfigPage struct {
 	Title         string
 	ConvID        chat1.ConvIDStr
@@ -222,22 +241,27 @@ const tmplConfig = `{{template "header" .}}
 		</select>
 		</div>
 
+		{{if .ConvIsPrivate}}
 		<div class="row">
 		<label for="invite">Send notifications for event invites?</label>
-		<input type="checkbox" name="invite" {{if .ConvIsPrivate | not}} disabled {{end}} {{if .Invite}} checked {{end}}>
+		<input type="checkbox" name="invite" disabled {{if .Invite}} checked {{end}}>
 		</div>
+		{{end}}
+
 		<input type="submit" value="Save" class="save-button"
 			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';">
+
 		{{end}}
 
 	</form>
   </div>
 {{template "footer" .}}`
 
-var templates = template.Must(template.Must(template.Must(template.Must(template.
+var templates = template.Must(template.Must(template.Must(template.Must(template.Must(template.
 	New("header").Parse(tmplHeader)).
 	New("footer").Parse(tmplFooter)).
 	New("login").Parse(tmplLogin)).
+	New("account help").Parse(tmplAccountHelp)).
 	New("config").Funcs(template.FuncMap{
 	"ellipsize": func(input string, length int) string {
 		runes := []rune(input)

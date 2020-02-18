@@ -119,6 +119,13 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(accounts) == 0 {
+		h.servePage(w, "account help", AccountHelpPage{
+			Title: "gcalbot | config",
+		})
+		return
+	}
+
 	page := ConfigPage{
 		Title:         "gcalbot | config",
 		ConvID:        keybaseConvID,
