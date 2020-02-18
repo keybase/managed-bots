@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -36,15 +37,10 @@ const tmplHeader = `<!DOCTYPE html>
 
 	select {
 		min-width: 248px;
-		padding-right: 8px;
+		padding: 8px;
 		white-space: nowrap;
 		text-overflow: ellipsis;
 	}
-
-	select.dynamic {
-		width: initial;
-	}
-
 	.row {
 	  display: flex;
 	  flex-direction: row;
@@ -133,6 +129,7 @@ const tmplHeader = `<!DOCTYPE html>
 		margin-bottom: 24px;
 	}
   </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>`
 
@@ -202,10 +199,10 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="row">
 		<label for="calendar">Calendar:</label>
-		<select name="calendar" class="dynamic" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
+		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Select calendar</option>
 			{{range .Calendars}}
-				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{.Summary}}</option>
+				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 			{{end}}
 		</select>
 		</div>
@@ -216,7 +213,7 @@ const tmplConfig = `{{template "header" .}}
 		<select name="reminder">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
 			{{range .Reminders}}
-				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{.Summary}}</option>
+				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 			{{end}}
 		</select>
 		</div>
@@ -236,7 +233,15 @@ var templates = template.Must(template.Must(template.Must(template.Must(template
 	New("header").Parse(tmplHeader)).
 	New("footer").Parse(tmplFooter)).
 	New("login").Parse(tmplLogin)).
-	New("config").Parse(tmplConfig))
+	New("config").Funcs(template.FuncMap{
+	"ellipsize": func(input string, length int) string {
+		runes := []rune(input)
+		if len(runes) < length {
+			return input
+		}
+		return fmt.Sprintf("%s...", string(runes[:(length-2)]))
+	},
+}).Parse(tmplConfig))
 
 func (h *HTTPSrv) servePage(w http.ResponseWriter, name string, data interface{}) {
 	var page bytes.Buffer
