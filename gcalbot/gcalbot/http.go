@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -119,6 +121,13 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(accounts) == 0 {
+		h.servePage(w, "account help", AccountHelpPage{
+			Title: "gcalbot | config",
+		})
+		return
+	}
+
 	page := ConfigPage{
 		Title:         "gcalbot | config",
 		ConvID:        keybaseConvID,
@@ -156,13 +165,21 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	page.Calendars = calendarList.Items
 
-	if accountNickname == previousAccountNickname {
-		// if the account hasn't changed, display the selected calendar (otherwise clear selected calendar)
-		page.CalendarID = calendarID
-	} else {
-		h.servePage(w, "config", page)
-		return
+	if accountNickname != previousAccountNickname {
+		// if the account has changed, clear the calendar
+		calendarID = ""
+		previousCalendarID = ""
 	}
+
+	// default to the primary calendar
+	if calendarID == "" {
+		for _, calendarItem := range calendarList.Items {
+			if calendarItem.Primary {
+				calendarID = calendarItem.Id
+			}
+		}
+	}
+	page.CalendarID = calendarID
 
 	var subscriptions []*Subscription
 	subscriptions, err = h.db.GetSubscriptions(selectedAccount, calendarID, keybaseConvID)
@@ -181,6 +198,26 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		h.Stats.Count("config - update")
+
+		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
+			// this update must open a new webhook channel, do that now and if it errors, fail early
+			err = h.handler.createEventChannel(selectedAccount, calendarID)
+			if err != nil {
+				switch typedErr := err.(type) {
+				case *googleapi.Error:
+					for _, errorItem := range typedErr.Errors {
+						if errorItem.Reason == "pushNotSupportedForRequestedResource" {
+							page.PushNotAllowed = true
+							h.servePage(w, "config", page)
+							err = nil // clear error
+							return
+						}
+					}
+				}
+				return
+			}
+		}
+
 		// the conv must be private (direct message) for the user to subscribe to invites
 		if isPrivate {
 			h.Stats.Count("config - update - direct message")
@@ -253,6 +290,8 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		page.Reminder = reminderInput
+
+		page.Updated = true
 	}
 
 	h.servePage(w, "config", page)
@@ -260,10 +299,11 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
 	h.Stats.Count("configError")
+
 	w.WriteHeader(http.StatusInternalServerError)
-	if _, err := w.Write([]byte("something went wrong :(")); err != nil {
-		h.Errorf("configHandler: unable to write: %s", err)
-	}
+	h.servePage(w, "error", ErrorPage{
+		Title: "gcalbot | error",
+	})
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +320,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "max-age=86400")
 	dat, _ := base64.StdEncoding.DecodeString(base.Images["logo"])
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

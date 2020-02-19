@@ -161,7 +161,7 @@ func GetConvHelpText(channel chat1.ChatChannel, isKeybaseMessage bool) string {
 		if isKeybaseMessage {
 			teamName = fmt.Sprintf("@%s", teamName)
 		}
-		return fmt.Sprintf("Configure Google Calendar notifications for a channel in the team %s", teamName)
+		return fmt.Sprintf("for a channel in %s", teamName)
 	}
-	return fmt.Sprintf("Configure Google Calendar notifications for the conversation %s", channel.Name)
+	return fmt.Sprintf("for the conversation %s", channel.Name)
 }
