@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -195,7 +197,25 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		h.Stats.Count("config - update")
-		page.Updated = true
+
+		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
+			// this update must open a new webhook channel, do that now and if it errors, fail early
+			err = h.handler.createEventChannel(selectedAccount, calendarID)
+			if err != nil {
+				switch typedErr := err.(type) {
+				case *googleapi.Error:
+					for _, errorItem := range typedErr.Errors {
+						if errorItem.Reason == "pushNotSupportedForRequestedResource" {
+							page.PushNotAllowed = true
+							h.servePage(w, "config", page)
+							err = nil // clear error
+							return
+						}
+					}
+				}
+				return
+			}
+		}
 
 		// the conv must be private (direct message) for the user to subscribe to invites
 		if isPrivate {
@@ -269,6 +289,8 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		page.Reminder = reminderInput
+
+		page.Updated = true
 	}
 
 	h.servePage(w, "config", page)

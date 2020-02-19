@@ -105,8 +105,13 @@ const tmplHeader = `<!DOCTYPE html>
 		margin-top: 12px;
 		margin-left: 12px;
 		font-size: 18px;
+    }
+	#save-success {
 		color: grey;
 		animation: 1.5s ease-in forwards fade-out;
+	}
+	#save-error {
+		color: red;
 	}
 	@keyframes fade-out {
 		from { opacity: 1; }
@@ -212,18 +217,19 @@ const tmplAccountHelp = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title         string
-	ConvID        chat1.ConvIDStr
-	ConvHelpText  string
-	ConvIsPrivate bool
-	Account       string
-	Accounts      []*Account
-	CalendarID    string
-	Calendars     []*calendar.CalendarListEntry
-	Reminder      string
-	Reminders     []ReminderType
-	Invite        bool
-	Updated       bool
+	Title          string
+	ConvID         chat1.ConvIDStr
+	ConvHelpText   string
+	ConvIsPrivate  bool
+	Account        string
+	Accounts       []*Account
+	CalendarID     string
+	Calendars      []*calendar.CalendarListEntry
+	Reminder       string
+	Reminders      []ReminderType
+	Invite         bool
+	Updated        bool
+	PushNotAllowed bool
 }
 
 type ReminderType struct {
@@ -284,8 +290,10 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="row">
 		<input type="submit" value="Save" class="save-button"
-			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';">
-		{{if .Updated}}<span class="save-status">Saved!</span>{{end}}
+			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';"
+			{{if .PushNotAllowed}} disabled {{end}}>
+		{{if .Updated}}<span id="save-success" class="save-status">Saved!</span>{{end}}
+		{{if .PushNotAllowed}}<span id="save-error" class="save-status">Push notifications are not supported for this calendar</span>{{end}}
 		</div>
 
 		{{end}}
