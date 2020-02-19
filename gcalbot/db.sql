@@ -47,7 +47,7 @@ CREATE TABLE `subscription` (
     `keybase_username` varchar(128) NOT NULL,       -- kb username
     `account_nickname` varchar(128) NOT NULL,       -- nickname of google account for kb user
     `calendar_id` varchar(128) NOT NULL,            -- google calendar id that this subscription is for
-    `keybase_conv_id` char(64) NOT NULL,        -- channel that is subscribed to notifications
+    `keybase_conv_id` char(64) NOT NULL,            -- channel that is subscribed to notifications
     `minutes_before` int(11) NOT NULL DEFAULT 0,    -- minutes until event that a notification should be sent (for reminder)
     `type` ENUM ('invite', 'reminder'),             -- type of subscription
     PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `keybase_conv_id`, `minutes_before`, `type`),
