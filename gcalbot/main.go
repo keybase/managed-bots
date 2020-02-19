@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/keybase/managed-bots/gcalbot/gcalbot/schedulescheduler"
+
 	"github.com/keybase/managed-bots/gcalbot/gcalbot/reminderscheduler"
 
 	"golang.org/x/oauth2"
@@ -212,6 +214,7 @@ func (s *BotServer) Go() (err error) {
 	stats = stats.SetPrefix(s.Name())
 	renewScheduler := gcalbot.NewRenewChannelScheduler(stats, debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(stats, debugConfig, db, config)
+	scheduleScheduler := schedulescheduler.NewScheduleScheduler(stats, debugConfig, db, config)
 	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, reminderScheduler, secret, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, config, reminderScheduler, handler)
 	eg := &errgroup.Group{}
@@ -219,7 +222,8 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, httpSrv.Listen)
 	s.GoWithRecover(eg, renewScheduler.Run)
 	s.GoWithRecover(eg, reminderScheduler.Run)
-	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
+	s.GoWithRecover(eg, scheduleScheduler.Run)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler, scheduleScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

@@ -73,3 +73,18 @@ CREATE TABLE `invite` (
         ON DELETE CASCADE
     -- no foreign key to subscription, want to keep invites after unsubscribe so that users can still react to invites
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `daily_schedule`;
+
+CREATE TABLE `daily_schedule` (
+    `keybase_username` varchar(128) NOT NULL,       -- kb username
+    `account_nickname` varchar(128) NOT NULL,       -- nickname of google account for kb user
+    `calendar_id` varchar(128) NOT NULL,            -- google calendar id that this subscription is for
+    `keybase_conv_id` char(64) NOT NULL,            -- channel that is subscribed to notifications
+    `days_to_send` ENUM ('everyday', 'monday through friday', 'sunday through thursday'), -- days of the week to send notifications
+    `schedule_to_send` ENUM ('today', 'tomorrow'),  -- schedule to send
+    `notification_time` int(11) NOT NULL,           -- minutes after beginning of day before notification should be sent
+    FOREIGN KEY (`keybase_username`, `account_nickname`)
+        REFERENCES account(`keybase_username`, `account_nickname`)
+        ON DELETE CASCADE
+)
