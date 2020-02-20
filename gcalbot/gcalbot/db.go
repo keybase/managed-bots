@@ -499,37 +499,25 @@ func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription Dail
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO daily_schedule_subscription
-			(keybase_username, account_nickname, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
-			VALUES (?, ?, ?, ?, ?, ?)
-		`, account.KeybaseUsername, account.AccountNickname, subscription.KeybaseConvID, subscription.DaysToSend,
-			subscription.ScheduleToSend, notificationDuration)
+			(keybase_username, account_nickname, calendar_id, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
+			subscription.DaysToSend, subscription.ScheduleToSend, notificationDuration)
 		return err
 	})
 }
 
-func (d *DB) AddCalendarToDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr, calendarID string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO daily_schedule_subscription_calendar
-			(keybase_username, account_nickname, keybase_conv_id, calendar_id)
-			VALUES (?, ?, ?, ?)
-		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID, calendarID)
-		return err
-	})
-}
-
-func (d *DB) GetAggregatedDailyScheduleSubscriptionByDuration(duration time.Duration) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
+func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSendType, duration time.Duration) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
 	durationMinutes := GetMinutesFromDuration(duration)
 	row, err := d.DB.Query(`
 		SELECT
-			GROUP_CONCAT(calendar_id) as calendar_ids, daily_schedule_subscription.keybase_conv_id, days_to_send, schedule_to_send, notification_duration,
+			GROUP_CONCAT(calendar_id) as calendar_ids, keybase_conv_id, days_to_send, schedule_to_send, notification_duration,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM daily_schedule_subscription
 		JOIN account USING(keybase_username, account_nickname)
-		JOIN daily_schedule_subscription_calendar USING(keybase_username, account_nickname, keybase_conv_id)
-		WHERE notification_duration = ?
+		WHERE schedule_to_send = ? AND notification_duration = ?
 		GROUP BY keybase_username, account_nickname, keybase_conv_id
-	`, durationMinutes)
+	`, scheduleToSend, durationMinutes)
 	if err != nil {
 		return nil, err
 	}
@@ -553,22 +541,12 @@ func (d *DB) GetAggregatedDailyScheduleSubscriptionByDuration(duration time.Dura
 	return subscriptions, nil
 }
 
-func (d *DB) RemoveCalendarFromDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr, calendarID string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM daily_schedule_subscription_calendar
-			WHERE keybase_username = ? AND account_nickname = ? AND keybase_conv_id = ? AND calendar_id = ?
-		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID, calendarID)
-		return err
-	})
-}
-
-func (d *DB) DeleteDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr) error {
+func (d *DB) DeleteDailyScheduleSubscription(account *Account, calendarID string, keybaseConvID chat1.ConvIDStr) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			DELETE FROM daily_schedule_subscription
-			WHERE keybase_username = ? AND account_nickname = ? AND keybase_conv_id = ?
-		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID)
+			WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
+		`, account.KeybaseUsername, account.AccountNickname, calendarID, keybaseConvID)
 		return err
 	})
 }

@@ -86,6 +86,7 @@ const (
 )
 
 type DailyScheduleSubscription struct {
+	CalendarID           string
 	KeybaseConvID        chat1.ConvIDStr
 	DaysToSend           DaysToSendType
 	ScheduleToSend       ScheduleToSendType
