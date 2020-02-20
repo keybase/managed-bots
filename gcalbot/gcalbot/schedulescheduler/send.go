@@ -28,30 +28,27 @@ func (s *ScheduleScheduler) sendDailyScheduleLoop(shutdownCh chan struct{}) erro
 		s.Debug("shutting down sendDailyScheduleLoop")
 	}()
 
-	s.sendDailySchedulesForMinute(time.Now().UTC(), shutdownCh)
+	s.sendDailySchedulesForMinute(time.Now(), shutdownCh)
 	for {
 		select {
 		case <-shutdownCh:
 			return nil
 		case sendMinute := <-ticker.C:
-			s.sendDailySchedulesForMinute(sendMinute.UTC(), shutdownCh)
+			s.sendDailySchedulesForMinute(sendMinute, shutdownCh)
 		}
 	}
 }
 
 func (s *ScheduleScheduler) sendDailySchedulesForMinute(sendMinute time.Time, shutdownCh chan struct{}) {
-	dayStart := time.Date(sendMinute.Year(), sendMinute.Month(), sendMinute.Day(), 0, 0, 0, 0, time.UTC)
-	notificationDuration := sendMinute.Sub(dayStart).Round(time.Minute)
-
 	var subscriptions []*gcalbot.AggregatedDailyScheduleSubscription
 
-	todaySubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendToday, notificationDuration)
+	todaySubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendToday)
 	if err != nil {
 		s.Errorf("error getting daily schedule subscriptions to sync: %s", err)
 	}
 	subscriptions = todaySubscriptions
 
-	tomorrowSubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendTomorrow, notificationDuration)
+	tomorrowSubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendTomorrow)
 	if err != nil {
 		s.Errorf("error getting daily schedule subscriptions to sync: %s", err)
 	}
@@ -71,20 +68,12 @@ func (s *ScheduleScheduler) sendDailySchedulesForMinute(sendMinute time.Time, sh
 }
 
 func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subscription *gcalbot.AggregatedDailyScheduleSubscription) {
-	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth)
-	if err != nil {
-		s.Errorf(err.Error())
+	userSendMinute := sendMinute.In(subscription.Timezone)
+	dayStart := time.Date(sendMinute.Year(), sendMinute.Month(), sendMinute.Day(), 0, 0, 0, 0, subscription.Timezone)
+	notificationDuration := sendMinute.Sub(dayStart).Round(time.Minute)
+	if notificationDuration.Minutes() != subscription.NotificationDuration.Minutes() {
 		return
 	}
-
-	timezone, err := gcalbot.GetUserTimezone(srv)
-	if err != nil {
-		s.Errorf("unable to get user timezone: %s", err)
-		return
-	}
-
-	// TODO(marcel): respect users set date
-	userSendMinute := sendMinute.In(timezone)
 
 	switch subscription.DaysToSend {
 	case gcalbot.DaysToSendEveryday:
@@ -100,12 +89,17 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		}
 	}
 
-	var minTime time.Time
+	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth)
+	if err != nil {
+		s.Errorf(err.Error())
+		return
+	}
+
+	minTime := dayStart
 	switch subscription.ScheduleToSend {
 	case gcalbot.ScheduleToSendToday:
-		minTime = time.Date(userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day(), 0, 0, 0, 0, timezone)
 	case gcalbot.ScheduleToSendTomorrow:
-		minTime = time.Date(userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day()+1, 0, 0, 0, 0, timezone)
+		minTime = time.Date(userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day()+1, 0, 0, 0, 0, subscription.Timezone)
 	}
 	maxTime := minTime.Add(24 * time.Hour)
 
@@ -147,7 +141,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		s.ChatEcho(subscription.KeybaseConvID, "You have no events for the calendar(s) %s in account '%s' for %s.",
 			calendarList, subscription.Account.AccountNickname, subscription.ScheduleToSend)
 	} else {
-		formattedSchedule, err := gcalbot.FormatEventSchedule(events, timezone, format24HourTime)
+		formattedSchedule, err := gcalbot.FormatEventSchedule(events, subscription.Timezone, format24HourTime)
 		if err != nil {
 			s.Errorf("unable to format schedule: %s", err)
 			return

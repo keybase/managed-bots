@@ -499,25 +499,24 @@ func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription Dail
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO daily_schedule_subscription
-			(keybase_username, account_nickname, calendar_id, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
-			subscription.DaysToSend, subscription.ScheduleToSend, notificationDuration)
+			(keybase_username, account_nickname, calendar_id, timezone, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.Timezone.String(),
+			subscription.KeybaseConvID, subscription.DaysToSend, subscription.ScheduleToSend, notificationDuration)
 		return err
 	})
 }
 
-func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSendType, duration time.Duration) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
-	durationMinutes := GetMinutesFromDuration(duration)
+func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSendType) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
 	row, err := d.DB.Query(`
 		SELECT
-			GROUP_CONCAT(calendar_id) as calendar_ids, keybase_conv_id, days_to_send, schedule_to_send, notification_duration,
+			GROUP_CONCAT(calendar_id) as calendar_ids, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_duration,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM daily_schedule_subscription
 		JOIN account USING(keybase_username, account_nickname)
-		WHERE schedule_to_send = ? AND notification_duration = ?
+		WHERE schedule_to_send = ?
 		GROUP BY keybase_username, account_nickname, keybase_conv_id
-	`, scheduleToSend, durationMinutes)
+	`, scheduleToSend)
 	if err != nil {
 		return nil, err
 	}
@@ -525,15 +524,20 @@ func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSen
 	for row.Next() {
 		var pair AggregatedDailyScheduleSubscription
 		var concatCalendarIDs string
+		var timezone string
 		var notificationDuration int
 		var tokenExpiry int64
-		err = row.Scan(&concatCalendarIDs, &pair.KeybaseConvID, &pair.DaysToSend, &pair.ScheduleToSend, &notificationDuration,
+		err = row.Scan(&concatCalendarIDs, &pair.KeybaseConvID, &timezone, &pair.DaysToSend, &pair.ScheduleToSend, &notificationDuration,
 			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken, &pair.Account.Token.TokenType,
 			&pair.Account.Token.RefreshToken, &tokenExpiry)
 		if err != nil {
 			return nil, err
 		}
 		pair.CalendarIDs = strings.Split(concatCalendarIDs, ",")
+		pair.Timezone, err = time.LoadLocation(timezone)
+		if err != nil {
+			return nil, err
+		}
 		pair.NotificationDuration = GetDurationFromMinutes(notificationDuration)
 		pair.Account.Token.Expiry = time.Unix(tokenExpiry, 0)
 		subscriptions = append(subscriptions, &pair)
