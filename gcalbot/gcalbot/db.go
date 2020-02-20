@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -490,4 +491,84 @@ func (d *DB) GetInviteAndAccountByUserMessage(keybaseUsername string, messageID 
 	default:
 		return nil, nil, err
 	}
+}
+
+// Daily Schedule Subscription
+func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription DailyScheduleSubscription) error {
+	notificationDuration := GetMinutesFromDuration(subscription.NotificationDuration)
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO daily_schedule_subscription
+			(keybase_username, account_nickname, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.KeybaseConvID, subscription.DaysToSend,
+			subscription.ScheduleToSend, notificationDuration)
+		return err
+	})
+}
+
+func (d *DB) AddCalendarToDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr, calendarID string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO daily_schedule_subscription_calendar
+			(keybase_username, account_nickname, keybase_conv_id, calendar_id)
+			VALUES (?, ?, ?, ?)
+		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID, calendarID)
+		return err
+	})
+}
+
+func (d *DB) GetAggregatedDailyScheduleSubscriptionByDuration(duration time.Duration) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
+	durationMinutes := GetMinutesFromDuration(duration)
+	row, err := d.DB.Query(`
+		SELECT
+			GROUP_CONCAT(calendar_id) as calendar_ids, daily_schedule_subscription.keybase_conv_id, days_to_send, schedule_to_send, notification_duration,
+			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+		FROM daily_schedule_subscription
+		JOIN account USING(keybase_username, account_nickname)
+		JOIN daily_schedule_subscription_calendar USING(keybase_username, account_nickname, keybase_conv_id)
+		WHERE notification_duration = ?
+		GROUP BY keybase_username, account_nickname, keybase_conv_id
+	`, durationMinutes)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+	for row.Next() {
+		var pair AggregatedDailyScheduleSubscription
+		var concatCalendarIDs string
+		var notificationDuration int
+		var tokenExpiry int64
+		err = row.Scan(&concatCalendarIDs, &pair.KeybaseConvID, &pair.DaysToSend, &pair.ScheduleToSend, &notificationDuration,
+			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken, &pair.Account.Token.TokenType,
+			&pair.Account.Token.RefreshToken, &tokenExpiry)
+		if err != nil {
+			return nil, err
+		}
+		pair.CalendarIDs = strings.Split(concatCalendarIDs, ",")
+		pair.NotificationDuration = GetDurationFromMinutes(notificationDuration)
+		pair.Account.Token.Expiry = time.Unix(tokenExpiry, 0)
+		subscriptions = append(subscriptions, &pair)
+	}
+	return subscriptions, nil
+}
+
+func (d *DB) RemoveCalendarFromDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr, calendarID string) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM daily_schedule_subscription_calendar
+			WHERE keybase_username = ? AND account_nickname = ? AND keybase_conv_id = ? AND calendar_id = ?
+		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID, calendarID)
+		return err
+	})
+}
+
+func (d *DB) DeleteDailyScheduleSubscription(account *Account, keybaseConvID chat1.ConvIDStr) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM daily_schedule_subscription
+			WHERE keybase_username = ? AND account_nickname = ? AND keybase_conv_id = ?
+		`, account.KeybaseUsername, account.AccountNickname, keybaseConvID)
+		return err
+	})
 }
