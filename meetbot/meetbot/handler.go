@@ -37,7 +37,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hello! I can get you setup with a Google Meet video call anytime, just send me `!meet`."
+	welcomeMsg := "Hello! I can get you set up with a Google Meet video call anytime, just send me `!meet`."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 

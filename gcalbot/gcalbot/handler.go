@@ -54,7 +54,7 @@ func NewHandler(
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	welcomeMsg := "Hello! I can get you setup with Google Calendar anytime, just send me `!gcal accounts connect <account nickname>`."
+	welcomeMsg := "Hello! I can get you set up with Google Calendar anytime, just send me `!gcal accounts connect <account nickname>`."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
