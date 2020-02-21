@@ -155,7 +155,10 @@ func MinutesBeforeString(minutesBefore int) string {
 	}
 }
 
-func GetConvHelpText(channel chat1.ChatChannel, isKeybaseMessage bool) string {
+func GetConvHelpText(channel chat1.ChatChannel, convIsPrivateMsg, isKeybaseMessage bool) string {
+	if convIsPrivateMsg {
+		return "in our chat together"
+	}
 	if channel.MembersType == "team" {
 		teamName := channel.Name
 		if isKeybaseMessage {
