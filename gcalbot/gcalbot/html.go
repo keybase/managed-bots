@@ -108,14 +108,9 @@ const tmplHeader = `<!DOCTYPE html>
     }
 	#save-success {
 		color: grey;
-		animation: 1.5s ease-in forwards fade-out;
 	}
 	#save-error {
 		color: red;
-	}
-	@keyframes fade-out {
-		from { opacity: 1; }
-		to { opacity: 0; }
 	}
 
 	.conversation-title {
@@ -290,7 +285,8 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="row">
 		<input type="submit" value="Save" class="save-button"
-			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';"
+			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';
+					 if(document.getElementById('save-success')) { document.getElementById('save-success').style.display='none' };"
 			{{if .PushNotAllowed}} disabled {{end}}>
 		{{if .Updated}}<span id="save-success" class="save-status">Saved!</span>{{end}}
 		{{if .PushNotAllowed}}<span id="save-error" class="save-status">Push notifications are not supported for this calendar</span>{{end}}
