@@ -30,7 +30,7 @@ In order to run the Meet bot, there needs to be a running MySQL database in orde
 - If you accidentally run the bot under your own username and wish to clear the
   `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 - The following links are helpful for using the Google Calendar API:
     - https://developers.google.com/calendar/quickstart/go

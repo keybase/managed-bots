@@ -33,7 +33,7 @@ order to store account and webhook data.
 - If you accidentally run the bot under your own username and wish to clear the
   `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 - The following links are helpful for using the Google Calendar API:
     - https://developers.google.com/calendar/quickstart/go
