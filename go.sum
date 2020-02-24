@@ -54,14 +54,8 @@ github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNU
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51/go.mod h1:CzGEWj7cYgsdH8dAjBGEr58BoE7ScuLd+fwFZ44+/x8=
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 h1:yg56lYPqh9suJepqxOMd/liFgU/x+maRPiB30JNYykM=
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123/go.mod h1:r/eVVWCngg6TsFV/3HuS9sWhDkAzGG8mXhiuYA+Z/20=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200222030359-10e95d755b3b h1:KdfcK+ZoLBRRBPx8kBQWO74b/zZOrTyOQPQif55/hA0=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200222030359-10e95d755b3b/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224155811-01bce155945d h1:NOzi7Yu2zyXXKClh4TFvS4TUTPxF3BCk6BGTFwk4HKQ=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224155811-01bce155945d/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224161549-8674d45d870a h1:lqThmYvoOgga+qSPbF4lv1y2yav3l2mJa+NSa8BY7lk=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224161549-8674d45d870a/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224161925-d34d6e5b617e h1:RJxzrN7+V02TohkGOHznHthmsT8AkZ6miHNL5xSasy4=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200224161925-d34d6e5b617e/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200224182813-24435aa39762 h1:cii+/oA0dxLYGWEHlY+oKMMEtA3lTNRi18IpOZOJbjk=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200224182813-24435aa39762/go.mod h1:vNc28YFzigVJod0j5EbuTtRIe7swx8vodh2yA4jZ2s8=
 github.com/kr/pretty v0.0.0-20150520163514-e6ac2fc51e89 h1:Smt4CPhAnATQEGlX/nyqGETX4Tj8bg/7shBT5gH8d7s=
 github.com/kr/pretty v0.0.0-20150520163514-e6ac2fc51e89/go.mod h1:Bvhd+E3laJ0AVkG0c9rmtZcnhV0HQ3+c3YxxqTvc/gA=
 github.com/kr/text v0.0.0-20150520163712-e373e137fafd h1:ohpc+F5FseC/PPrR1wz2WcZxOc4kplnJ39pGbFlj/eY=
