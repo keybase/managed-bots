@@ -22,7 +22,7 @@ In order to run the Webhook bot, there needs to be a running MySQL database in o
 
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 
 ### Docker

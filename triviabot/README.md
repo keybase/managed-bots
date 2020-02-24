@@ -21,7 +21,7 @@ In order to run the Trivia bot, there needs to be a running MySQL database in or
 
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 
 ### Docker

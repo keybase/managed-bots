@@ -28,7 +28,7 @@ In order to run the GitLab bot, you will need
 - [ngrok](https://ngrok.com) provides temporary web urls that can serve from localhost, which means you can use ngrok to test locally. You will need to add your ngrok generated url to the Callback URL section of your GitLab OAuth app. As well as use that as the `http-prefix` flag when running the bot.
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 - You can optionally save your bot secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitLabBot>` (or the equivalent KBFS path on your system) that matches the following format:
   ```json

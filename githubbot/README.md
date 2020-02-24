@@ -47,7 +47,7 @@ In order to run the GitHub bot, you will need
 
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
-  keybase chat api -m '{"method": "clearcommands"}'
+  keybase chat clear-commands
   ```
 - You can optionally save your GitHub app details inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitHubBot>` (or the equivalent KBFS path on your system) that matches the following format:
   ```js
