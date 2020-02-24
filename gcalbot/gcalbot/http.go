@@ -145,7 +145,8 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	dsSchedule := ScheduleToSendType(dsScheduleInput)
 	var dsTime time.Duration
 	if dsTimeInput != "" {
-		dsTimeMinutes, err := strconv.Atoi(dsTimeInput)
+		var dsTimeMinutes int
+		dsTimeMinutes, err = strconv.Atoi(dsTimeInput)
 		if err != nil {
 			return
 		} else if dsTimeMinutes < 0 || dsTimeMinutes > 23*60 || dsTimeMinutes%30 != 0 {
