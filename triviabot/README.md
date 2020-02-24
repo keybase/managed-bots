@@ -23,6 +23,12 @@ In order to run the Trivia bot, there needs to be a running MySQL database in or
   ```
   keybase chat clear-commands
   ```
+- Restricted bots are restricted from knowing channel names. If you would like
+  a bot to announce or report errors to a specific channel you can use a
+  `ConversationID` which can be found by running:
+  ```
+  keybase chat conv-info [teamname] --channel channel_name
+  ```
 
 ### Docker
 
