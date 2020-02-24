@@ -499,10 +499,15 @@ func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription Dail
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO daily_schedule_subscription
-			(keybase_username, account_nickname, calendar_id, timezone, keybase_conv_id, days_to_send, schedule_to_send, notification_duration)
+			(keybase_username, account_nickname, calendar_id, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_duration)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.Timezone.String(),
-			subscription.KeybaseConvID, subscription.DaysToSend, subscription.ScheduleToSend, notificationDuration)
+			ON DUPLICATE KEY UPDATE
+			timezone=VALUES(timezone),
+			days_to_send=VALUES(days_to_send),
+			schedule_to_send=VALUES(schedule_to_send),
+			notification_duration=VALUES(notification_duration)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
+			subscription.Timezone.String(), subscription.DaysToSend, subscription.ScheduleToSend, notificationDuration)
 		return err
 	})
 }
@@ -543,6 +548,36 @@ func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSen
 		subscriptions = append(subscriptions, &pair)
 	}
 	return subscriptions, nil
+}
+
+func (d *DB) GetDailyScheduleSubscription(
+	account *Account,
+	calendarID string,
+	keybaseConvID chat1.ConvIDStr,
+) (subscription *DailyScheduleSubscription, exists bool, err error) {
+	subscription = &DailyScheduleSubscription{}
+	var timezone string
+	var notificationDuration int
+	row := d.DB.QueryRow(`
+		SELECT calendar_id, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_duration
+		FROM daily_schedule_subscription
+		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID, keybaseConvID)
+	err = row.Scan(&subscription.CalendarID, &subscription.KeybaseConvID, &timezone, &subscription.DaysToSend,
+		&subscription.ScheduleToSend, &notificationDuration)
+	switch err {
+	case nil:
+		subscription.Timezone, err = time.LoadLocation(timezone)
+		if err != nil {
+			return nil, false, err
+		}
+		subscription.NotificationDuration = GetDurationFromMinutes(notificationDuration)
+		return subscription, true, nil
+	case sql.ErrNoRows:
+		return nil, false, nil
+	default:
+		return nil, false, err
+	}
 }
 
 func (d *DB) DeleteDailyScheduleSubscription(account *Account, calendarID string, keybaseConvID chat1.ConvIDStr) error {

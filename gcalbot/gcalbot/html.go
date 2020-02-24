@@ -119,6 +119,10 @@ const tmplHeader = `<!DOCTYPE html>
 		margin-bottom: 36px;
 	}
 
+	.daily-schedule {
+		margin-left: 22px;
+	}
+
 	#divLogin {
 	  justify-content: center;
 	  align-items: center;
@@ -212,24 +216,53 @@ const tmplAccountHelp = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title          string
-	ConvID         chat1.ConvIDStr
-	ConvHelpText   string
-	ConvIsPrivate  bool
-	Account        string
-	Accounts       []*Account
-	CalendarID     string
-	Calendars      []*calendar.CalendarListEntry
-	Reminder       string
-	Reminders      []ReminderType
-	Invite         bool
+	Title string
+
+	ConvID        chat1.ConvIDStr
+	ConvHelpText  string
+	ConvIsPrivate bool
+
+	Account  string
+	Accounts []*Account
+
+	CalendarID string
+	Calendars  []*calendar.CalendarListEntry
+
+	Reminder        string
+	ReminderOptions []ReminderType
+	Invite          bool
+
+	DSEnabled         bool
+	DSDays            DaysToSendType
+	DSDaysOptions     []DSDaysOption
+	DSSchedule        ScheduleToSendType
+	DSScheduleOptions []DSScheduleOption
+	DSTime            string
+	DSTimeOptions     [48]DSTimeOption
+	DSTimezone        string
+
 	Updated        bool
 	PushNotAllowed bool
 }
 
 type ReminderType struct {
-	Minute  string
-	Summary string
+	Title  string
+	Minute string
+}
+
+type DSDaysOption struct {
+	Title string
+	Days  DaysToSendType
+}
+
+type DSScheduleOption struct {
+	Title    string
+	Schedule ScheduleToSendType
+}
+
+type DSTimeOption struct {
+	Title  string
+	Minute string
 }
 
 const tmplConfig = `{{template "header" .}}
@@ -248,7 +281,7 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="account row">
 		<label for="account">Account:</label>
-		<select name="account" onchange="this.form.submit()">
+		<select name="account" onchange="this.form.submit(); this.disabled=true;">
 			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
 			{{range .Accounts}}
 			<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
@@ -258,7 +291,7 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="row">
 		<label for="calendar">Calendar:</label>
-		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit()">
+		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit(); this.disabled=true;">
 			{{range .Calendars}}
 				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 			{{end}}
@@ -270,8 +303,8 @@ const tmplConfig = `{{template "header" .}}
 		<label for="reminder">Send reminders for events... </label>
 		<select name="reminder">
 			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
-			{{range .Reminders}}
-				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Summary 40}}</option>
+			{{range .ReminderOptions}}
+				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Title 40}}</option>
 			{{end}}
 		</select>
 		</div>
@@ -280,6 +313,44 @@ const tmplConfig = `{{template "header" .}}
 		<div class="row">
 		<label for="invite">Send notifications for event invites?</label>
 		<input type="checkbox" name="invite" {{if .Invite}} checked {{end}}>
+		</div>
+		{{end}}
+
+		<div class="row">
+		<label for="invite">Enable a daily schedule message?</label>
+		<input type="checkbox" name="ds_enabled" onclick="this.form.submit(); this.disabled=true;" {{if .DSEnabled}} checked {{end}}>
+		</div>
+
+		{{if .DSEnabled}}
+		<div class="daily-schedule">
+		<div class="row">
+		<label for="ds_days">Daily schedule messages should be sent... </label>
+		<select name="ds_days">
+			{{range .DSDaysOptions}}
+				<option value="{{.Days}}" {{if eq .Days $.DSDays}} selected {{end}}>{{.Title}}</option>
+			{{end}}
+		</select>
+		</div>
+
+		<div class="row">
+		<label for="ds_schedule">Send reminders for events... </label>
+		<select name="ds_schedule">
+			{{range .DSScheduleOptions}}
+				<option value="{{.Schedule}}" {{if eq .Schedule $.DSSchedule}} selected {{end}}>{{.Title}}</option>
+			{{end}}
+		</select>
+		</div>
+
+		<div class="row">
+		<label for="ds_time">Daily schedule should be sent at... </label>
+		<select name="ds_time">
+			{{range .DSTimeOptions}}
+				<option value="{{.Minute}}" {{if eq .Minute $.DSTime}} selected {{end}}>{{.Title}}</option>
+			{{end}}
+		</select>
+		</div>
+
+		<div class="row">Timezone: {{.DSTimezone}}</div>
 		</div>
 		{{end}}
 

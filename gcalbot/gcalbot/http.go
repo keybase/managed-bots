@@ -13,10 +13,10 @@ import (
 
 	"google.golang.org/api/googleapi"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+
 	"golang.org/x/oauth2"
 )
 
@@ -58,14 +58,25 @@ func NewHTTPSrv(
 	return h
 }
 
-var reminders = []ReminderType{
-	{"0", "At time of event"},
-	{"1", "1 minute before"},
-	{"5", "5 minutes before"},
-	{"10", "10 minutes before"},
-	{"15", "15 minutes before"},
-	{"30", "30 minutes before"},
-	{"60", "60 minutes before"},
+var reminderOptions = []ReminderType{
+	{"At time of event", "0"},
+	{"1 minute before", "1"},
+	{"5 minutes before", "5"},
+	{"10 minutes before", "10"},
+	{"15 minutes before", "15"},
+	{"30 minutes before", "30"},
+	{"60 minutes before", "60"},
+}
+
+var dsDaysOptions = []DSDaysOption{
+	{"Everyday", DaysToSendEveryday},
+	{"Monday to Friday", DaysToSendMonToFri},
+	{"Saturday to Thursday", DaysToSendSatToThu},
+}
+
+var dsScheduleOptions = []DSScheduleOption{
+	{"Today", ScheduleToSendToday},
+	{"Tomorrow", ScheduleToSendTomorrow},
 }
 
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {}
@@ -115,6 +126,34 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 	reminderInput := r.Form.Get("reminder")
 	inviteInput := r.Form.Get("invite")
+	var invite bool
+	if inviteInput != "" {
+		invite = true
+	}
+
+	dsEnabledInput := r.Form.Get("ds_enabled")
+	dsDaysInput := r.Form.Get("ds_days")
+	dsScheduleInput := r.Form.Get("ds_schedule")
+	dsTimeInput := r.Form.Get("ds_time")
+
+	dsFormSubmitted := dsDaysInput != "" && dsScheduleInput != "" && dsTimeInput != ""
+	var dsEnabled bool
+	if dsEnabledInput != "" {
+		dsEnabled = true
+	}
+	dsDays := DaysToSendType(dsDaysInput)
+	dsSchedule := ScheduleToSendType(dsScheduleInput)
+	var dsTime time.Duration
+	if dsTimeInput != "" {
+		dsTimeMinutes, err := strconv.Atoi(dsTimeInput)
+		if err != nil {
+			return
+		} else if dsTimeMinutes < 0 || dsTimeMinutes > 23*60 || dsTimeMinutes%30 != 0 {
+			err = fmt.Errorf("dsTimeInput out of range: %s", dsTimeInput)
+			return
+		}
+		dsTime = GetDurationFromMinutes(dsTimeMinutes)
+	}
 
 	accounts, err := h.db.GetAccountListForUsername(keybaseUsername)
 	if err != nil {
@@ -129,13 +168,15 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := ConfigPage{
-		Title:         "gcalbot | config",
-		ConvID:        keybaseConvID,
-		ConvHelpText:  GetConvHelpText(keybaseConv.Channel, isPrivate, false),
-		ConvIsPrivate: isPrivate,
-		Account:       accountNickname,
-		Accounts:      accounts,
-		Reminders:     reminders,
+		Title:             "gcalbot | config",
+		ConvID:            keybaseConvID,
+		ConvHelpText:      GetConvHelpText(keybaseConv.Channel, isPrivate, false),
+		ConvIsPrivate:     isPrivate,
+		Account:           accountNickname,
+		Accounts:          accounts,
+		ReminderOptions:   reminderOptions,
+		DSDaysOptions:     dsDaysOptions,
+		DSScheduleOptions: dsScheduleOptions,
 	}
 
 	if accountNickname == "" {
@@ -195,9 +236,120 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	dsSubscription, dsSubExists, err := h.db.GetDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
+	if err != nil {
+		return
+	}
+
+	if dsSubExists || dsEnabled {
+		var format24HourTime bool
+		format24HourTime, err = GetUserFormat24HourTime(srv)
+		if err != nil {
+			return
+		}
+		// get list of times in half hour increments
+		for i := 0; i < 48; i++ {
+			var title string
+			minutes := i * 30
+			dateTime := time.Time{}.Add(time.Duration(minutes) * time.Minute)
+			if format24HourTime {
+				title = dateTime.Format("15:04")
+			} else {
+				title = dateTime.Format("3:04pm")
+			}
+			page.DSTimeOptions[i] = DSTimeOption{
+				Title:  title,
+				Minute: strconv.Itoa(minutes),
+			}
+		}
+	}
+
+	if dsSubExists {
+		page.DSEnabled = true
+		page.DSDays = dsSubscription.DaysToSend
+		page.DSSchedule = dsSubscription.ScheduleToSend
+		page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationDuration))
+		page.DSTimezone = dsSubscription.Timezone.String()
+	}
+
+	if dsEnabled && !dsFormSubmitted {
+		// the daily schedule checkbox went from unchecked -> checked, don't save but give daily schedule options
+
+		page.DSEnabled = true
+
+		// keep changed reminder settings, but don't save them to db
+		page.Reminder = reminderInput
+		page.Invite = invite
+
+		if dsSubExists {
+			page.DSDays = dsSubscription.DaysToSend
+			page.DSSchedule = dsSubscription.ScheduleToSend
+			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationDuration))
+			page.DSTimezone = dsSubscription.Timezone.String()
+		} else {
+			// sane defaults
+			page.DSDays = DaysToSendEveryday
+			page.DSSchedule = ScheduleToSendToday
+			page.DSTime = "450" // 7:30am is a sane default
+
+			var timezone *time.Location
+			timezone, err = GetUserTimezone(srv)
+			if err != nil {
+				return
+			}
+			page.DSTimezone = timezone.String()
+		}
+
+		h.servePage(w, "config", page)
+		return
+	} else if !dsEnabled && dsFormSubmitted {
+		// the daily schedule checkbox went from checked -> unchecked, don't save
+
+		// keep changed reminder settings, but don't save them to db
+		page.Reminder = reminderInput
+		page.Invite = invite
+		h.servePage(w, "config", page)
+		return
+	}
+
 	// if the calendar hasn't changed, update the settings
 	if calendarID == previousCalendarID {
 		h.Stats.Count("config - update")
+
+		if dsEnabled {
+			var timezone *time.Location
+			if dsSubExists {
+				timezone = dsSubscription.Timezone
+			} else {
+				timezone, err = GetUserTimezone(srv)
+				if err != nil {
+					return
+				}
+			}
+
+			err = h.db.InsertDailyScheduleSubscription(selectedAccount, DailyScheduleSubscription{
+				CalendarID:           calendarID,
+				KeybaseConvID:        keybaseConvID,
+				Timezone:             timezone,
+				DaysToSend:           dsDays,
+				ScheduleToSend:       dsSchedule,
+				NotificationDuration: dsTime,
+			})
+			if err != nil {
+				return
+			}
+			page.DSEnabled = true
+			page.DSDays = dsDays
+			page.DSSchedule = dsSchedule
+			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsTime))
+			page.DSTimezone = timezone.String()
+		} else if !dsEnabled && dsSubExists {
+
+			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
+			if err != nil {
+				return
+			}
+		}
 
 		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
 			// this update must open a new webhook channel, do that now and if it errors, fail early
@@ -225,10 +377,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				CalendarID:    calendarID,
 				KeybaseConvID: keybaseConvID,
 				Type:          SubscriptionTypeInvite,
-			}
-			var invite bool
-			if inviteInput != "" {
-				invite = true
 			}
 
 			if page.Invite && !invite {
