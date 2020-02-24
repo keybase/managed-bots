@@ -282,12 +282,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		page.Reminder = reminderInput
 		page.Invite = invite
 
-		if dsSubExists {
-			page.DSDays = dsSubscription.DaysToSend
-			page.DSSchedule = dsSubscription.ScheduleToSend
-			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationDuration))
-			page.DSTimezone = dsSubscription.Timezone.String()
-		} else {
+		if !dsSubExists {
 			// sane defaults
 			page.DSDays = DaysToSendEveryday
 			page.DSSchedule = ScheduleToSendToday
@@ -307,6 +302,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		// the daily schedule checkbox went from checked -> unchecked, don't save
 
 		// keep changed reminder settings, but don't save them to db
+		page.DSEnabled = false
 		page.Reminder = reminderInput
 		page.Invite = invite
 		h.servePage(w, "config", page)
@@ -345,7 +341,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsTime))
 			page.DSTimezone = timezone.String()
 		} else if !dsEnabled && dsSubExists {
-
+			page.DSEnabled = false
 			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
 			if err != nil {
 				return
