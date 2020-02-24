@@ -36,7 +36,7 @@ In order to run the Meet bot, there needs to be a running MySQL database in orde
   a bot to announce or report errors to a specific channel you can use a
   `ConversationID` which can be found by running:
   ```
-  keybase chat conv-info [teamname] --channel channel_name
+  keybase chat conv-info teamname --channel channel
   ```
 - The following links are helpful for using the Google Calendar API:
     - https://developers.google.com/calendar/quickstart/go
