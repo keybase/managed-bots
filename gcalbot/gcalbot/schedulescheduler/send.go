@@ -84,7 +84,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		}
 	case gcalbot.DaysToSendSatToThu:
 		switch userSendMinute.Weekday() {
-		case time.Friday, time.Saturday:
+		case time.Friday:
 			return
 		}
 	}
