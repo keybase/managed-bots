@@ -3,6 +3,7 @@ package schedulescheduler
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -40,6 +41,10 @@ func (s *ScheduleScheduler) sendDailyScheduleLoop(shutdownCh chan struct{}) erro
 }
 
 func (s *ScheduleScheduler) sendDailySchedulesForMinute(sendMinute time.Time, shutdownCh chan struct{}) {
+	if sendMinute.Minute()%30 != 0 {
+		s.Errorf("daily schedule loop out of sync, sendMinute: %s", sendMinute.Format("15:04:05"))
+	}
+
 	var subscriptions []*gcalbot.AggregatedDailyScheduleSubscription
 
 	todaySubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendToday)
@@ -69,9 +74,10 @@ func (s *ScheduleScheduler) sendDailySchedulesForMinute(sendMinute time.Time, sh
 
 func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subscription *gcalbot.AggregatedDailyScheduleSubscription) {
 	userSendMinute := sendMinute.In(subscription.Timezone)
-	dayStart := time.Date(sendMinute.Year(), sendMinute.Month(), sendMinute.Day(), 0, 0, 0, 0, subscription.Timezone)
-	notificationDuration := sendMinute.Sub(dayStart).Round(time.Minute)
-	if notificationDuration.Minutes() != subscription.NotificationDuration.Minutes() {
+	minutesSinceMidnight := float64(userSendMinute.Hour()*60 + userSendMinute.Minute())
+
+	// if the duration minutes are more than 5 minutes apart, return
+	if math.Abs(minutesSinceMidnight-subscription.NotificationDuration.Minutes()) > 5 {
 		return
 	}
 
@@ -89,15 +95,19 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		}
 	}
 
+	s.stats.Count("SendDailyScheduleMessage")
+	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
+
 	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth)
 	if err != nil {
 		s.Errorf(err.Error())
 		return
 	}
 
-	minTime := dayStart
+	var minTime time.Time
 	switch subscription.ScheduleToSend {
 	case gcalbot.ScheduleToSendToday:
+		minTime = time.Date(userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day(), 0, 0, 0, 0, subscription.Timezone)
 	case gcalbot.ScheduleToSendTomorrow:
 		minTime = time.Date(userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day()+1, 0, 0, 0, 0, subscription.Timezone)
 	}
@@ -135,24 +145,31 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		}
 	}
 
-	// TODO(marcel): better calendar listing
+	message := `Here is what's happening %s, *%s*
+Account: %s
+Calendars: %s
+%s
+%s`
+
+	date := minTime.Format("Monday, January 2")
+
 	calendarList := strings.Join(calendarSummaries, ", ")
+
+	link := fmt.Sprintf("https://calendar.google.com/calendar/r/day/%d/%d/%d",
+		userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day())
+
+	var formattedSchedule string
 	if len(events) == 0 {
-		s.ChatEcho(subscription.KeybaseConvID, "You have no events for the calendar(s) %s in account '%s' for %s.",
-			calendarList, subscription.Account.AccountNickname, subscription.ScheduleToSend)
+		formattedSchedule = "> You have no events today :sunny:"
 	} else {
-		formattedSchedule, err := gcalbot.FormatEventSchedule(events, subscription.Timezone, format24HourTime)
+		formattedSchedule, err = gcalbot.FormatEventSchedule(events, subscription.Timezone, format24HourTime)
 		if err != nil {
 			s.Errorf("unable to format schedule: %s", err)
 			return
 		}
-		link := fmt.Sprintf("https://calendar.google.com/calendar/r/day/%d/%d/%d", userSendMinute.Year(), userSendMinute.Month(), userSendMinute.Day())
-		message := `%s for account '%s' - %s
-Calendars: %s
-%s
-%s`
-		s.ChatEcho(subscription.KeybaseConvID, message,
-			strings.Title(string(subscription.ScheduleToSend)), subscription.Account.AccountNickname,
-			userSendMinute.Format("Monday, January 2"), calendarList, link, formattedSchedule)
 	}
+
+	s.ChatEcho(subscription.KeybaseConvID, message,
+		subscription.ScheduleToSend, date, subscription.Account.AccountNickname, calendarList,
+		formattedSchedule, link)
 }
