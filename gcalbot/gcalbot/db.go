@@ -11,12 +11,17 @@ import (
 )
 
 type DB struct {
-	*base.GoogleOAuthDB
+	*base.DB
+	*base.DebugOutput
 }
 
-func NewDB(db *sql.DB) *DB {
+func NewDB(
+	db *sql.DB,
+	debugConfig *base.ChatDebugOutputConfig,
+) *DB {
 	return &DB{
-		GoogleOAuthDB: base.NewGoogleOAuthDB(db),
+		DB:          base.NewDB(db),
+		DebugOutput: base.NewDebugOutput("DB", debugConfig),
 	}
 }
 
@@ -541,7 +546,8 @@ func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSen
 		pair.CalendarIDs = strings.Split(concatCalendarIDs, ",")
 		pair.Timezone, err = time.LoadLocation(timezone)
 		if err != nil {
-			return nil, err
+			d.Errorf("couldn't parse timezone %s: %s", timezone, err)
+			continue
 		}
 		pair.NotificationDuration = GetDurationFromMinutes(notificationDuration)
 		pair.Account.Token.Expiry = time.Unix(tokenExpiry, 0)

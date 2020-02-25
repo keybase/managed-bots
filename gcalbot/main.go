@@ -190,13 +190,6 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
-	sdb, err := sql.Open("mysql", s.opts.DSN)
-	if err != nil {
-		s.Errorf("failed to connect to MySQL: %s", err)
-		return err
-	}
-	defer sdb.Close()
-	db := gcalbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Errorf("advertise error: %s", err)
 		return err
@@ -211,6 +204,15 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("unable to create stats", err)
 		return err
 	}
+
+	sdb, err := sql.Open("mysql", s.opts.DSN)
+	if err != nil {
+		s.Errorf("failed to connect to MySQL: %s", err)
+		return err
+	}
+	defer sdb.Close()
+	db := gcalbot.NewDB(sdb, debugConfig)
+
 	stats = stats.SetPrefix(s.Name())
 	renewScheduler := gcalbot.NewRenewChannelScheduler(stats, debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(stats, debugConfig, db, config)
