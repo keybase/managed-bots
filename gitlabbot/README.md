@@ -30,6 +30,12 @@ In order to run the GitLab bot, you will need
   ```
   keybase chat clear-commands
   ```
+- Restricted bots are restricted from knowing channel names. If you would like
+  a bot to announce or report errors to a specific channel you can use a
+  `ConversationID` which can be found by running:
+  ```
+  keybase chat conv-info teamname --channel channel
+  ```
 - You can optionally save your bot secret inside your bot account's private KBFS folder. To do this, create a `credentials.json` file in `/keybase/private/<YourGitLabBot>` (or the equivalent KBFS path on your system) that matches the following format:
   ```json
   {
