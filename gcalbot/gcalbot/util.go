@@ -143,6 +143,23 @@ func GetMinutesFromDuration(duration time.Duration) int {
 	return int(duration.Minutes())
 }
 
+const MySQLTimeFormat = "15:04:05"
+
+func GetTimeStringFromDuration(duration time.Duration) string {
+	return time.Time{}.Add(duration).Format(MySQLTimeFormat)
+}
+
+func GetDurationFromTimeString(timeString string) (time.Duration, error) {
+	dateTime, err := time.Parse(MySQLTimeFormat, timeString)
+	if err != nil {
+		return 0, err
+	}
+	hours := time.Duration(dateTime.Hour()) * time.Hour
+	minutes := time.Duration(dateTime.Minute()) * time.Minute
+	seconds := time.Duration(dateTime.Second()) * time.Second
+	return hours + minutes + seconds, nil
+}
+
 func GetDurationFromMinutes(minutes int) time.Duration {
 	return time.Duration(minutes) * time.Minute
 }

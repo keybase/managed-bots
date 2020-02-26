@@ -84,10 +84,9 @@ CREATE TABLE `daily_schedule_subscription` (
     `timezone` varchar(128) NOT NULL,               -- timezone that this subscription should respect
     `days_to_send` ENUM ('everyday', 'monday through friday', 'sunday through thursday'), -- days of the week to send notifications
     `schedule_to_send` ENUM ('today', 'tomorrow'),  -- schedule to send
-    `notification_duration` int(11) NOT NULL,       -- minutes after beginning of UTC day before notification should be sent
+    `notification_time` time NOT NULL,              -- time of day in `timezone` when notification should be sent
     PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `keybase_conv_id`),
     FOREIGN KEY (`keybase_username`, `account_nickname`)
         REFERENCES account(`keybase_username`, `account_nickname`)
-        ON DELETE CASCADE,
-    INDEX (`notification_duration`)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

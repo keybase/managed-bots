@@ -77,7 +77,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	minutesSinceMidnight := float64(userSendMinute.Hour()*60 + userSendMinute.Minute())
 
 	// if the duration minutes are more than 5 minutes apart, return
-	if math.Abs(minutesSinceMidnight-subscription.NotificationDuration.Minutes()) > 5 {
+	if math.Abs(minutesSinceMidnight-subscription.NotificationTime.Minutes()) > 5 {
 		return
 	}
 

@@ -149,7 +149,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		dsTimeMinutes, err = strconv.Atoi(dsTimeInput)
 		if err != nil {
 			return
-		} else if dsTimeMinutes < 0 || dsTimeMinutes > 23*60 || dsTimeMinutes%30 != 0 {
+		} else if dsTimeMinutes < 0 || dsTimeMinutes > 23*60+30 || dsTimeMinutes%30 != 0 {
 			err = fmt.Errorf("dsTimeInput out of range: %s", dsTimeInput)
 			return
 		}
@@ -269,7 +269,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		page.DSEnabled = true
 		page.DSDays = dsSubscription.DaysToSend
 		page.DSSchedule = dsSubscription.ScheduleToSend
-		page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationDuration))
+		page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationTime))
 		page.DSTimezone = dsSubscription.Timezone.String()
 	}
 
@@ -325,12 +325,12 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			err = h.db.InsertDailyScheduleSubscription(selectedAccount, DailyScheduleSubscription{
-				CalendarID:           calendarID,
-				KeybaseConvID:        keybaseConvID,
-				Timezone:             timezone,
-				DaysToSend:           dsDays,
-				ScheduleToSend:       dsSchedule,
-				NotificationDuration: dsTime,
+				CalendarID:       calendarID,
+				KeybaseConvID:    keybaseConvID,
+				Timezone:         timezone,
+				DaysToSend:       dsDays,
+				ScheduleToSend:   dsSchedule,
+				NotificationTime: dsTime,
 			})
 			if err != nil {
 				return

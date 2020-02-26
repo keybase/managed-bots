@@ -86,20 +86,20 @@ const (
 )
 
 type DailyScheduleSubscription struct {
-	CalendarID           string
-	KeybaseConvID        chat1.ConvIDStr
-	Timezone             *time.Location
-	DaysToSend           DaysToSendType
-	ScheduleToSend       ScheduleToSendType
-	NotificationDuration time.Duration
+	CalendarID       string
+	KeybaseConvID    chat1.ConvIDStr
+	Timezone         *time.Location
+	DaysToSend       DaysToSendType
+	ScheduleToSend   ScheduleToSendType
+	NotificationTime time.Duration
 }
 
 type AggregatedDailyScheduleSubscription struct {
-	CalendarIDs          []string
-	KeybaseConvID        chat1.ConvIDStr
-	Timezone             *time.Location
-	DaysToSend           DaysToSendType
-	ScheduleToSend       ScheduleToSendType
-	NotificationDuration time.Duration
-	Account              Account
+	CalendarIDs      []string
+	KeybaseConvID    chat1.ConvIDStr
+	Timezone         *time.Location
+	DaysToSend       DaysToSendType
+	ScheduleToSend   ScheduleToSendType
+	NotificationTime time.Duration
+	Account          Account
 }
