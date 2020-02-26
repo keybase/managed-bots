@@ -130,7 +130,7 @@ const tmplHeader = `<!DOCTYPE html>
 	  margin: auto;
 	}
 	.container {
-	  max-width: 750px;
+	  max-width: 850px;
 	  margin: auto;
 	  justify-content: center;
 	  align-items: flex-start;
