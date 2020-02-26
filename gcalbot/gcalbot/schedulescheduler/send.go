@@ -100,7 +100,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 
 	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth)
 	if err != nil {
-		s.Errorf(err.Error())
+		s.Errorf("unable to get calendar service: %s", err)
 		return
 	}
 
