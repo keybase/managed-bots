@@ -129,11 +129,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Stats.Count("webhook - success")
-		_, err = h.kbc.SendMessageByConvID(convID, message)
-		if err != nil {
-			h.Debug("Error sending message: %s", err)
-			return
-		}
+		h.ChatEcho(convID, message)
 	}
 }
 
