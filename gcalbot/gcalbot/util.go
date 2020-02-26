@@ -78,21 +78,8 @@ func FormatTimeRange(
 	var startTime string
 	var endTime string
 	if !isAllDay {
-		if format24HourTime {
-			startTime = start.Format("15:04")
-			endTime = end.Format("15:04")
-		} else {
-			if start.Minute() == 0 {
-				startTime = start.Format("3pm")
-			} else {
-				startTime = start.Format("3:04pm")
-			}
-			if end.Minute() == 0 {
-				endTime = end.Format("3pm")
-			} else {
-				endTime = end.Format("3:04pm")
-			}
-		}
+		startTime = FormatTime(start, format24HourTime, false)
+		endTime = FormatTime(end, format24HourTime, false)
 	}
 
 	if startYear == endYear && startMonth == endMonth && startDay == endDay {
@@ -121,6 +108,16 @@ func FormatTimeRange(
 				start.Format("MST")), nil
 		}
 	}
+}
+
+func FormatTime(dateTime time.Time, format24HourTime, trailingZeroes bool) string {
+	if format24HourTime {
+		return dateTime.Format("15:04")
+	}
+	if dateTime.Minute() == 0 && !trailingZeroes {
+		return dateTime.Format("3pm")
+	}
+	return dateTime.Format("3:04pm")
 }
 
 func GetUserTimezone(srv *calendar.Service) (timezone *time.Location, err error) {

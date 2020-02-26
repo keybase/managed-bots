@@ -106,13 +106,13 @@ func FormatEventSchedule(
 	timezone *time.Location,
 	format24HourTime bool,
 ) (schedule string, err error) {
-	// don't know the length of the array since we skip all-day events
-	sort.Slice(events, func(i, j int) bool {
-		startLeft, _, _, _ := ParseTime(events[i].Start, events[i].End)
-		startRight, _, _, _ := ParseTime(events[j].Start, events[j].End)
-		return startLeft.Before(startRight)
-	})
-	var formattedEvents []string
+	type eventItem struct {
+		start   time.Time
+		end     time.Time
+		summary string
+	}
+	var eventItems []eventItem
+
 	for _, event := range events {
 		start, end, isAllDay, err := ParseTime(event.Start, event.End)
 		if err != nil {
@@ -125,13 +125,24 @@ func FormatEventSchedule(
 		start = start.In(timezone)
 		end = end.In(timezone)
 
-		if format24HourTime {
-			formattedEvents = append(formattedEvents, fmt.Sprintf("> %s - %s *%s*",
-				start.Format("15:04"), end.Format("15:04"), event.Summary))
-		} else {
-			formattedEvents = append(formattedEvents, fmt.Sprintf("> %s - %s *%s*",
-				start.Format("3:04pm"), end.Format("3:04pm"), event.Summary))
-		}
+		eventItems = append(eventItems, eventItem{
+			start:   start,
+			end:     end,
+			summary: event.Summary,
+		})
 	}
+
+	sort.Slice(eventItems, func(i, j int) bool {
+		return eventItems[i].start.Before(eventItems[j].start)
+	})
+
+	formattedEvents := make([]string, len(eventItems))
+	for index, item := range eventItems {
+		startTime := FormatTime(item.start, format24HourTime, true)
+		endTime := FormatTime(item.end, format24HourTime, true)
+		formattedEvents[index] = fmt.Sprintf("> %s - %s *%s*",
+			startTime, endTime, item.summary)
+	}
+
 	return strings.Join(formattedEvents, "\n"), nil
 }
