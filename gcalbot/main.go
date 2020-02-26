@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/keybase/managed-bots/gcalbot/gcalbot/schedulescheduler"
+
 	"github.com/keybase/managed-bots/gcalbot/gcalbot/reminderscheduler"
 
 	"golang.org/x/oauth2"
@@ -188,13 +190,6 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
-	sdb, err := sql.Open("mysql", s.opts.DSN)
-	if err != nil {
-		s.Errorf("failed to connect to MySQL: %s", err)
-		return err
-	}
-	defer sdb.Close()
-	db := gcalbot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Errorf("advertise error: %s", err)
 		return err
@@ -209,9 +204,19 @@ func (s *BotServer) Go() (err error) {
 		s.Debug("unable to create stats", err)
 		return err
 	}
+
+	sdb, err := sql.Open("mysql", s.opts.DSN)
+	if err != nil {
+		s.Errorf("failed to connect to MySQL: %s", err)
+		return err
+	}
+	defer sdb.Close()
+	db := gcalbot.NewDB(sdb, debugConfig)
+
 	stats = stats.SetPrefix(s.Name())
 	renewScheduler := gcalbot.NewRenewChannelScheduler(stats, debugConfig, db, config, s.opts.HTTPPrefix)
 	reminderScheduler := reminderscheduler.NewReminderScheduler(stats, debugConfig, db, config)
+	scheduleScheduler := schedulescheduler.NewScheduleScheduler(stats, debugConfig, db, config)
 	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, reminderScheduler, secret, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, config, reminderScheduler, handler)
 	eg := &errgroup.Group{}
@@ -219,7 +224,8 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, httpSrv.Listen)
 	s.GoWithRecover(eg, renewScheduler.Run)
 	s.GoWithRecover(eg, reminderScheduler.Run)
-	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler) })
+	s.GoWithRecover(eg, scheduleScheduler.Run)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler, scheduleScheduler) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
@@ -236,7 +242,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
-	fs.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "Login token secret")
+	fs.StringVar(&opts.LoginSecret, "login-secret", os.Getenv("BOT_LOGIN_SECRET"), "login token secret")
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of the bot's web server")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)

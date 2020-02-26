@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -98,4 +99,50 @@ func FormatEvent(
 
 	return fmt.Sprintf(message,
 		url, what, when, where, conferenceData, organizer, calendarSummary, description), nil
+}
+
+func FormatEventSchedule(
+	events []*calendar.Event,
+	timezone *time.Location,
+	format24HourTime bool,
+) (schedule string, err error) {
+	type eventItem struct {
+		start   time.Time
+		end     time.Time
+		summary string
+	}
+	var eventItems []eventItem
+
+	for _, event := range events {
+		start, end, isAllDay, err := ParseTime(event.Start, event.End)
+		if err != nil {
+			return "", err
+		}
+		if isAllDay {
+			// TODO(marcel): support all day events
+			continue
+		}
+		start = start.In(timezone)
+		end = end.In(timezone)
+
+		eventItems = append(eventItems, eventItem{
+			start:   start,
+			end:     end,
+			summary: event.Summary,
+		})
+	}
+
+	sort.Slice(eventItems, func(i, j int) bool {
+		return eventItems[i].start.Before(eventItems[j].start)
+	})
+
+	formattedEvents := make([]string, len(eventItems))
+	for index, item := range eventItems {
+		startTime := FormatTime(item.start, format24HourTime, true)
+		endTime := FormatTime(item.end, format24HourTime, true)
+		formattedEvents[index] = fmt.Sprintf("> %s - %s *%s*",
+			startTime, endTime, item.summary)
+	}
+
+	return strings.Join(formattedEvents, "\n"), nil
 }

@@ -356,6 +356,7 @@ func (r *RenewChannelScheduler) Run() error {
 	shutdownCh := r.shutdownCh
 	r.Unlock()
 	r.renewScheduler(shutdownCh)
+	r.Debug("shut down")
 	return nil
 }
 

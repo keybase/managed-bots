@@ -78,21 +78,8 @@ func FormatTimeRange(
 	var startTime string
 	var endTime string
 	if !isAllDay {
-		if format24HourTime {
-			startTime = start.Format("15:04")
-			endTime = end.Format("15:04")
-		} else {
-			if start.Minute() == 0 {
-				startTime = start.Format("3pm")
-			} else {
-				startTime = start.Format("3:04pm")
-			}
-			if end.Minute() == 0 {
-				endTime = end.Format("3pm")
-			} else {
-				endTime = end.Format("3:04pm")
-			}
-		}
+		startTime = FormatTime(start, format24HourTime, false)
+		endTime = FormatTime(end, format24HourTime, false)
 	}
 
 	if startYear == endYear && startMonth == endMonth && startDay == endDay {
@@ -123,6 +110,16 @@ func FormatTimeRange(
 	}
 }
 
+func FormatTime(dateTime time.Time, format24HourTime, trailingZeroes bool) string {
+	if format24HourTime {
+		return dateTime.Format("15:04")
+	}
+	if dateTime.Minute() == 0 && !trailingZeroes {
+		return dateTime.Format("3pm")
+	}
+	return dateTime.Format("3:04pm")
+}
+
 func GetUserTimezone(srv *calendar.Service) (timezone *time.Location, err error) {
 	timezoneSetting, err := srv.Settings.Get("timezone").Do()
 	if err != nil {
@@ -141,6 +138,23 @@ func GetUserFormat24HourTime(srv *calendar.Service) (format24HourTime bool, err 
 
 func GetMinutesFromDuration(duration time.Duration) int {
 	return int(duration.Minutes())
+}
+
+const MySQLTimeFormat = "15:04:05"
+
+func GetTimeStringFromDuration(duration time.Duration) string {
+	return time.Time{}.Add(duration).Format(MySQLTimeFormat)
+}
+
+func GetDurationFromTimeString(timeString string) (time.Duration, error) {
+	dateTime, err := time.Parse(MySQLTimeFormat, timeString)
+	if err != nil {
+		return 0, err
+	}
+	hours := time.Duration(dateTime.Hour()) * time.Hour
+	minutes := time.Duration(dateTime.Minute()) * time.Minute
+	seconds := time.Duration(dateTime.Second()) * time.Second
+	return hours + minutes + seconds, nil
 }
 
 func GetDurationFromMinutes(minutes int) time.Duration {

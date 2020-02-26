@@ -10,7 +10,12 @@ func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
 	// sleep until the next minute so that the loop executes at the beginning of each minute
 	now := time.Now()
 	nextMinute := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, time.Local)
-	time.Sleep(nextMinute.Sub(now))
+
+	select {
+	case <-shutdownCh:
+		return nil
+	case <-time.After(nextMinute.Sub(now)):
+	}
 
 	ticker := time.NewTicker(time.Minute)
 	defer func() {

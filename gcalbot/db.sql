@@ -47,7 +47,7 @@ CREATE TABLE `subscription` (
     `keybase_username` varchar(128) NOT NULL,       -- kb username
     `account_nickname` varchar(128) NOT NULL,       -- nickname of google account for kb user
     `calendar_id` varchar(128) NOT NULL,            -- google calendar id that this subscription is for
-    `keybase_conv_id` char(64) NOT NULL,        -- channel that is subscribed to notifications
+    `keybase_conv_id` char(64) NOT NULL,            -- channel that is subscribed to notifications
     `minutes_before` int(11) NOT NULL DEFAULT 0,    -- minutes until event that a notification should be sent (for reminder)
     `type` ENUM ('invite', 'reminder'),             -- type of subscription
     PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `keybase_conv_id`, `minutes_before`, `type`),
@@ -72,4 +72,21 @@ CREATE TABLE `invite` (
         REFERENCES account(`keybase_username`, `account_nickname`)
         ON DELETE CASCADE
     -- no foreign key to subscription, want to keep invites after unsubscribe so that users can still react to invites
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `daily_schedule_subscription`;
+
+CREATE TABLE `daily_schedule_subscription` (
+    `keybase_username` varchar(128) NOT NULL,       -- kb username
+    `account_nickname` varchar(128) NOT NULL,       -- nickname of google account for kb user
+    `calendar_id` varchar(128) NOT NULL,            -- google calendar id that this subscription is for
+    `keybase_conv_id` char(64) NOT NULL,            -- channel that is subscribed to notifications
+    `timezone` varchar(128) NOT NULL,               -- timezone that this subscription should respect
+    `days_to_send` ENUM ('everyday', 'monday through friday', 'sunday through thursday'), -- days of the week to send notifications
+    `schedule_to_send` ENUM ('today', 'tomorrow'),  -- schedule to send
+    `notification_time` time NOT NULL,              -- time of day in `timezone` when notification should be sent
+    PRIMARY KEY (`keybase_username`, `account_nickname`, `calendar_id`, `keybase_conv_id`),
+    FOREIGN KEY (`keybase_username`, `account_nickname`)
+        REFERENCES account(`keybase_username`, `account_nickname`)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

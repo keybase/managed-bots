@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -10,12 +11,17 @@ import (
 )
 
 type DB struct {
-	*base.GoogleOAuthDB
+	*base.DB
+	*base.DebugOutput
 }
 
-func NewDB(db *sql.DB) *DB {
+func NewDB(
+	db *sql.DB,
+	debugConfig *base.ChatDebugOutputConfig,
+) *DB {
 	return &DB{
-		GoogleOAuthDB: base.NewGoogleOAuthDB(db),
+		DB:          base.NewDB(db),
+		DebugOutput: base.NewDebugOutput("DB", debugConfig),
 	}
 }
 
@@ -490,4 +496,109 @@ func (d *DB) GetInviteAndAccountByUserMessage(keybaseUsername string, messageID 
 	default:
 		return nil, nil, err
 	}
+}
+
+// Daily Schedule Subscription
+func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription DailyScheduleSubscription) error {
+	notificationTime := GetTimeStringFromDuration(subscription.NotificationTime)
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			INSERT INTO daily_schedule_subscription
+			(keybase_username, account_nickname, calendar_id, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_time)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			timezone=VALUES(timezone),
+			days_to_send=VALUES(days_to_send),
+			schedule_to_send=VALUES(schedule_to_send),
+			notification_time=VALUES(notification_time)
+		`, account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
+			subscription.Timezone.String(), subscription.DaysToSend, subscription.ScheduleToSend, notificationTime)
+		return err
+	})
+}
+
+func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSendType) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
+	row, err := d.DB.Query(`
+		SELECT
+			GROUP_CONCAT(calendar_id) as calendar_ids, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_time,
+			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+		FROM daily_schedule_subscription
+		JOIN account USING(keybase_username, account_nickname)
+		WHERE schedule_to_send = ?
+		GROUP BY keybase_username, account_nickname, keybase_conv_id
+	`, scheduleToSend)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+	for row.Next() {
+		var pair AggregatedDailyScheduleSubscription
+		var concatCalendarIDs string
+		var timezone string
+		var notificationTime string
+		var tokenExpiry int64
+		err = row.Scan(&concatCalendarIDs, &pair.KeybaseConvID, &timezone, &pair.DaysToSend, &pair.ScheduleToSend, &notificationTime,
+			&pair.Account.KeybaseUsername, &pair.Account.AccountNickname, &pair.Account.Token.AccessToken, &pair.Account.Token.TokenType,
+			&pair.Account.Token.RefreshToken, &tokenExpiry)
+		if err != nil {
+			return nil, err
+		}
+		pair.CalendarIDs = strings.Split(concatCalendarIDs, ",")
+		pair.Timezone, err = time.LoadLocation(timezone)
+		if err != nil {
+			d.Errorf("couldn't parse timezone %s: %s", timezone, err)
+			continue
+		}
+		pair.NotificationTime, err = GetDurationFromTimeString(notificationTime)
+		if err != nil {
+			d.Errorf("couldn't parse time %s: %s", notificationTime, err)
+			continue
+		}
+		pair.Account.Token.Expiry = time.Unix(tokenExpiry, 0)
+		subscriptions = append(subscriptions, &pair)
+	}
+	return subscriptions, nil
+}
+
+func (d *DB) GetDailyScheduleSubscription(
+	account *Account,
+	calendarID string,
+	keybaseConvID chat1.ConvIDStr,
+) (subscription *DailyScheduleSubscription, exists bool, err error) {
+	subscription = &DailyScheduleSubscription{}
+	var timezone string
+	var notificationTime string
+	row := d.DB.QueryRow(`
+		SELECT calendar_id, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_time
+		FROM daily_schedule_subscription
+		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
+	`, account.KeybaseUsername, account.AccountNickname, calendarID, keybaseConvID)
+	err = row.Scan(&subscription.CalendarID, &subscription.KeybaseConvID, &timezone, &subscription.DaysToSend,
+		&subscription.ScheduleToSend, &notificationTime)
+	switch err {
+	case nil:
+		subscription.Timezone, err = time.LoadLocation(timezone)
+		if err != nil {
+			return nil, false, err
+		}
+		subscription.NotificationTime, err = GetDurationFromTimeString(notificationTime)
+		if err != nil {
+			return nil, false, err
+		}
+		return subscription, true, nil
+	case sql.ErrNoRows:
+		return nil, false, nil
+	default:
+		return nil, false, err
+	}
+}
+
+func (d *DB) DeleteDailyScheduleSubscription(account *Account, calendarID string, keybaseConvID chat1.ConvIDStr) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`
+			DELETE FROM daily_schedule_subscription
+			WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
+		`, account.KeybaseUsername, account.AccountNickname, calendarID, keybaseConvID)
+		return err
+	})
 }

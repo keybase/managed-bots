@@ -69,3 +69,37 @@ type ReminderScheduler interface {
 	AddSubscription(account *Account, subscription Subscription)
 	RemoveSubscription(account *Account, subscription Subscription)
 }
+
+type DaysToSendType string
+
+const (
+	DaysToSendEveryday DaysToSendType = "everyday"
+	DaysToSendMonToFri DaysToSendType = "monday through friday"
+	DaysToSendSatToThu DaysToSendType = "sunday through thursday"
+)
+
+type ScheduleToSendType string
+
+const (
+	ScheduleToSendToday    ScheduleToSendType = "today"
+	ScheduleToSendTomorrow ScheduleToSendType = "tomorrow"
+)
+
+type DailyScheduleSubscription struct {
+	CalendarID       string
+	KeybaseConvID    chat1.ConvIDStr
+	Timezone         *time.Location
+	DaysToSend       DaysToSendType
+	ScheduleToSend   ScheduleToSendType
+	NotificationTime time.Duration
+}
+
+type AggregatedDailyScheduleSubscription struct {
+	CalendarIDs      []string
+	KeybaseConvID    chat1.ConvIDStr
+	Timezone         *time.Location
+	DaysToSend       DaysToSendType
+	ScheduleToSend   ScheduleToSendType
+	NotificationTime time.Duration
+	Account          Account
+}
