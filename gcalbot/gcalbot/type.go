@@ -75,7 +75,7 @@ type DaysToSendType string
 const (
 	DaysToSendEveryday DaysToSendType = "everyday"
 	DaysToSendMonToFri DaysToSendType = "monday through friday"
-	DaysToSendSatToThu DaysToSendType = "sunday through thursday"
+	DaysToSendSunToThu DaysToSendType = "sunday through thursday"
 )
 
 type ScheduleToSendType string
