@@ -70,8 +70,8 @@ var reminderOptions = []ReminderType{
 
 var dsDaysOptions = []DSDaysOption{
 	{"Everyday", DaysToSendEveryday},
-	{"Monday to Friday", DaysToSendMonToFri},
-	{"Saturday to Thursday", DaysToSendSatToThu},
+	{"Monday through Friday", DaysToSendMonToFri},
+	{"Sunday through Thursday", DaysToSendSunToThu},
 }
 
 var dsScheduleOptions = []DSScheduleOption{
