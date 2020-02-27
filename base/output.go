@@ -2,6 +2,7 @@ package base
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -74,6 +75,10 @@ func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...int
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
+		if strings.HasPrefix(err.Error(), "no conversations matched") {
+			d.Debug("ChatEcho: failed to send echo message: %s", err)
+			return
+		}
 		d.Errorf("ChatEcho: failed to send echo message: %s", err)
 	}
 }
