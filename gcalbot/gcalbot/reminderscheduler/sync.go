@@ -153,12 +153,14 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 			}
 		}
 
+		reminderMessage.EventSummary = event.Summary
 		reminderMessage.MsgContent = eventMsgContent
 	} else {
 		// create the event
 		r.stats.Count("UpdateOrCreateReminderEvent - create")
 		reminderMessage = &ReminderMessage{
 			EventID:         event.Id,
+			EventSummary:    event.Summary,
 			KeybaseUsername: account.KeybaseUsername,
 			AccountNickname: account.AccountNickname,
 			CalendarID:      subscription.CalendarID,

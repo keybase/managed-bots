@@ -14,7 +14,8 @@ type ReminderTimestamp string
 type ReminderMessage struct {
 	sync.Mutex
 
-	EventID string
+	EventID      string
+	EventSummary string
 
 	KeybaseUsername string
 	AccountNickname string

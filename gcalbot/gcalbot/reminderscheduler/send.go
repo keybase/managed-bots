@@ -1,6 +1,7 @@
 package reminderscheduler
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
@@ -41,11 +42,17 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 			msgTimestamp := getReminderTimestamp(msg.StartTime, duration)
 			if msgTimestamp == timestamp {
 				minutesBefore := gcalbot.GetMinutesFromDuration(duration)
-				if minutesBefore == 0 {
-					r.ChatEcho(msg.KeybaseConvID, "An event is starting now: %s", msg.MsgContent)
+				var eventSummary string
+				if msg.EventSummary != "" {
+					eventSummary = fmt.Sprintf(`"%s"`, msg.EventSummary)
 				} else {
-					r.ChatEcho(msg.KeybaseConvID, "An event is starting in %s: %s",
-						gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
+					eventSummary = "An event"
+				}
+				if minutesBefore == 0 {
+					r.ChatEcho(msg.KeybaseConvID, "%s is starting now: %s", eventSummary, msg.MsgContent)
+				} else {
+					r.ChatEcho(msg.KeybaseConvID, "%s is starting in %s: %s",
+						eventSummary, gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
 				}
 				delete(msg.MinuteReminders, duration)
 				r.stats.Count("sendReminders - reminder")
