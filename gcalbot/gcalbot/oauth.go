@@ -61,11 +61,12 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.db.InsertAccount(Account{
+	account := Account{
 		KeybaseUsername: req.KeybaseUsername,
 		AccountNickname: req.AccountNickname,
 		Token:           *token,
-	})
+	}
+	err = h.db.InsertAccount(account)
 	if err != nil {
 		return
 	}
@@ -74,6 +75,35 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loginToken := h.handler.LoginToken(req.KeybaseUsername)
+
+	srv, err := GetCalendarService(&account, h.oauth)
+	if err != nil {
+		return
+	}
+
+	primaryCalendar, err := srv.Calendars.Get("primary").Do()
+	if err != nil {
+		return
+	}
+
+	// create default subscription to invites & 5 minute reminder for primary calendar
+	_, err = h.handler.createSubscription(&account, Subscription{
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: req.KeybaseConvID,
+		Type:          SubscriptionTypeInvite,
+	})
+	if err != nil {
+		return
+	}
+	_, err = h.handler.createSubscription(&account, Subscription{
+		CalendarID:     primaryCalendar.Id,
+		KeybaseConvID:  req.KeybaseConvID,
+		DurationBefore: GetDurationFromMinutes(5),
+		Type:           SubscriptionTypeReminder,
+	})
+	if err != nil {
+		return
+	}
 
 	redirectQuery := url.Values{}
 	redirectQuery.Add("token", loginToken)
