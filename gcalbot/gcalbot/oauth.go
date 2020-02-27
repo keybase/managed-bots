@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"google.golang.org/api/calendar/v3"
+
 	"github.com/keybase/managed-bots/base"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -61,16 +63,55 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.db.InsertAccount(Account{
+	account := Account{
 		KeybaseUsername: req.KeybaseUsername,
 		AccountNickname: req.AccountNickname,
 		Token:           *token,
-	})
+	}
+	err = h.db.InsertAccount(account)
 	if err != nil {
 		return
 	}
 	if err = h.db.CompleteState(state); err != nil {
 		return
+	}
+
+	conv, err := h.kbc.GetConversation(req.KeybaseConvID)
+	if err != nil {
+		return
+	}
+
+	// if account was created in a 1on1 conv, create default subscription to invites & 5 minute reminder for primary calendar
+	if base.IsDirectPrivateMessage(h.kbc.GetUsername(), req.KeybaseUsername, conv.Channel) {
+		var srv *calendar.Service
+		srv, err = GetCalendarService(&account, h.oauth)
+		if err != nil {
+			return
+		}
+
+		var primaryCalendar *calendar.Calendar
+		primaryCalendar, err = srv.Calendars.Get("primary").Do()
+		if err != nil {
+			return
+		}
+
+		_, err = h.handler.createSubscription(&account, Subscription{
+			CalendarID:    primaryCalendar.Id,
+			KeybaseConvID: req.KeybaseConvID,
+			Type:          SubscriptionTypeInvite,
+		})
+		if err != nil {
+			return
+		}
+		_, err = h.handler.createSubscription(&account, Subscription{
+			CalendarID:     primaryCalendar.Id,
+			KeybaseConvID:  req.KeybaseConvID,
+			DurationBefore: GetDurationFromMinutes(5),
+			Type:           SubscriptionTypeReminder,
+		})
+		if err != nil {
+			return
+		}
 	}
 
 	loginToken := h.handler.LoginToken(req.KeybaseUsername)
