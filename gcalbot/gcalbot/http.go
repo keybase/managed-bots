@@ -286,7 +286,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			// sane defaults
 			page.DSDays = DaysToSendEveryday
 			page.DSSchedule = ScheduleToSendToday
-			page.DSTime = "450" // 7:30am is a sane default
+			page.DSTime = "600" // 10:00am is a sane default
 
 			var timezone *time.Location
 			timezone, err = GetUserTimezone(srv)
