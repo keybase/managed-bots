@@ -24,14 +24,14 @@ func FormatEvent(
 	format24HourTime bool,
 ) (string, error) {
 	message := `%s
-> What: *%s*
 > When: %s%s%s%s
-> Calendar: %s%s`
+> Calendar: %s%s
+%s`
 
-	// strip protocol to skip unfurl prompt
-	url := strings.TrimPrefix(event.HtmlLink, "https://")
-
-	what := event.Summary
+	var what string
+	if event.Summary != "" {
+		what = fmt.Sprintf("\n> What: *%s*", event.Summary)
+	}
 
 	// TODO(marcel): better date formatting for recurring events
 	when, err := FormatTimeRange(event.Start, event.End, timezone, format24HourTime)
@@ -97,8 +97,11 @@ func FormatEvent(
 		}
 	}
 
+	// strip protocol to skip unfurl prompt
+	url := strings.TrimPrefix(event.HtmlLink, "https://")
+
 	return fmt.Sprintf(message,
-		url, what, when, where, conferenceData, organizer, calendarSummary, description), nil
+		what, when, where, conferenceData, organizer, calendarSummary, description, url), nil
 }
 
 func FormatEventSchedule(
