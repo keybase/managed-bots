@@ -28,36 +28,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 				return
 			default:
 			}
-
-			srv, err := gcalbot.GetCalendarService(&pair.Account, r.oauth)
-			if err != nil {
-				r.Errorf(err.Error())
-				continue
-			}
-
-			// sync 3 hours of events
-			minTime := time.Now().UTC()
-			maxTime := minTime.Add(3 * time.Hour)
-			var events []*calendar.Event
-			err = srv.Events.
-				List(pair.Subscription.CalendarID).
-				TimeMin(minTime.Format(time.RFC3339)).
-				TimeMax(maxTime.Format(time.RFC3339)).
-				SingleEvents(true).
-				Pages(context.Background(), func(page *calendar.Events) error {
-					events = append(events, page.Items...)
-					return nil
-				})
-			if err != nil {
-				r.Errorf("error getting events from API: %s", err)
-				continue
-			}
-			for _, event := range events {
-				err = r.UpdateOrCreateReminderEvent(&pair.Account, &pair.Subscription, event)
-				if err != nil {
-					r.Errorf("error updating or creating reminder event: %s", err)
-				}
-			}
+			r.syncEvents(&pair.Account, &pair.Subscription)
 		}
 		r.stats.Value("eventSyncLoop - duration - seconds", time.Since(syncMinute).Seconds())
 	}
@@ -69,6 +40,38 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 			return nil
 		case syncMinute := <-ticker.C:
 			eventSync(syncMinute)
+		}
+	}
+}
+
+func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *gcalbot.Subscription) {
+	srv, err := gcalbot.GetCalendarService(account, r.oauth)
+	if err != nil {
+		r.Errorf("error getting calendar service: %s", err)
+		return
+	}
+
+	// sync 3 hours of events
+	minTime := time.Now().UTC()
+	maxTime := minTime.Add(3 * time.Hour)
+	var events []*calendar.Event
+	err = srv.Events.
+		List(subscription.CalendarID).
+		TimeMin(minTime.Format(time.RFC3339)).
+		TimeMax(maxTime.Format(time.RFC3339)).
+		SingleEvents(true).
+		Pages(context.Background(), func(page *calendar.Events) error {
+			events = append(events, page.Items...)
+			return nil
+		})
+	if err != nil {
+		r.Errorf("error getting events from API: %s", err)
+		return
+	}
+	for _, event := range events {
+		err = r.UpdateOrCreateReminderEvent(account, subscription, event)
+		if err != nil {
+			r.Errorf("error updating or creating reminder event: %s", err)
 		}
 	}
 }
@@ -203,7 +206,11 @@ func (r *ReminderScheduler) removeEventByID(eventID string) {
 }
 
 func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscription gcalbot.Subscription) {
+	if subscription.Type != gcalbot.SubscriptionTypeReminder {
+		return
+	}
 	r.stats.Count("AddSubscription")
+
 	r.subscriptionReminders.ForEachReminderMessageInSubscription(
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
 		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
@@ -213,9 +220,15 @@ func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscripti
 				getReminderTimestamp(msg.StartTime, subscription.DurationBefore))
 			r.minuteReminders.AddReminderMessageToMinute(subscription.DurationBefore, msg)
 		})
+
+	// do a background sync when a new subscription is added
+	go r.syncEvents(account, &subscription)
 }
 
 func (r *ReminderScheduler) RemoveSubscription(account *gcalbot.Account, subscription gcalbot.Subscription) {
+	if subscription.Type != gcalbot.SubscriptionTypeReminder {
+		return
+	}
 	r.stats.Count("RemoveSubscription")
 	r.subscriptionReminders.ForEachReminderMessageInSubscription(
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
