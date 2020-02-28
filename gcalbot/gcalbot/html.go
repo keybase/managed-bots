@@ -357,8 +357,7 @@ const tmplConfig = `{{template "header" .}}
 		<div class="row">
 		<input type="submit" value="Save" class="save-button"
 			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';
-					 if(document.getElementById('save-success')) { document.getElementById('save-success').style.display='none' };"
-			{{if .PushNotAllowed}} disabled {{end}}>
+					 if(document.getElementById('save-success')) { document.getElementById('save-success').style.display='none' };">
 		{{if .Updated}}<span id="save-success" class="save-status">Saved!</span>{{end}}
 		{{if .PushNotAllowed}}<span id="save-error" class="save-status">Push notifications are not supported for this calendar</span>{{end}}
 		</div>
