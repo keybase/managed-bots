@@ -75,6 +75,7 @@ func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...int
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
+		// error created in client/go/client/chat_svc_handler.go:1407
 		if strings.HasPrefix(err.Error(), "no conversations matched") {
 			d.Debug("ChatEcho: failed to send echo message: %s", err)
 			return
