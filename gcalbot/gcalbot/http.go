@@ -313,6 +313,24 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	if calendarID == previousCalendarID {
 		h.Stats.Count("config - update")
 
+		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
+			// this update must open a new webhook channel, do that now and if it errors, fail early
+			err = h.handler.createEventChannel(selectedAccount, calendarID)
+			switch typedErr := err.(type) {
+			case nil:
+			case *googleapi.Error:
+				if len(typedErr.Errors) == 1 && typedErr.Errors[0].Reason == "pushNotSupportedForRequestedResource" {
+					page.PushNotAllowed = true
+					h.servePage(w, "config", page)
+					err = nil // clear error
+					return
+				}
+				return
+			default:
+				return
+			}
+		}
+
 		if dsEnabled {
 			var timezone *time.Location
 			if dsSubExists {
@@ -344,25 +362,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSEnabled = false
 			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
 			if err != nil {
-				return
-			}
-		}
-
-		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
-			// this update must open a new webhook channel, do that now and if it errors, fail early
-			err = h.handler.createEventChannel(selectedAccount, calendarID)
-			if err != nil {
-				switch typedErr := err.(type) {
-				case *googleapi.Error:
-					for _, errorItem := range typedErr.Errors {
-						if errorItem.Reason == "pushNotSupportedForRequestedResource" {
-							page.PushNotAllowed = true
-							h.servePage(w, "config", page)
-							err = nil // clear error
-							return
-						}
-					}
-				}
 				return
 			}
 		}
