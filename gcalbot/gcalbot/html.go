@@ -293,7 +293,8 @@ const tmplAccountHelp = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title string
+	Title    string
+	CaretSVG template.HTML
 
 	ConvID        chat1.ConvIDStr
 	ConvHelpText  string
@@ -365,11 +366,7 @@ const tmplConfig = `{{template "header" .}}
 				<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -381,11 +378,7 @@ const tmplConfig = `{{template "header" .}}
 					<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -399,11 +392,7 @@ const tmplConfig = `{{template "header" .}}
 					<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Title 40}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -429,11 +418,7 @@ const tmplConfig = `{{template "header" .}}
 					<option value="{{.Days}}" {{if eq .Days $.DSDays}} selected {{end}}>{{.Title}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -445,11 +430,7 @@ const tmplConfig = `{{template "header" .}}
 					<option value="{{.Schedule}}" {{if eq .Schedule $.DSSchedule}} selected {{end}}>{{.Title}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -461,11 +442,7 @@ const tmplConfig = `{{template "header" .}}
 					<option value="{{.Minute}}" {{if eq .Minute $.DSTime}} selected {{end}}>{{.Title}}</option>
 				{{end}}
 			</select>
-			<div class="caret">
-				<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8">
-					<path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/>
-				</svg>
-			</div>
+			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
 
@@ -486,6 +463,8 @@ const tmplConfig = `{{template "header" .}}
 	</form>
   </div>
 {{template "footer" .}}`
+
+var caretSVG = template.HTML(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/></svg>`)
 
 var templates = template.Must(template.Must(template.Must(template.Must(template.Must(template.Must(template.
 	New("header").Parse(tmplHeader)).
