@@ -185,44 +185,6 @@ const tmplHeader = `<!DOCTYPE html>
 		// blueDark
 		fill: #3663EA;
 	}
-
-	//.checkbox-container {
-	//	height: 13px;
-    // 	width: 13px;
-	//
-	//	user-select: none;
-	//	-moz-user-select: none;
-	//	-webkit-user-select: none;
-	//	-o-user-select: none;
-	//	-ms-user-select: none;
-	//}
-	//
-	//.checkbox-container input {
-	//	appearance: none;
-	//	-moz-appearance: none;
-	//	-webkit-appearance: none;
-	//
-	//	height: 100%;
-	//	width: 100%;
-	//
-	//	background-color: rgb(255, 255, 255);
-	//	border-color: rgba(0, 0, 0, 0.2);
-	//	border-radius: 2px;
-	//	border-style: solid;
-	//	border-width: 1px;
-	//}
-	//
-	//.checkbox-container input:focus {
-	//	outline: 0;
-	//}
-	//
-	//.checkbox-container input:checked {
-	//	background-color: rgb(76, 142, 255);
-	//	border-color: rgb(76, 142, 255);
-	//	border-radius: 2px;
-	//	border-style: solid;
-	//	border-width: 1px;
-	//}
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
