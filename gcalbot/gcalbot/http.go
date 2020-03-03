@@ -170,6 +170,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 	page := ConfigPage{
 		Title:             "gcalbot | config",
+		CaretSVG:          caretSVG,
 		ConvID:            keybaseConvID,
 		ConvHelpText:      GetConvHelpText(keybaseConv.Channel, isPrivate, false),
 		ConvIsPrivate:     isPrivate,

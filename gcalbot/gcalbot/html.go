@@ -30,17 +30,7 @@ const tmplHeader = `<!DOCTYPE html>
 	a {
 	  color: black;
 	}
-	input[type=checkbox] {
-	  height: 22px;
-      width: 22px;
-	}
 
-	select {
-		min-width: 248px;
-		padding: 8px;
-		white-space: nowrap;
-		text-overflow: ellipsis;
-	}
 	.row {
 	  display: flex;
 	  flex-direction: row;
@@ -146,6 +136,62 @@ const tmplHeader = `<!DOCTYPE html>
 		height: 150px;
 		margin-bottom: 24px;
 	}
+
+	.select-container {
+		position: relative;
+		width: 256px;
+	}
+	.select-container select {
+		appearance: none;
+		-moz-appearance: none;
+		-webkit-appearance: none;
+
+		width: 100%;
+
+		background-color: white;
+
+		border-color: rgba(0, 0, 0, 0.1);
+		border-radius: 4px;
+		border-style: solid;
+		border-width: 1px;
+
+		padding-top: 8px;
+		padding-bottom: 8px;
+		padding-left: 16px;
+		padding-right: 32px;
+
+		font-size: 18px;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.select-container:hover select {
+		// blue
+		border-color: #4C8EFF;
+	}
+	.select-container select:disabled {
+		color: rgba(0, 0, 0, 0.247);
+		border-color: rgba(0, 0, 0, 0.247);
+	}
+	.select-container .caret {
+		display: flex;
+		position: absolute;
+
+		top: 0;
+		bottom: 0;
+		right: 0;
+
+		align-items: center;
+
+		padding-left: 8px;
+		padding-right: 16px;
+	}
+	.select-container:hover .caret {
+		// blueDark
+		fill: #3663EA;
+	}
+	.select-container select:disabled ~ .caret {
+		fill: rgba(0, 0, 0, 0.247);
+	}
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
@@ -216,7 +262,8 @@ const tmplAccountHelp = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title string
+	Title    string
+	CaretSVG template.HTML
 
 	ConvID        chat1.ConvIDStr
 	ConvHelpText  string
@@ -281,32 +328,41 @@ const tmplConfig = `{{template "header" .}}
 
 		<div class="account row">
 		<label for="account">Account:</label>
-		<select name="account" onchange="this.form.submit(); this.disabled=true;">
-			<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
-			{{range .Accounts}}
-			<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="account" onchange="this.form.submit(); this.disabled=true;">
+				<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
+				{{range .Accounts}}
+				<option value="{{.AccountNickname}}" {{if eq .AccountNickname $.Account}} selected {{end}}>{{.AccountNickname}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		<div class="row">
 		<label for="calendar">Calendar:</label>
-		<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit(); this.disabled=true;">
-			{{range .Calendars}}
-				<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit(); this.disabled=true;">
+				{{range .Calendars}}
+					<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		{{if .CalendarID}}
 		<div class="row">
 		<label for="reminder">Send reminders for events... </label>
-		<select name="reminder">
-			<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
-			{{range .ReminderOptions}}
-				<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Title 40}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="reminder">
+				<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
+				{{range .ReminderOptions}}
+					<option value="{{.Minute}}" {{if eq .Minute $.Reminder}} selected {{end}}>{{ellipsize .Title 40}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		{{if .ConvIsPrivate}}
@@ -325,29 +381,38 @@ const tmplConfig = `{{template "header" .}}
 		<div class="daily-schedule">
 		<div class="row">
 		<label for="ds_days">Daily schedule messages should be sent... </label>
-		<select name="ds_days">
-			{{range .DSDaysOptions}}
-				<option value="{{.Days}}" {{if eq .Days $.DSDays}} selected {{end}}>{{.Title}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="ds_days">
+				{{range .DSDaysOptions}}
+					<option value="{{.Days}}" {{if eq .Days $.DSDays}} selected {{end}}>{{.Title}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		<div class="row">
 		<label for="ds_schedule">Send reminders for events... </label>
-		<select name="ds_schedule">
-			{{range .DSScheduleOptions}}
-				<option value="{{.Schedule}}" {{if eq .Schedule $.DSSchedule}} selected {{end}}>{{.Title}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="ds_schedule">
+				{{range .DSScheduleOptions}}
+					<option value="{{.Schedule}}" {{if eq .Schedule $.DSSchedule}} selected {{end}}>{{.Title}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		<div class="row">
 		<label for="ds_time">Daily schedule should be sent at... </label>
-		<select name="ds_time">
-			{{range .DSTimeOptions}}
-				<option value="{{.Minute}}" {{if eq .Minute $.DSTime}} selected {{end}}>{{.Title}}</option>
-			{{end}}
-		</select>
+		<div class="select-container">
+			<select name="ds_time">
+				{{range .DSTimeOptions}}
+					<option value="{{.Minute}}" {{if eq .Minute $.DSTime}} selected {{end}}>{{.Title}}</option>
+				{{end}}
+			</select>
+			<div class="caret">{{.CaretSVG}}</div>
+		</div>
 		</div>
 
 		<div class="row">Timezone: {{.DSTimezone}}</div>
@@ -367,6 +432,8 @@ const tmplConfig = `{{template "header" .}}
 	</form>
   </div>
 {{template "footer" .}}`
+
+var caretSVG = template.HTML(`<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><path fill-rule="evenodd" d="M.64 2h6.72c.354 0 .64.265.64.592a.567.567 0 0 1-.162.394l-3.36 3.486a.677.677 0 0 1-.956 0L.162 2.986a.561.561 0 0 1 .052-.836A.67.67 0 0 1 .64 2z"/></svg>`)
 
 var templates = template.Must(template.Must(template.Must(template.Must(template.Must(template.Must(template.
 	New("header").Parse(tmplHeader)).
