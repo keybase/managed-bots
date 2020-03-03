@@ -168,6 +168,10 @@ const tmplHeader = `<!DOCTYPE html>
 		// blue
 		border-color: #4C8EFF;
 	}
+	.select-container select:disabled {
+		color: rgba(0, 0, 0, 0.247);
+		border-color: rgba(0, 0, 0, 0.247);
+	}
 	.select-container .caret {
 		display: flex;
 		position: absolute;
@@ -184,6 +188,9 @@ const tmplHeader = `<!DOCTYPE html>
 	.select-container:hover .caret {
 		// blueDark
 		fill: #3663EA;
+	}
+	.select-container select:disabled ~ .caret {
+		fill: rgba(0, 0, 0, 0.247);
 	}
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
