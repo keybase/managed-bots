@@ -114,6 +114,8 @@ func FormatEventSchedule(
 		end     time.Time
 		summary string
 	}
+
+	var allDayEvents []string
 	var eventItems []eventItem
 
 	for _, event := range events {
@@ -122,7 +124,7 @@ func FormatEventSchedule(
 			return "", err
 		}
 		if isAllDay {
-			// TODO(marcel): support all day events
+			allDayEvents = append(allDayEvents, event.Summary)
 			continue
 		}
 		start = start.In(timezone)
@@ -135,12 +137,18 @@ func FormatEventSchedule(
 		})
 	}
 
+	sort.Strings(allDayEvents)
+
 	sort.Slice(eventItems, func(i, j int) bool {
 		return eventItems[i].start.Before(eventItems[j].start)
 	})
 
-	formattedEvents := make([]string, len(eventItems))
+	formattedEvents := make([]string, len(events))
+	for index, item := range allDayEvents {
+		formattedEvents[index] = fmt.Sprintf("> All Day *%s*", item)
+	}
 	for index, item := range eventItems {
+		index += len(allDayEvents)
 		startTime := FormatTime(item.start, format24HourTime, true)
 		endTime := FormatTime(item.end, format24HourTime, true)
 		formattedEvents[index] = fmt.Sprintf("> %s - %s *%s*",
