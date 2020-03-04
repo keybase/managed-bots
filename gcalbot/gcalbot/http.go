@@ -243,21 +243,32 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var dsTimezone *time.Location
 	if dsSubExists || dsEnabled {
+		if dsSubExists {
+			dsTimezone = dsSubscription.Timezone
+		} else {
+			dsTimezone, err = GetUserTimezone(srv)
+			if err != nil {
+				return
+			}
+		}
+
 		var format24HourTime bool
 		format24HourTime, err = GetUserFormat24HourTime(srv)
 		if err != nil {
 			return
 		}
 		// get list of times in half hour increments
+		baseTime := time.Date(2006, 01, 02, 0, 0, 0, 0, dsTimezone)
 		for i := 0; i < 48; i++ {
 			var title string
 			minutes := i * 30
-			dateTime := time.Time{}.Add(time.Duration(minutes) * time.Minute)
+			dateTime := baseTime.Add(time.Duration(minutes) * time.Minute)
 			if format24HourTime {
-				title = dateTime.Format("15:04")
+				title = dateTime.Format("15:04 MST")
 			} else {
-				title = dateTime.Format("3:04pm")
+				title = dateTime.Format("3:04pm MST")
 			}
 			page.DSTimeOptions[i] = DSTimeOption{
 				Title:  title,
@@ -271,7 +282,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		page.DSDays = dsSubscription.DaysToSend
 		page.DSSchedule = dsSubscription.ScheduleToSend
 		page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationTime))
-		page.DSTimezone = dsSubscription.Timezone.String()
+		page.DSTimezone = dsTimezone.String()
 	}
 
 	if dsEnabled && !dsFormSubmitted {
@@ -289,12 +300,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSSchedule = ScheduleToSendToday
 			page.DSTime = "600" // 10:00am is a sane default
 
-			var timezone *time.Location
-			timezone, err = GetUserTimezone(srv)
-			if err != nil {
-				return
-			}
-			page.DSTimezone = timezone.String()
+			page.DSTimezone = dsTimezone.String()
 		}
 
 		h.servePage(w, "config", page)
@@ -333,20 +339,10 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if dsEnabled {
-			var timezone *time.Location
-			if dsSubExists {
-				timezone = dsSubscription.Timezone
-			} else {
-				timezone, err = GetUserTimezone(srv)
-				if err != nil {
-					return
-				}
-			}
-
 			err = h.db.InsertDailyScheduleSubscription(selectedAccount, DailyScheduleSubscription{
 				CalendarID:       calendarID,
 				KeybaseConvID:    keybaseConvID,
-				Timezone:         timezone,
+				Timezone:         dsTimezone,
 				DaysToSend:       dsDays,
 				ScheduleToSend:   dsSchedule,
 				NotificationTime: dsTime,
@@ -358,7 +354,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSDays = dsDays
 			page.DSSchedule = dsSchedule
 			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsTime))
-			page.DSTimezone = timezone.String()
+			page.DSTimezone = dsTimezone.String()
 		} else if !dsEnabled && dsSubExists {
 			page.DSEnabled = false
 			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
