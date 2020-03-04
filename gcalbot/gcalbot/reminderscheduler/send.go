@@ -61,7 +61,6 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 		if len(msg.MinuteReminders) == 0 {
 			r.subscriptionReminders.RemoveReminderMessageFromSubscription(msg)
 			r.eventReminders.RemoveReminderMessageFromEvent(msg)
-			r.Debug("removed event with no reminders %s", msg.EventID)
 			// the entire minute will be removed, and since this is the event's last minute there is no need to delete 'all' minutes
 		}
 	})
