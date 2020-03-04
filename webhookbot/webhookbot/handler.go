@@ -39,31 +39,33 @@ func (h *Handler) formURL(id string) string {
 	return fmt.Sprintf("%s/webhookbot/%s", h.httpPrefix, id)
 }
 
-var errNeedAdmin = errors.New("only admins can administer webhooks")
+var errNotAllowed = errors.New("must be at least a writer to administer webhooks")
 
-func (h *Handler) checkAdmin(msg chat1.MsgSummary) error {
-	ok, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
+func (h *Handler) checkAllowed(msg chat1.MsgSummary) error {
+	ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
-		return fmt.Errorf("handleCreate: failed to check admin: %s", err)
+		return fmt.Errorf("handleCreate: failed to check role: %s", err)
 	}
 	if !ok {
-		return errNeedAdmin
+		return errNotAllowed
 	}
 	return nil
 }
 
-func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
+func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
 	}
-	if err := h.checkAdmin(msg); err != nil {
-		if err == errNeedAdmin {
-			h.ChatEcho(convID, err.Error())
-			return nil
-		}
+	err = h.checkAllowed(msg)
+	switch err {
+	case nil:
+	case errNotAllowed:
+		h.ChatEcho(convID, err.Error())
+		return nil
+	default:
 		return err
 	}
 	h.stats.Count("remove")
@@ -75,17 +77,19 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
+func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	hooks, err := h.db.List(convID)
 	if err != nil {
 		return fmt.Errorf("handleList: failed to list hook: %s", err)
 	}
-	if err := h.checkAdmin(msg); err != nil {
-		if err == errNeedAdmin {
-			h.ChatEcho(convID, err.Error())
-			return nil
-		}
+	err = h.checkAllowed(msg)
+	switch err {
+	case nil:
+	case errNotAllowed:
+		h.ChatEcho(convID, err.Error())
+		return nil
+	default:
 		return err
 	}
 
@@ -105,18 +109,20 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) error {
+func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
 	}
-	if err := h.checkAdmin(msg); err != nil {
-		if err == errNeedAdmin {
-			h.ChatEcho(convID, err.Error())
-			return nil
-		}
+	err = h.checkAllowed(msg)
+	switch err {
+	case nil:
+	case errNotAllowed:
+		h.ChatEcho(convID, err.Error())
+		return nil
+	default:
 		return err
 	}
 

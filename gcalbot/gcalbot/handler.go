@@ -122,13 +122,13 @@ func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
-	isAdmin, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
 		return err
 	}
-	if !isAdmin {
+	if !isAllowed {
 		h.ChatEcho(msg.ConvID,
-			"Sorry, but you need to be an admin in order to configure Google Calendar notifications for this channel.")
+			"Sorry, but you need to be at least a writer in order to configure Google Calendar notifications for this channel.")
 		return nil
 	}
 	keybaseUsername := msg.Sender.Username

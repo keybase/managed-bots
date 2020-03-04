@@ -179,8 +179,6 @@ type OAuthRequest struct {
 }
 
 type GetOAuthOpts struct {
-	// all non-admin users can also authenticate (default: false)
-	AllowNonAdminForTeamAuth bool
 	// set the OAuth2 OfflineAccessType (default: false)
 	OAuthOfflineAccessType bool
 	// template for the auth message (default: "Visit %s\n to authorize me.")
@@ -204,16 +202,13 @@ func GetOAuthClient(
 
 	// we need to request new authorization
 	if token == nil {
-		// if required, check if the user is an admin before executing auth
-		if !opts.AllowNonAdminForTeamAuth {
-			isAdmin, err := IsAdmin(kbc, callbackMsg.Sender.Username, callbackMsg.Channel)
-			if err != nil {
-				return nil, err
-			}
-			if !isAdmin {
-				_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You must be an admin to authorize me for a team!")
-				return nil, err
-			}
+		isAllowed, err := IsAtLeastWriter(kbc, callbackMsg.Sender.Username, callbackMsg.Channel)
+		if err != nil {
+			return nil, err
+		}
+		if !isAllowed {
+			_, err = kbc.SendMessageByConvID(callbackMsg.ConvID, "You must be at least a writer to authorize me for a team!")
+			return nil, err
 		}
 
 		state, err := MakeRequestID()

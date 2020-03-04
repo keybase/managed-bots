@@ -107,11 +107,11 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isAdmin, err := base.IsAdmin(h.kbc, keybaseUsername, keybaseConv.Channel)
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, keybaseUsername, keybaseConv.Channel)
 	if err != nil {
 		return
-	} else if !isAdmin {
-		// should only be able to configure notifications if isAdmin
+	} else if !isAllowed {
+		// should only be able to configure notifications if isAllowed
 		h.showConfigError(w)
 		return
 	}

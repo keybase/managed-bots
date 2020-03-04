@@ -127,7 +127,7 @@ func HandleNewTeam(stats *StatsRegistry, log *DebugOutput, kbc *kbchat.API, conv
 	return err
 }
 
-func IsAdmin(kbc *kbchat.API, senderUsername string, channel chat1.ChatChannel) (bool, error) {
+func IsAtLeastWriter(kbc *kbchat.API, senderUsername string, channel chat1.ChatChannel) (bool, error) {
 	switch channel.MembersType {
 	case "team": // make sure the member is an admin or owner
 	default: // authorization is per user so let anything through
@@ -137,8 +137,8 @@ func IsAdmin(kbc *kbchat.API, senderUsername string, channel chat1.ChatChannel) 
 	if err != nil {
 		return false, err
 	}
-	adminLike := append(res.Owners, res.Admins...)
-	for _, member := range adminLike {
+	allowed := append(append(res.Owners, res.Admins...), res.Writers...)
+	for _, member := range allowed {
 		if member.Username == senderUsername {
 			return true, nil
 		}
