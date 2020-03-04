@@ -36,6 +36,7 @@ const tmplHeader = `<!DOCTYPE html>
 	  flex-direction: row;
 	  align-items: center;
 	  margin-bottom: 12px;
+	  height: 32px;
 	}
 
 	.row label {
@@ -155,8 +156,8 @@ const tmplHeader = `<!DOCTYPE html>
 		border-style: solid;
 		border-width: 1px;
 
-		padding-top: 8px;
-		padding-bottom: 8px;
+		padding-top: 4px;
+		padding-bottom: 4px;
 		padding-left: 16px;
 		padding-right: 32px;
 
