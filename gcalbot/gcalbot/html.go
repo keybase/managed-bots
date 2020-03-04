@@ -35,7 +35,15 @@ const tmplHeader = `<!DOCTYPE html>
 	  display: flex;
 	  flex-direction: row;
 	  align-items: center;
-	  margin-bottom: 12px;
+	  margin-top: 12px;
+	  height: 32px;
+	}
+	.note {
+	  display: flex;
+	  flex-direction: row;
+	  align-items: center;
+	  font-size: 16px;
+	  color: rgba(0, 0, 0, 0.75);
 	}
 
 	.row label {
@@ -106,7 +114,7 @@ const tmplHeader = `<!DOCTYPE html>
 	.conversation-title {
 		font-size: 24px;
 		margin-top: 12px;
-		margin-bottom: 36px;
+		margin-bottom: 24px;
 	}
 
 	.daily-schedule {
@@ -155,8 +163,8 @@ const tmplHeader = `<!DOCTYPE html>
 		border-style: solid;
 		border-width: 1px;
 
-		padding-top: 8px;
-		padding-bottom: 8px;
+		padding-top: 4px;
+		padding-bottom: 4px;
 		padding-left: 16px;
 		padding-right: 32px;
 
@@ -170,7 +178,8 @@ const tmplHeader = `<!DOCTYPE html>
 	}
 	.select-container select:disabled {
 		color: rgba(0, 0, 0, 0.247);
-		border-color: rgba(0, 0, 0, 0.247);
+		border-color: rgba(0, 0, 0, 0.1);
+		background-color: rgba(0, 0, 0, 0.025);
 	}
 	.select-container .caret {
 		display: flex;
@@ -184,6 +193,8 @@ const tmplHeader = `<!DOCTYPE html>
 
 		padding-left: 8px;
 		padding-right: 16px;
+
+		fill: rgba(0, 0, 0, 0.5);
 	}
 	.select-container:hover .caret {
 		// blueDark
@@ -286,7 +297,6 @@ type ConfigPage struct {
 	DSScheduleOptions []DSScheduleOption
 	DSTime            string
 	DSTimeOptions     [48]DSTimeOption
-	DSTimezone        string
 
 	Updated        bool
 	PushNotAllowed bool
@@ -343,6 +353,7 @@ const tmplConfig = `{{template "header" .}}
 		<label for="calendar">Calendar:</label>
 		<div class="select-container">
 			<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit(); this.disabled=true;">
+				{{if .Calendars | not}}<option value="">Select calendar</option>{{end}}
 				{{range .Calendars}}
 					<option value="{{.Id}}" {{if eq .Id $.CalendarID}} selected {{end}}>{{ellipsize .Summary 40}}</option>
 				{{end}}
@@ -414,8 +425,8 @@ const tmplConfig = `{{template "header" .}}
 			<div class="caret">{{.CaretSVG}}</div>
 		</div>
 		</div>
+		<div class="note">* Timezone pulled from your Google Calendar settings</div>
 
-		<div class="row">Timezone: {{.DSTimezone}}</div>
 		</div>
 		{{end}}
 
