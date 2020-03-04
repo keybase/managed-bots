@@ -525,7 +525,7 @@ func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSen
 		FROM daily_schedule_subscription
 		JOIN account USING(keybase_username, account_nickname)
 		WHERE schedule_to_send = ?
-		GROUP BY keybase_username, account_nickname, keybase_conv_id
+		GROUP BY keybase_username, account_nickname, keybase_conv_id, notification_time
 	`, scheduleToSend)
 	if err != nil {
 		return nil, err
