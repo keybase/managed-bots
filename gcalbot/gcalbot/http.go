@@ -282,7 +282,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		page.DSDays = dsSubscription.DaysToSend
 		page.DSSchedule = dsSubscription.ScheduleToSend
 		page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsSubscription.NotificationTime))
-		page.DSTimezone = dsTimezone.String()
 	}
 
 	if dsEnabled && !dsFormSubmitted {
@@ -299,8 +298,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSDays = DaysToSendEveryday
 			page.DSSchedule = ScheduleToSendToday
 			page.DSTime = "600" // 10:00am is a sane default
-
-			page.DSTimezone = dsTimezone.String()
 		}
 
 		h.servePage(w, "config", page)
@@ -354,7 +351,6 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSDays = dsDays
 			page.DSSchedule = dsSchedule
 			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsTime))
-			page.DSTimezone = dsTimezone.String()
 		} else if !dsEnabled && dsSubExists {
 			page.DSEnabled = false
 			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)

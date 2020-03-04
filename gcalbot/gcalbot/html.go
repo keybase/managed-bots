@@ -297,7 +297,6 @@ type ConfigPage struct {
 	DSScheduleOptions []DSScheduleOption
 	DSTime            string
 	DSTimeOptions     [48]DSTimeOption
-	DSTimezone        string
 
 	Updated        bool
 	PushNotAllowed bool
