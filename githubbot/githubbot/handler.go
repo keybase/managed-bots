@@ -109,12 +109,12 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	isAdmin, err := base.IsAdmin(h.kbc, msg.Sender.Username, msg.Channel)
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
 	if err != nil {
-		return fmt.Errorf("Error getting admin status: %s", err)
+		return fmt.Errorf("Error getting role status: %s", err)
 	}
-	if !isAdmin {
-		h.ChatEcho(msg.ConvID, "You must be an admin to configure me!")
+	if !isAllowed {
+		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
 		return nil
 	}
 
@@ -283,7 +283,6 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 }
 
 func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSummary, enable bool) (err error) {
-	// isAdmin is checked in handleSubscribe
 	exists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error getting subscription: %s", err)
@@ -331,7 +330,6 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 }
 
 func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSummary, create bool) (err error) {
-	// isAdmin is checked in handleSubscribe
 	exists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error getting subscription: %s", err)
