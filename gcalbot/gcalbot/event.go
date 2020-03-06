@@ -140,6 +140,9 @@ func FormatEventSchedule(
 	sort.Strings(allDayEvents)
 
 	sort.Slice(eventItems, func(i, j int) bool {
+		if eventItems[i].start.Equal(eventItems[j].start) {
+			return eventItems[i].summary < eventItems[j].summary
+		}
 		return eventItems[i].start.Before(eventItems[j].start)
 	})
 
