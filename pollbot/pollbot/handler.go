@@ -97,6 +97,10 @@ func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, pr
 }
 
 func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.MessageID) error {
+	cmd = strings.ReplaceAll(cmd, "‘", "'")
+	cmd = strings.ReplaceAll(cmd, "’", "'")
+	cmd = strings.ReplaceAll(cmd, "“", "\"")
+	cmd = strings.ReplaceAll(cmd, "”", "\"")
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
