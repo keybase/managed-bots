@@ -64,7 +64,7 @@ func formatPipelineMsg(evt *gitlab.PipelineEvent, username string) (res string) 
 func formatSetupInstructions(repo string, hostedURL string, msg chat1.MsgSummary, httpAddress string, secret string) (res string) {
 	back := "`"
 	message := fmt.Sprintf(`
-To configure your project to send notifications, go to %s/%s/-/settings/integrations and add a new webhook.
+To configure your project to send notifications, go to %s/%s/hooks and add a new webhook.
 For “URL”, enter %s%s/gitlabbot/webhook%s.
 For “Secret Token”, enter %s%s%s.
 Remember to check all the triggers you would like me to update you on.
