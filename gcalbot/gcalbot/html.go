@@ -31,38 +31,24 @@ const tmplHeader = `<!DOCTYPE html>
 	  color: black;
 	}
 
-	.row {
-	  display: flex;
-	  flex-direction: row;
-	  align-items: center;
-	  margin-top: 12px;
-	  height: 32px;
-	}
-	.note {
-	  display: flex;
-	  flex-direction: row;
-	  align-items: center;
-	  font-size: 16px;
-	  color: rgba(0, 0, 0, 0.75);
-	}
-
-	.row label {
-		margin-right: 12px;
-	}
-
 	.title {
 		font-size: 48px;
 		margin: 0;
 		align-self: left;
 	}
+
+	.row {
+	  display: flex;
+	  flex-direction: row;
+	  align-items: center;
+	  margin-top: 10px;
+	}
 	.column {
 	  display: flex;
 	  flex-direction: column;
+	  margin-top: 10px;
 	}
 
-	.column.left {
-		align-items: flex-start;
-	}
 	.instructions {
 	  margin-top: 16px;
 	}
@@ -75,13 +61,21 @@ const tmplHeader = `<!DOCTYPE html>
 	  border-radius: 2px;
 	}
 
-	.first-row {
-		display: flex;
-		flex-direction: row;
+	label {
+		font-size: 13px;
+		line-height: 17px;
+		color: rgba(0, 0, 0, 0.5);
+		font-weight: 600;
 	}
-
-	.row.account {
-		margin-right: 12px;
+	.select-label {
+		margin-bottom: 8px;
+	}
+	.note {
+	  display: flex;
+	  flex-direction: row;
+	  align-items: center;
+	  font-size: 13px;
+	  color: rgba(0, 0, 0, 0.5);
 	}
 
 	.save-button {
@@ -114,7 +108,7 @@ const tmplHeader = `<!DOCTYPE html>
 	.conversation-title {
 		font-size: 24px;
 		margin-top: 12px;
-		margin-bottom: 24px;
+		margin-bottom: 4px;
 	}
 
 	.daily-schedule {
@@ -336,8 +330,8 @@ const tmplConfig = `{{template "header" .}}
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">
 
-		<div class="account row">
-		<label for="account">Account:</label>
+		<div class="column">
+		<label for="account" class="select-label">Account</label>
 		<div class="select-container">
 			<select name="account" onchange="this.form.submit(); this.disabled=true;">
 				<option value="" {{if .Account | not}} selected {{end}}>Select account</option>
@@ -349,8 +343,8 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 		</div>
 
-		<div class="row">
-		<label for="calendar">Calendar:</label>
+		<div class="column">
+		<label for="calendar" class="select-label">Calendar</label>
 		<div class="select-container">
 			<select name="calendar" {{if .Calendars | not}} disabled {{end}} onchange="this.form.submit(); this.disabled=true;">
 				{{if .Calendars | not}}<option value="">Select calendar</option>{{end}}
@@ -363,8 +357,8 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 
 		{{if .CalendarID}}
-		<div class="row">
-		<label for="reminder">Send reminders for events... </label>
+		<div class="column">
+		<label for="reminder" class="select-label">Send reminders for events... </label>
 		<div class="select-container">
 			<select name="reminder">
 				<option value="" {{if .CalendarID | not}} selected {{end}}>Do not send</option>
@@ -378,20 +372,24 @@ const tmplConfig = `{{template "header" .}}
 
 		{{if .ConvIsPrivate}}
 		<div class="row">
-		<label for="invite">Send notifications for event invites?</label>
-		<input type="checkbox" name="invite" {{if .Invite}} checked {{end}}>
+		<label for="invite">
+			<input type="checkbox" name="invite" {{if .Invite}} checked {{end}}>
+			Send notifications for event invites?
+		</label>
 		</div>
 		{{end}}
 
 		<div class="row">
-		<label for="invite">Enable a daily schedule message?</label>
-		<input type="checkbox" name="ds_enabled" onclick="this.form.submit(); this.disabled=true;" {{if .DSEnabled}} checked {{end}}>
+		<label for="invite">
+			<input type="checkbox" name="ds_enabled" onclick="this.form.submit(); this.disabled=true;" {{if .DSEnabled}} checked {{end}}>
+			Enable a daily schedule message?
+		</label>
 		</div>
 
 		{{if .DSEnabled}}
 		<div class="daily-schedule">
-		<div class="row">
-		<label for="ds_days">Daily schedule messages should be sent... </label>
+		<div class="column">
+		<label for="ds_days" class="select-label">Daily schedule messages should be sent... </label>
 		<div class="select-container">
 			<select name="ds_days">
 				{{range .DSDaysOptions}}
@@ -402,8 +400,8 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 		</div>
 
-		<div class="row">
-		<label for="ds_schedule">Send reminders for events... </label>
+		<div class="column">
+		<label for="ds_schedule" class="select-label">Send reminders for events... </label>
 		<div class="select-container">
 			<select name="ds_schedule">
 				{{range .DSScheduleOptions}}
@@ -414,8 +412,8 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 		</div>
 
-		<div class="row">
-		<label for="ds_time">Daily schedule should be sent at... </label>
+		<div class="column">
+		<label for="ds_time" class="select-label">Daily schedule should be sent at... </label>
 		<div class="select-container">
 			<select name="ds_time">
 				{{range .DSTimeOptions}}
@@ -424,8 +422,8 @@ const tmplConfig = `{{template "header" .}}
 			</select>
 			<div class="caret">{{.CaretSVG}}</div>
 		</div>
-		</div>
 		<div class="note">* Timezone pulled from your Google Calendar settings</div>
+		</div>
 
 		</div>
 		{{end}}
