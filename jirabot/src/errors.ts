@@ -176,7 +176,7 @@ export const reportErrorAndReplyChat = (
       return Utils.replyToMessageContext(
         context,
         messageContext,
-        'You need to specify a prject name for this command. You can also `!jira config channel defaultNewIssueProject <default-project> to set a default one for this channel.'
+        'You need to specify a project name for this command. You can also `!jira config channel defaultNewIssueProject <default-project>` to set a default one for this channel.'
       )
     case ErrorType.Timeout:
       return Utils.replyToMessageContext(
