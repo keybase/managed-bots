@@ -170,6 +170,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 		})
 	if err != nil {
 		h.Errorf("error syncing all invites: %s", err)
+		return
 	}
 
 	for _, event := range events {
@@ -237,6 +238,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 
 	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
 	if err != nil {
+		h.Errorf("unable to update sync token:", err)
 		return
 	}
 
