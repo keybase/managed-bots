@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
-
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"google.golang.org/api/calendar/v3"
 )
@@ -222,13 +220,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 					CalendarID: calendarID,
 					EventID:    event.Id,
 				})
-				if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-					// if the invite was already inserted into the db it's most likely a race, don't error
-					// https://dev.mysql.com/doc/refman/5.6/en/server-error-reference.html#error_er_dup_entry
-					if mysqlErr.Number != 1062 {
-						h.Errorf("error inserting invite: %s", mysqlErr.Message)
-					}
-				} else if err != nil {
+				if err != nil {
 					h.Errorf("error inserting invite: %s", err)
 				}
 				break
