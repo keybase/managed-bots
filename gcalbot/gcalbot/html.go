@@ -197,6 +197,70 @@ const tmplHeader = `<!DOCTYPE html>
 	.select-container select:disabled ~ .caret {
 		fill: rgba(0, 0, 0, 0.247);
 	}
+
+	/* portrait smartphone */
+	@media only screen and (max-width: 480px) {
+	body {
+		margin: 0;
+		padding: 18px;
+	}
+
+	.column {
+		width: 100%;
+	}
+
+	.logo-small {
+		width: 100px;
+		height: 100px;
+		margin-bottom: 12px;
+	}
+
+	.title {
+		font-size: 35px;
+	}
+
+	.conversation-title {
+		margin-top: 4px;
+	}
+
+	label {
+		font-size: 18px;
+	}
+
+	.select-container {
+		margin-bottom: 12px;
+		width: 100%;
+	}
+
+	.select-container select {
+		font-size: 22px;
+	}
+
+	input[type="checkbox"] {
+		width: 20px;
+		height: 20px;
+		margin: 4px 4px 0 0;
+	}
+
+	.daily-schedule {
+		margin-left: 30px;
+		margin-top: 8px;
+	}
+
+	.save-row {
+		flex-direction: column;
+	}
+
+	.save-button {
+		width: 100%;
+		height: 40px;
+		font-weight: 500;
+	}
+
+	.save-status {
+		margin-left: 0;
+	}
+  }
   </style>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
@@ -320,7 +384,7 @@ const tmplConfig = `{{template "header" .}}
   <div class="container column">
     <img src="/gcalbot/image/logo" class="logo-small" />
 	<h1 class="title">
-	  Configure Google Calendar
+	  Configure Google&nbsp;Calendar
 	</h1>
 	<p class="conversation-title">
 	  {{.ConvHelpText}}
@@ -372,16 +436,16 @@ const tmplConfig = `{{template "header" .}}
 
 		{{if .ConvIsPrivate}}
 		<div class="row">
-		<label for="invite">
-			<input type="checkbox" name="invite" {{if .Invite}} checked {{end}}>
+		<label for="invite-input">
+			<input type="checkbox" name="invite" id="invite-input" {{if .Invite}} checked {{end}}>
 			Send notifications for event invites?
 		</label>
 		</div>
 		{{end}}
 
 		<div class="row">
-		<label for="invite">
-			<input type="checkbox" name="ds_enabled" onclick="this.form.submit(); this.disabled=true;" {{if .DSEnabled}} checked {{end}}>
+		<label for="enable-daily">
+			<input id="enable-daily" type="checkbox" name="ds_enabled" onclick="this.form.submit(); this.disabled=true;" {{if .DSEnabled}} checked {{end}}>
 			Enable a daily schedule message?
 		</label>
 		</div>
@@ -389,7 +453,7 @@ const tmplConfig = `{{template "header" .}}
 		{{if .DSEnabled}}
 		<div class="daily-schedule">
 		<div class="column">
-		<label for="ds_days" class="select-label">Daily schedule messages should be sent... </label>
+		<label for="ds_days" class="select-label">Daily schedule messages should be&nbsp;sent... </label>
 		<div class="select-container">
 			<select name="ds_days">
 				{{range .DSDaysOptions}}
@@ -401,7 +465,7 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 
 		<div class="column">
-		<label for="ds_schedule" class="select-label">Send reminders for events... </label>
+		<label for="ds_schedule" class="select-label">Send reminders for&nbsp;events... </label>
 		<div class="select-container">
 			<select name="ds_schedule">
 				{{range .DSScheduleOptions}}
@@ -428,12 +492,12 @@ const tmplConfig = `{{template "header" .}}
 		</div>
 		{{end}}
 
-		<div class="row">
-		<input type="submit" value="Save" class="save-button"
-			onclick="this.form.submit(); this.disabled=true; this.value='Saving...';
-					 if(document.getElementById('save-success')) { document.getElementById('save-success').style.display='none' };">
-		{{if .Updated}}<span id="save-success" class="save-status">Saved!</span>{{end}}
-		{{if .PushNotAllowed}}<span id="save-error" class="save-status">Push notifications are not supported for this calendar</span>{{end}}
+		<div class="row save-row">
+			<input type="submit" value="Save" class="save-button"
+				onclick="this.form.submit(); this.disabled=true; this.value='Saving...';
+						if(document.getElementById('save-success')) { document.getElementById('save-success').style.display='none' };">
+			{{if .Updated}}<span id="save-success" class="save-status">Saved!</span>{{end}}
+			{{if .PushNotAllowed}}<span id="save-error" class="save-status">Push notifications are not supported for this calendar</span>{{end}}
 		</div>
 
 		{{end}}
