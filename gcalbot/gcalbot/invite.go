@@ -1,7 +1,9 @@
 package gcalbot
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"google.golang.org/api/calendar/v3"
@@ -148,4 +150,89 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	}
 
 	return nil
+}
+
+func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channelID, calendarID string) {
+	syncStart := time.Now()
+
+	var nextSyncToken string
+	var events []*calendar.Event
+	err := srv.Events.List(calendarID).
+		Pages(context.Background(), func(page *calendar.Events) error {
+			if page.NextPageToken == "" {
+				// set the sync token when the page token is empty
+				nextSyncToken = page.NextSyncToken
+			}
+			events = append(events, page.Items...)
+			return nil
+		})
+	if err != nil {
+		h.Errorf("error syncing all invites: %s", err)
+		return
+	}
+
+	for _, event := range events {
+		status := EventStatus(event.Status)
+
+		// if the event is cancelled or there aren't any attendees (ie. the user created the event), skip - it's not an invite
+		if status == EventStatusCancelled || event.Attendees == nil {
+			continue
+		}
+
+		// if the event is recurring, only deal with the underlying recurring event
+		if event.RecurringEventId != "" && event.RecurringEventId != event.Id {
+			continue
+		}
+
+		var end time.Time
+		if event.End == nil {
+			h.Errorf("empty dates in event")
+			continue
+		} else if event.End.DateTime != "" {
+			// this is a normal event
+			end, err = time.Parse(time.RFC3339, event.End.DateTime)
+			if err != nil {
+				h.Errorf("error parsing time: %s", err)
+				continue
+			}
+		} else if event.End.Date != "" {
+			// this is an all day event
+			end, err = time.Parse(AllDayDateFormat, event.End.Date)
+			if err != nil {
+				h.Errorf("error parsing time: %s", err)
+				continue
+			}
+			end = end.Add(-24 * time.Hour) // the google API sets the end day to the day after, so compensate by one day
+		} else {
+			h.Errorf("invalid end date: %+v", event.End)
+			continue
+		}
+
+		if time.Now().After(end) {
+			// the event has already ended, don't send an invite
+			continue
+		}
+
+		for _, attendee := range event.Attendees {
+			responseStatus := ResponseStatus(attendee.ResponseStatus)
+			if attendee.Self && !attendee.Organizer && responseStatus == ResponseStatusNeedsAction {
+				err = h.db.InsertInvite(account, Invite{
+					CalendarID: calendarID,
+					EventID:    event.Id,
+				})
+				if err != nil {
+					h.Errorf("error inserting invite: %s", err)
+				}
+				break
+			}
+		}
+	}
+
+	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
+	if err != nil {
+		h.Errorf("unable to update sync token:", err)
+		return
+	}
+
+	h.stats.Value("syncAllInvites - duration - seconds", time.Since(syncStart).Seconds())
 }

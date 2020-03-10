@@ -104,22 +104,37 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	var events []*calendar.Event
-	nextSyncToken := channel.NextSyncToken
-	err = srv.Events.
-		List(channel.CalendarID).
-		SyncToken(channel.NextSyncToken).
-		Pages(context.Background(), func(page *calendar.Events) error {
-			nextSyncToken = page.NextSyncToken
-			events = append(events, page.Items...)
-			return nil
-		})
+	syncStart := time.Now()
+
+	var nextSyncToken string
+	getEvents := func(syncToken string) (events []*calendar.Event, err error) {
+		err = srv.Events.
+			List(channel.CalendarID).
+			SyncToken(syncToken).
+			Pages(context.Background(), func(page *calendar.Events) error {
+				if page.NextPageToken == "" {
+					// set the sync token when the page token is empty
+					nextSyncToken = page.NextSyncToken
+				}
+				events = append(events, page.Items...)
+				return nil
+			})
+		return
+	}
+
+	events, err := getEvents(channel.NextSyncToken)
 	switch typedErr := err.(type) {
 	case nil:
+		h.Stats.CountMult("handleEventUpdateWebhook - events", len(events))
 	case *googleapi.Error:
 		if typedErr.Code == 410 {
-			// TODO(marcel): next sync token has expired, need to do a "full refresh"
-			// could lead to really old events not in db having invites sent out
+			// do a full sync on a 410: https://developers.google.com/calendar/v3/sync#full_sync_required_by_server
+			h.Stats.Count("handleEventUpdateWebhook - sync token expired")
+			events, err = getEvents("")
+			if err != nil {
+				return
+			}
+		} else {
 			return
 		}
 	default:
@@ -154,14 +169,17 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		}
 
 		for _, attendee := range event.Attendees {
-			responseStatus := ResponseStatus(attendee.ResponseStatus)
-			if attendee.Self && (responseStatus == ResponseStatusAccepted || responseStatus == ResponseStatusTentative) {
-				// the user has (possibly tentatively) accepted the event invite, register for reminders
-				registerForReminders(start, isAllDay, event)
-			} else if attendee.Self && !attendee.Organizer && responseStatus == ResponseStatusNeedsAction &&
-				status != EventStatusCancelled {
-				// the user has not responded to the event invite, send event invites
-				sendInvites(end, event)
+			if attendee.Self {
+				responseStatus := ResponseStatus(attendee.ResponseStatus)
+				if responseStatus == ResponseStatusAccepted || responseStatus == ResponseStatusTentative {
+					// the user has (possibly tentatively) accepted the event invite, register for reminders
+					registerForReminders(start, isAllDay, event)
+				} else if !attendee.Organizer && responseStatus == ResponseStatusNeedsAction &&
+					status != EventStatusCancelled {
+					// the user has not responded to the event invite, send event invites
+					sendInvites(end, event)
+				}
+				break
 			}
 		}
 	}
@@ -172,7 +190,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.Stats.Count("handleEventUpdateWebhook")
-	h.Stats.CountMult("handleEventUpdateWebhook - events", len(events))
+	h.Stats.Value("handleEventUpdateWebhook - duration - seconds", time.Since(syncStart).Seconds())
 
 	w.WriteHeader(200)
 }
@@ -271,26 +289,6 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 		return err
 	}
 
-	// TODO(marcel): possibly fill in existing invites into db
-	// TODO(marcel): this process can take seconds and forces the config page to load for that time
-	// get all events simply to get the NextSyncToken and begin receiving invites from there
-	// request only token fields so that the responses are tiny and fast
-	syncStart := time.Now()
-	var nextSyncToken string
-	err = srv.Events.List(calendarID).
-		Fields("nextPageToken", "nextSyncToken").
-		Pages(context.Background(), func(page *calendar.Events) error {
-			if page.NextPageToken == "" {
-				// set the sync token when the page token is empty
-				nextSyncToken = page.NextSyncToken
-			}
-			return nil
-		})
-	if err != nil {
-		return err
-	}
-	h.stats.Value("createEventChannel - sync - duration - seconds", time.Since(syncStart).Seconds())
-
 	// open channel
 	res, err := srv.Events.Watch(calendarID, &calendar.Channel{
 		Address: fmt.Sprintf("%s/gcalbot/events/webhook", h.httpPrefix),
@@ -302,14 +300,21 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 	}
 
 	err = h.db.InsertChannel(account, Channel{
-		ChannelID:     channelID,
-		CalendarID:    calendarID,
-		ResourceID:    res.ResourceId,
-		Expiry:        time.Unix(res.Expiration/1e3, 0),
-		NextSyncToken: nextSyncToken,
+		ChannelID:  channelID,
+		CalendarID: calendarID,
+		ResourceID: res.ResourceId,
+		Expiry:     time.Unix(res.Expiration/1e3, 0),
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// pre-fill db with invites so we don't send old invites
+	// there could be a race since this process can take up to a few seconds
+	go h.syncAllInvites(account, srv, channelID, calendarID)
+
+	return nil
 }
 
 type RenewChannelScheduler struct {

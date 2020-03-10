@@ -457,6 +457,8 @@ func (d *DB) InsertInvite(account *Account, invite Invite) error {
 			INSERT INTO invite
 			(keybase_username, account_nickname, calendar_id, event_id, message_id)
 			VALUES (?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			message_id=message_id -- message id stays the same
 		`, account.KeybaseUsername, account.AccountNickname, invite.CalendarID, invite.EventID, invite.MessageID)
 		return err
 	})
