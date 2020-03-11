@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -189,6 +190,11 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
 				}
 				continue
+			case strings.HasPrefix(cmd, "!stack"):
+				if err := s.handleStack(msg); err != nil {
+					s.Errorf("listenForMsgs: unable to handleStack: %v", err)
+				}
+				continue
 			case strings.HasPrefix(cmd, fmt.Sprintf("!%s", feedbackCmd(s.kbc.GetUsername()))):
 				if err := s.handleFeedback(msg); err != nil {
 					s.Errorf("listenForMsgs: unable to handleFeedback: %v", err)
@@ -363,6 +369,39 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 	}
 	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
 	s.ChatEcho(msg.ConvID, "log output: %s", destFilePath)
+	return nil
+}
+
+func (s *Server) handleStack(msg chat1.MsgSummary) error {
+	if !s.allowHiddenCommand(msg) {
+		s.Debug("ignoring stack from @%s, botAdmins: %v",
+			msg.Sender.Username, s.botAdmins)
+		return nil
+	}
+
+	buf := make([]byte, 2<<20) // found this used in other calls to runtime.Stack in the go src
+	buf = buf[:runtime.Stack(buf, true)]
+
+	tld := "private"
+	if msg.Channel.MembersType == "team" {
+		tld = "team"
+	}
+
+	folder := fmt.Sprintf("/keybase/%s/%s/stack", tld, msg.Channel.Name)
+	if err := exec.Command("keybase", "fs", "mkdir", folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to make directory: %s", err)
+	}
+	fileName := fmt.Sprintf("stack-%d.txt", time.Now().Unix())
+	filePath := fmt.Sprintf("/tmp/%s", fileName)
+	defer os.Remove(filePath)
+	if err := ioutil.WriteFile(filePath, buf, 0644); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to write stack output: %s", err)
+	}
+	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to move stack output: %s", err)
+	}
+	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
+	s.ChatEcho(msg.ConvID, "stack output: %s", destFilePath)
 	return nil
 }
 
