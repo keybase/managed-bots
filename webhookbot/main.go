@@ -33,8 +33,11 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("webhookbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
-		opts:   opts,
+		Server: base.NewServer("webhookbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+			KeybaseLocation: opts.KeybaseLocation,
+			HomeDir:         opts.Home,
+		}),
+		opts: opts,
 	}
 }
 
@@ -90,7 +93,7 @@ Remove a webhook`,
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)

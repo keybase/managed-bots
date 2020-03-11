@@ -41,8 +41,11 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("gitlabbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
-		opts:   opts,
+		Server: base.NewServer("gitlabbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+			KeybaseLocation: opts.KeybaseLocation,
+			HomeDir:         opts.Home,
+		}),
+		opts: opts,
 	}
 }
 
@@ -125,7 +128,7 @@ func (s *BotServer) getConfig() (webhookSecret string, err error) {
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
 		return err
 	}
 

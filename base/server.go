@@ -39,9 +39,11 @@ type Server struct {
 	botAdmins    []string
 	multiDBDSN   string
 	multi        *multi
+
+	runOptions kbchat.RunOptions
 }
 
-func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string) *Server {
+func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string, runOptions kbchat.RunOptions) *Server {
 	return &Server{
 		name:         name,
 		announcement: announcement,
@@ -49,6 +51,7 @@ func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string
 		botAdmins:    DefaultBotAdmins,
 		shutdownCh:   make(chan struct{}),
 		multiDBDSN:   multiDBDSN,
+		runOptions:   runOptions,
 	}
 }
 
@@ -97,11 +100,8 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	return nil
 }
 
-func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API, err error) {
-	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
-		KeybaseLocation: keybaseLoc,
-		HomeDir:         home,
-	}); err != nil {
+func (s *Server) Start(errReportConv string) (kbc *kbchat.API, err error) {
+	if s.kbc, err = kbchat.Start(s.runOptions); err != nil {
 		return s.kbc, err
 	}
 	debugConfig := NewChatDebugOutputConfig(s.kbc, errReportConv)
