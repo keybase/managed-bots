@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -348,27 +347,9 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	}
-	tld := "private"
-	if msg.Channel.MembersType == "team" {
-		tld = "team"
-	}
+	logBytes := []byte(strings.Join(logs, "\n"))
 
-	folder := fmt.Sprintf("/keybase/%s/%s/botlogs", tld, msg.Channel.Name)
-	if err := exec.Command("keybase", "fs", "mkdir", folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to make directory: %s", err)
-	}
-	fileName := fmt.Sprintf("botlogs-%d.txt", time.Now().Unix())
-	filePath := fmt.Sprintf("/tmp/%s", fileName)
-	defer os.Remove(filePath)
-	if err := ioutil.WriteFile(filePath, []byte(strings.Join(logs, "\n")), 0644); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to write log output: %s", err)
-	}
-	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to move log output: %s", err)
-	}
-	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
-	s.ChatEcho(msg.ConvID, "log output: %s", destFilePath)
-	return nil
+	return s.kbfsDebugOutput(msg, logBytes, "botlogs")
 }
 
 func (s *Server) handleStack(msg chat1.MsgSummary) error {
@@ -380,27 +361,7 @@ func (s *Server) handleStack(msg chat1.MsgSummary) error {
 
 	stack := getStackBuffer(true)
 
-	tld := "private"
-	if msg.Channel.MembersType == "team" {
-		tld = "team"
-	}
-
-	folder := fmt.Sprintf("/keybase/%s/%s/stack", tld, msg.Channel.Name)
-	if err := exec.Command("keybase", "fs", "mkdir", folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to make directory: %s", err)
-	}
-	fileName := fmt.Sprintf("stack-%d.txt", time.Now().Unix())
-	filePath := fmt.Sprintf("/tmp/%s", fileName)
-	defer os.Remove(filePath)
-	if err := ioutil.WriteFile(filePath, stack, 0644); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to write stack output: %s", err)
-	}
-	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to move stack output: %s", err)
-	}
-	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
-	s.ChatEcho(msg.ConvID, "stack output: %s", destFilePath)
-	return nil
+	return s.kbfsDebugOutput(msg, stack, "stack")
 }
 
 func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
@@ -414,5 +375,31 @@ func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
 		s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
 			msg.Sender.Username)
 	}
+	return nil
+}
+
+func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation string) error {
+	tld := "private"
+	if msg.Channel.MembersType == "team" {
+		tld = "team"
+	}
+
+	folder := fmt.Sprintf("/keybase/%s/%s/%s", tld, msg.Channel.Name, operation)
+	if err := s.runOptions.Command("fs", "mkdir", folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to make directory %s: %s", folder, err)
+	}
+	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
+	filePath := fmt.Sprintf("/tmp/%s", fileName)
+	defer os.Remove(filePath)
+	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to write %s output: %s", operation, err)
+	}
+	if err := s.runOptions.Command("fs", "mv", filePath, folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to move %s output: %s", operation, err)
+	}
+	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
+
+	s.ChatEcho(msg.ConvID, "%s output: %s", operation, destFilePath)
+
 	return nil
 }
