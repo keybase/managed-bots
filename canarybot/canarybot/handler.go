@@ -50,7 +50,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!canary echo"):
 		return h.handleEcho(cmd, msg)
 	default:
-		h.ChatEcho(msg.ConvID, "Unkown command: %q", cmd)
+		h.ChatEcho(msg.ConvID, "Unknown command: %q", cmd)
 	}
 	return nil
 }
