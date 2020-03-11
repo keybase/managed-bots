@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -379,8 +378,7 @@ func (s *Server) handleStack(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	buf := make([]byte, 2<<20) // found this used in other calls to runtime.Stack in the go src
-	buf = buf[:runtime.Stack(buf, true)]
+	stack := getStackBuffer(true)
 
 	tld := "private"
 	if msg.Channel.MembersType == "team" {
@@ -394,7 +392,7 @@ func (s *Server) handleStack(msg chat1.MsgSummary) error {
 	fileName := fmt.Sprintf("stack-%d.txt", time.Now().Unix())
 	filePath := fmt.Sprintf("/tmp/%s", fileName)
 	defer os.Remove(filePath)
-	if err := ioutil.WriteFile(filePath, buf, 0644); err != nil {
+	if err := ioutil.WriteFile(filePath, stack, 0644); err != nil {
 		return fmt.Errorf("kbfsOutput: failed to write stack output: %s", err)
 	}
 	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
