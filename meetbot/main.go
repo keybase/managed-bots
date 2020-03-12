@@ -40,8 +40,11 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("meetbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
-		opts:   opts,
+		Server: base.NewServer("meetbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+			KeybaseLocation: opts.KeybaseLocation,
+			HomeDir:         opts.Home,
+		}),
+		opts: opts,
 	}
 }
 
@@ -91,7 +94,7 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to get config %v", err)
 	}
 
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 

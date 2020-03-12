@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/kballard/go-shellquote"
@@ -337,4 +338,10 @@ Examples:%s
 			MobileBody:  feedbackExtended,
 		},
 	}
+}
+
+func getStackBuffer(allGoroutines bool) []byte {
+	// found this used in other calls to runtime.Stack in the go src
+	buf := make([]byte, 2<<20)
+	return buf[:runtime.Stack(buf, allGoroutines)]
 }

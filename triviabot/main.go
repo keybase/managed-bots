@@ -24,8 +24,11 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN),
-		opts:   opts,
+		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+			KeybaseLocation: opts.KeybaseLocation,
+			HomeDir:         opts.Home,
+		}),
+		opts: opts,
 	}
 }
 
@@ -61,7 +64,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 }
 
 func (s *BotServer) Go() (err error) {
-	if s.kbc, err = s.Start(s.opts.KeybaseLocation, s.opts.Home, s.opts.ErrReportConv); err != nil {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
 		return err
 	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)

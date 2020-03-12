@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -39,9 +38,11 @@ type Server struct {
 	botAdmins    []string
 	multiDBDSN   string
 	multi        *multi
+
+	runOptions kbchat.RunOptions
 }
 
-func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string) *Server {
+func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string, runOptions kbchat.RunOptions) *Server {
 	return &Server{
 		name:         name,
 		announcement: announcement,
@@ -49,6 +50,7 @@ func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string
 		botAdmins:    DefaultBotAdmins,
 		shutdownCh:   make(chan struct{}),
 		multiDBDSN:   multiDBDSN,
+		runOptions:   runOptions,
 	}
 }
 
@@ -97,11 +99,8 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	return nil
 }
 
-func (s *Server) Start(keybaseLoc, home, errReportConv string) (kbc *kbchat.API, err error) {
-	if s.kbc, err = kbchat.Start(kbchat.RunOptions{
-		KeybaseLocation: keybaseLoc,
-		HomeDir:         home,
-	}); err != nil {
+func (s *Server) Start(errReportConv string) (kbc *kbchat.API, err error) {
+	if s.kbc, err = kbchat.Start(s.runOptions); err != nil {
 		return s.kbc, err
 	}
 	debugConfig := NewChatDebugOutputConfig(s.kbc, errReportConv)
@@ -187,6 +186,11 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 			case strings.HasPrefix(cmd, "!pprof"):
 				if err := s.handlePProf(msg); err != nil {
 					s.Errorf("listenForMsgs: unable to handlePProf: %v", err)
+				}
+				continue
+			case strings.HasPrefix(cmd, "!stack"):
+				if err := s.handleStack(msg); err != nil {
+					s.Errorf("listenForMsgs: unable to handleStack: %v", err)
 				}
 				continue
 			case strings.HasPrefix(cmd, fmt.Sprintf("!%s", feedbackCmd(s.kbc.GetUsername()))):
@@ -343,27 +347,21 @@ func (s *Server) handleBotLogs(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	}
-	tld := "private"
-	if msg.Channel.MembersType == "team" {
-		tld = "team"
+	logBytes := []byte(strings.Join(logs, "\n"))
+
+	return s.kbfsDebugOutput(msg, logBytes, "botlogs")
+}
+
+func (s *Server) handleStack(msg chat1.MsgSummary) error {
+	if !s.allowHiddenCommand(msg) {
+		s.Debug("ignoring stack from @%s, botAdmins: %v",
+			msg.Sender.Username, s.botAdmins)
+		return nil
 	}
 
-	folder := fmt.Sprintf("/keybase/%s/%s/botlogs", tld, msg.Channel.Name)
-	if err := exec.Command("keybase", "fs", "mkdir", folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to make directory: %s", err)
-	}
-	fileName := fmt.Sprintf("botlogs-%d.txt", time.Now().Unix())
-	filePath := fmt.Sprintf("/tmp/%s", fileName)
-	defer os.Remove(filePath)
-	if err := ioutil.WriteFile(filePath, []byte(strings.Join(logs, "\n")), 0644); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to write log output: %s", err)
-	}
-	if err := exec.Command("keybase", "fs", "mv", filePath, folder).Run(); err != nil {
-		return fmt.Errorf("kbfsOutput: failed to move log output: %s", err)
-	}
-	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
-	s.ChatEcho(msg.ConvID, "log output: %s", destFilePath)
-	return nil
+	stack := getStackBuffer(true)
+
+	return s.kbfsDebugOutput(msg, stack, "stack")
 }
 
 func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
@@ -377,5 +375,31 @@ func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
 		s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
 			msg.Sender.Username)
 	}
+	return nil
+}
+
+func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation string) error {
+	tld := "private"
+	if msg.Channel.MembersType == "team" {
+		tld = "team"
+	}
+
+	folder := fmt.Sprintf("/keybase/%s/%s/%s", tld, msg.Channel.Name, operation)
+	if err := s.runOptions.Command("fs", "mkdir", folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to make directory %s: %s", folder, err)
+	}
+	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
+	filePath := fmt.Sprintf("/tmp/%s", fileName)
+	defer os.Remove(filePath)
+	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to write %s output: %s", operation, err)
+	}
+	if err := s.runOptions.Command("fs", "mv", filePath, folder).Run(); err != nil {
+		return fmt.Errorf("kbfsOutput: failed to move %s output: %s", operation, err)
+	}
+	destFilePath := fmt.Sprintf("%s/%s", folder, fileName)
+
+	s.ChatEcho(msg.ConvID, "%s output: %s", operation, destFilePath)
+
 	return nil
 }
