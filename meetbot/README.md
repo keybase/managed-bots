@@ -20,7 +20,7 @@ In order to run the Meet bot, there needs to be a running MySQL database in orde
    software to route to this port and path.
 5. To start the Meet bot, run a command like this:
    ```
-   # NOTE --kbfs-root specifies the path to the crendentials.json file.
+   # NOTE --kbfs-root specifies the path to the credentials.json file.
    $GOPATH/bin/meetbot --dsn 'root@/meetbot' --kbfs-root ~/Downloads
    ```
 6. Run `meetbot --help` for more options.
