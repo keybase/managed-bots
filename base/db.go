@@ -84,17 +84,17 @@ func (d *BaseOAuthDB) CompleteState(state string) error {
 	return err
 }
 
-type GoogleOAuthDB struct {
+type OAuthDB struct {
 	*BaseOAuthDB
 }
 
-func NewGoogleOAuthDB(db *sql.DB) *GoogleOAuthDB {
-	return &GoogleOAuthDB{
+func NewOAuthDB(db *sql.DB) *OAuthDB {
+	return &OAuthDB{
 		BaseOAuthDB: NewBaseOAuthDB(db),
 	}
 }
 
-func (d *GoogleOAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
+func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
 	var expiry int64
 	row := d.DB.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
@@ -113,7 +113,7 @@ func (d *GoogleOAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 	}
 }
 
-func (d *GoogleOAuthDB) PutToken(identifier string, token *oauth2.Token) error {
+func (d *OAuthDB) PutToken(identifier string, token *oauth2.Token) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`INSERT INTO oauth
 		(identifier, access_token, token_type, refresh_token, expiry, ctime, mtime)
@@ -129,7 +129,7 @@ func (d *GoogleOAuthDB) PutToken(identifier string, token *oauth2.Token) error {
 	return err
 }
 
-func (d *GoogleOAuthDB) DeleteToken(identifier string) error {
+func (d *OAuthDB) DeleteToken(identifier string) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`DELETE FROM oauth
 	WHERE identifier = ?`, identifier)

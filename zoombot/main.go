@@ -131,7 +131,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	defer sdb.Close()
-	db := base.NewGoogleOAuthDB(sdb)
+	db := base.NewOAuthDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Errorf("advertise error: %s", err)
 		return err
