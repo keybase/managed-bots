@@ -94,13 +94,16 @@ func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
 		}
 
 		var credentials credentialsType
-
 		if err := json.Unmarshal(out.Bytes(), &credentials); err != nil {
 			return nil, err
 		}
 
 		clientID = credentials.ClientID
 		clientSecret = credentials.ClientSecret
+	}
+
+	if len(clientID) == 0 || len(clientSecret) == 0 {
+		return nil, fmt.Errorf("Must provide a clientID (len: %d) and clientSecret (len: %d)", len(clientID), len(clientSecret))
 	}
 
 	return &oauth2.Config{
@@ -116,13 +119,13 @@ func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
 }
 
 func (s *BotServer) Go() (err error) {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
+		return fmt.Errorf("failed to start keybase %v", err)
+	}
+
 	config, err := s.getOAuthConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config %v", err)
-	}
-
-	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
-		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
