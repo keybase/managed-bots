@@ -19,14 +19,14 @@ type Handler struct {
 
 	stats  *base.StatsRegistry
 	kbc    *kbchat.API
-	db     *base.GoogleOAuthDB
+	db     *base.OAuthDB
 	config *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.GoogleOAuthDB, config *oauth2.Config) *Handler {
+	db *base.OAuthDB, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		stats:       stats.SetPrefix("Handler"),

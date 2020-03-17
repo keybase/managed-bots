@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -14,15 +15,16 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"github.com/keybase/managed-bots/meetbot/meetbot"
-	"golang.org/x/oauth2/google"
+	"github.com/keybase/managed-bots/zoombot/zoombot"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/api/calendar/v3"
 )
 
 type Options struct {
 	*base.Options
-	KBFSRoot string
+	KBFSRoot          string
+	HTTPPrefix        string
+	OAuthClientID     string
+	OAuthClientSecret string
 }
 
 func NewOptions() *Options {
@@ -40,7 +42,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("meetbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+		Server: base.NewServer("zoombot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
 		}),
@@ -50,14 +52,14 @@ func NewBotServer(opts Options) *BotServer {
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	return kbchat.Advertisement{
-		Alias: "Google Meet",
+		Alias: "Zoom",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ: "public",
 				Commands: []chat1.UserBotCommandInput{
 					{
-						Name:        "meet",
-						Description: "Get a URL for a new meet call",
+						Name:        "zoom",
+						Description: "Get a URL for a Zoom instant meeting",
 					},
 					base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 				},
@@ -66,26 +68,51 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	}
 }
 
-func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
-	if len(s.opts.KBFSRoot) == 0 {
-		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
-	}
-	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
-	cmd := s.opts.Command("fs", "read", configPath)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("could not read credentials.json: %v", err)
+func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
+	var clientID string
+	var clientSecret string
+
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
+		clientID = s.opts.OAuthClientID
+		clientSecret = s.opts.OAuthClientSecret
+	} else {
+		if len(s.opts.KBFSRoot) == 0 {
+			return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+		}
+		configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
+		cmd := s.opts.Command("fs", "read", configPath)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+
+		type credentialsType struct {
+			ClientID     string `json:"client_id"`
+			ClientSecret string `json:"client_secret"`
+		}
+
+		var credentials credentialsType
+
+		if err := json.Unmarshal(out.Bytes(), &credentials); err != nil {
+			return nil, err
+		}
+
+		clientID = credentials.ClientID
+		clientSecret = credentials.ClientSecret
 	}
 
-	// If modifying these scopes, drop the saved tokens in the db
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
-	}
-
-	return config, nil
+	return &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://zoom.us/oauth/authorize",
+			TokenURL: "https://zoom.us/oauth/token",
+		},
+		RedirectURL: fmt.Sprintf("%s/zoombot/oauth", s.opts.HTTPPrefix),
+		Scopes:      []string{"meeting:write"},
+	}, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -120,8 +147,8 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	stats = stats.SetPrefix(s.Name())
-	handler := meetbot.NewHandler(stats, s.kbc, debugConfig, db, config)
-	httpSrv := meetbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
+	handler := zoombot.NewHandler(stats, s.kbc, debugConfig, db, config)
+	httpSrv := zoombot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
@@ -142,6 +169,9 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
+	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
+	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
+	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3

@@ -16,12 +16,12 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	db      *base.GoogleOAuthDB
+	db      *base.OAuthDB
 	handler *Handler
 }
 
 func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.GoogleOAuthDB, handler *Handler, oauthConfig *oauth2.Config) *HTTPSrv {
+	db *base.OAuthDB, handler *Handler, oauthConfig *oauth2.Config) *HTTPSrv {
 	h := &HTTPSrv{
 		db:      db,
 		handler: handler,

@@ -22,7 +22,7 @@ order to store account and webhook data.
    software to route to this port and path.
 6. To start the Google Calendar bot, run a command like this:
    ```
-   # NOTE --kbfs-root specifies the path to the crendentials.json file.
+   # NOTE --kbfs-root specifies the path to the credentials.json file.
    # NOTE --http-prefix needs to be https for the Google API webhooks to function
    $GOPATH/bin/gcalbot --dsn 'root@/gcalbot' --kbfs-root ~/Downloads --http-prefix https://mydomain.com --login-secret 'moony wormtail padfoot prongs'
    ```
