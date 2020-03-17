@@ -1,0 +1,158 @@
+package zoombot
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
+)
+
+const (
+	apiBaseURL    = "https://api.zoom.us/v2"
+	currentUserID = "me"
+)
+
+// Common
+
+type MeetingType int
+
+const (
+	InstantMeeting              MeetingType = 1
+	ScheduledMeeting            MeetingType = 2
+	RecurringMeetingNoFixedTime MeetingType = 3
+	RecurringMeetingFixedTime   MeetingType = 8
+)
+
+type TrackingField struct {
+	Field string `json:"field,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
+type Recurrence struct {
+	Type           int    `json:"type,omitempty"`
+	RepeatInterval int    `json:"repeat_interval,omitempty"`
+	WeeklyDays     string `json:"weekly_days,omitempty"`
+	MonthlyDay     int    `json:"monthly_day,omitempty"`
+	MonthlyWeek    int    `json:"monthly_week,omitempty"`
+	MonthlyWeekDay int    `json:"monthly_week_day,omitempty"`
+	EndTimes       int    `json:"end_times,omitempty"`
+	EndDateTime    string `json:"end_date_time,omitempty"`
+}
+
+type GlobalDialInNumbers struct {
+	City        string `json:"city"`
+	Country     string `json:"country"`
+	CountryName string `json:"country_name"`
+	Number      string `json:"number"`
+	Type        string `json:"type"`
+}
+
+// Create Meeting
+
+type CreateMeetingRequest struct {
+	Topic     string      `json:"topic,omitempty"`
+	Type      MeetingType `json:"type,omitempty"`
+	StartTime string      `json:"start_time,omitempty"`
+	Duration  int         `json:"duration,omitempty"`
+	Timezone  string      `json:"timezone,omitempty"`
+	Password  string      `json:"password,omitempty"`
+	Agenda    string      `json:"agenda,omitempty"`
+
+	TrackingFields []TrackingField               `json:"tracking_fields,omitempty"`
+	Recurrence     *Recurrence                   `json:"recurrence,omitempty"`
+	Settings       *CreateMeetingRequestSettings `json:"settings,omitempty"`
+}
+
+type CreateMeetingRequestSettings struct {
+	HostVideo                    bool     `json:"host_video,omitempty"`
+	ParticipantVideo             bool     `json:"participant_video,omitempty"`
+	CnMeeting                    bool     `json:"cn_meeting,omitempty"`
+	InMeeting                    bool     `json:"in_meeting,omitempty"`
+	JoinBeforeHost               bool     `json:"join_before_host,omitempty"`
+	MuteUponEntry                bool     `json:"mute_upon_entry,omitempty"`
+	Watermark                    bool     `json:"watermark,omitempty"`
+	UsePmi                       bool     `json:"use_pmi,omitempty"`
+	ApprovalType                 int      `json:"approval_type,omitempty"`
+	RegistrationType             int      `json:"registration_type,omitempty"`
+	Audio                        string   `json:"audio,omitempty"`
+	AutoRecording                string   `json:"auto_recording,omitempty"`
+	EnforceLogin                 bool     `json:"enforce_login,omitempty"`
+	EnforceLoginDomains          string   `json:"enforce_login_domains,omitempty"`
+	AlternativeHosts             string   `json:"alternative_hosts,omitempty"`
+	GlobalDialInCountries        []string `json:"global_dial_in_countries,omitempty"`
+	RegistrantsEmailNotification bool     `json:"registrants_email_notification,omitempty"`
+}
+
+type CreateMeetingResponse struct {
+	CreatedAt time.Time   `json:"created_at"`
+	Duration  int         `json:"duration"`
+	HostID    string      `json:"host_id"`
+	ID        int         `json:"id"`
+	JoinURL   string      `json:"join_url"`
+	StartTime time.Time   `json:"start_time"`
+	StartURL  string      `json:"start_url"`
+	Status    string      `json:"status"`
+	Timezone  string      `json:"timezone"`
+	Topic     string      `json:"topic"`
+	Type      MeetingType `json:"type"`
+	UUID      string      `json:"uuid"`
+
+	Settings CreateMeetingResponseSettings `json:"settings"`
+}
+
+type CreateMeetingResponseSettings struct {
+	AlternativeHosts             string                `json:"alternative_hosts"`
+	ApprovalType                 int                   `json:"approval_type"`
+	Audio                        string                `json:"audio"`
+	AutoRecording                string                `json:"auto_recording"`
+	CloseRegistration            bool                  `json:"close_registration"`
+	CnMeeting                    bool                  `json:"cn_meeting"`
+	EnforceLogin                 bool                  `json:"enforce_login"`
+	EnforceLoginDomains          string                `json:"enforce_login_domains"`
+	GlobalDialInCountries        []string              `json:"global_dial_in_countries"`
+	GlobalDialInNumbers          []GlobalDialInNumbers `json:"global_dial_in_numbers"`
+	HostVideo                    bool                  `json:"host_video"`
+	InMeeting                    bool                  `json:"in_meeting"`
+	JoinBeforeHost               bool                  `json:"join_before_host"`
+	MuteUponEntry                bool                  `json:"mute_upon_entry"`
+	ParticipantVideo             bool                  `json:"participant_video"`
+	RegistrantsConfirmationEmail bool                  `json:"registrants_confirmation_email"`
+	UsePmi                       bool                  `json:"use_pmi"`
+	WaitingRoom                  bool                  `json:"waiting_room"`
+	Watermark                    bool                  `json:"watermark"`
+	RegistrantsEmailNotification bool                  `json:"registrants_email_notification"`
+}
+
+func CreateMeeting(client *http.Client, userID string, request *CreateMeetingRequest) (*CreateMeetingResponse, error) {
+	apiURL := fmt.Sprintf("%s/users/%s/meetings", apiBaseURL, userID)
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Post(apiURL, "application/json", bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("error creating meeting: %d, %s", resp.StatusCode, data)
+	}
+
+	var meeting CreateMeetingResponse
+	err = json.Unmarshal(data, &meeting)
+	if err != nil {
+		return nil, err
+	}
+
+	return &meeting, nil
+}
