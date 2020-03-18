@@ -145,7 +145,7 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("error creating meeting: %d, %s", resp.StatusCode, data)
+		return nil, parseError(resp.StatusCode, data)
 	}
 
 	var meeting CreateMeetingResponse
@@ -155,4 +155,22 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 	}
 
 	return &meeting, nil
+}
+
+type ZoomAPIError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e ZoomAPIError) Error() string {
+	return e.Message
+}
+
+func parseError(statusCode int, data []byte) error {
+	var errorResponse ZoomAPIError
+	err := json.Unmarshal(data, &errorResponse)
+	if err != nil {
+		return fmt.Errorf("statusCode: %d, error: %s", statusCode, data)
+	}
+	return errorResponse
 }

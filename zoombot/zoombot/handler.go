@@ -1,6 +1,7 @@
 package zoombot
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -89,10 +90,15 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
 	meeting, err := CreateMeeting(client, currentUserID, &CreateMeetingRequest{
 		Type: InstantMeeting,
 	})
-	if err != nil {
-		return err
+	switch err := err.(type) {
+	case nil:
+		h.ChatEcho(msg.ConvID, meeting.JoinURL)
+	case ZoomAPIError:
+		if err.Code == http.StatusTooManyRequests {
+			h.ChatEcho(msg.ConvID, err.Error())
+			return nil
+		}
 	}
-	h.ChatEcho(msg.ConvID, meeting.JoinURL)
 
-	return nil
+	return err
 }
