@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/kballard/go-shellquote"
 
@@ -123,9 +124,16 @@ func HandleNewTeam(stats *StatsRegistry, log *DebugOutput, kbc *kbchat.API, conv
 		stats.Count("HandleNewTeam - skipped new conv")
 		return nil
 	}
-	stats.Count("HandleNewTeam - new conv")
-	_, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg)
-	return err
+	// Delay for a short time in case there is an ephemeral policy on this
+	// conversation and the bot is not yet keyed.
+	go func() {
+		time.Sleep(time.Second)
+		stats.Count("HandleNewTeam - new conv")
+		if _, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg); err != nil {
+			log.Errof("unable to HandleNewTeam: %v", err)
+		}
+	}()
+	return nil
 }
 
 func IsAtLeastWriter(kbc *kbchat.API, senderUsername string, channel chat1.ChatChannel) (bool, error) {
