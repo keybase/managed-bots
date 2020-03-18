@@ -59,7 +59,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 				Commands: []chat1.UserBotCommandInput{
 					{
 						Name:        "zoom",
-						Description: "Get a URL for a Zoom instant meeting",
+						Description: "New Zoom meeting",
 					},
 					base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 				},
