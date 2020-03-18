@@ -67,6 +67,11 @@ func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
 	switch err.(type) {
 	case nil, base.OAuthRequiredError:
 		return nil
+	case ZoomAPIError:
+		if err.(ZoomAPIError).Code == invalidTokenCode {
+			return retry()
+		}
+		return err
 	default:
 		if strings.Contains(err.Error(), "oauth2: cannot fetch token") {
 			h.Errorf("unable to get service %v, deleting credentials and retrying", err)
