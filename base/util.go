@@ -130,7 +130,7 @@ func HandleNewTeam(stats *StatsRegistry, log *DebugOutput, kbc *kbchat.API, conv
 		time.Sleep(time.Second)
 		stats.Count("HandleNewTeam - new conv")
 		if _, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg); err != nil {
-			log.Errof("unable to HandleNewTeam: %v", err)
+			log.Errorf("unable to HandleNewTeam: %v", err)
 		}
 	}()
 	return nil
