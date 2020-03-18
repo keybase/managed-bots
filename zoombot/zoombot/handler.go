@@ -89,10 +89,14 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
 	meeting, err := CreateMeeting(client, currentUserID, &CreateMeetingRequest{
 		Type: InstantMeeting,
 	})
-	if err != nil {
+	switch err {
+	case nil:
+		h.ChatEcho(msg.ConvID, meeting.JoinURL)
+	case MaxMeetingsError:
+		h.ChatEcho(msg.ConvID, "Woah there partner! You can only create up to 100 Zoom meetings per day :face_with_cowboy_hat:")
+	default:
 		return err
 	}
-	h.ChatEcho(msg.ConvID, meeting.JoinURL)
 
 	return nil
 }
