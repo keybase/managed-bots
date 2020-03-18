@@ -253,6 +253,19 @@ func GetOAuthClient(
 		}
 
 		return nil, OAuthRequiredError{}
+	} else {
+		// renew token
+		newToken, err := config.TokenSource(context.Background(), token).Token()
+		if err != nil {
+			return nil, fmt.Errorf("unable to renew token: %s", err)
+		}
+		if newToken.AccessToken != token.AccessToken {
+			err = storage.PutToken(tokenIdentifier, newToken)
+			if err != nil {
+				return nil, fmt.Errorf("unable to update token: %s", err)
+			}
+			token = newToken
+		}
 	}
 
 	return config.Client(context.Background(), token), nil
