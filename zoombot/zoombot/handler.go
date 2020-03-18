@@ -1,6 +1,7 @@
 package zoombot
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -89,14 +90,15 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
 	meeting, err := CreateMeeting(client, currentUserID, &CreateMeetingRequest{
 		Type: InstantMeeting,
 	})
-	switch err {
+	switch err := err.(type) {
 	case nil:
 		h.ChatEcho(msg.ConvID, meeting.JoinURL)
-	case MaxMeetingsError:
-		h.ChatEcho(msg.ConvID, "Woah there partner! You can only create up to 100 Zoom meetings per day :face_with_cowboy_hat:")
-	default:
-		return err
+	case ZoomAPIError:
+		if err.Code == http.StatusTooManyRequests {
+			h.ChatEcho(msg.ConvID, err.Error())
+			return nil
+		}
 	}
 
-	return nil
+	return err
 }

@@ -3,11 +3,9 @@ package zoombot
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -159,23 +157,20 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 	return &meeting, nil
 }
 
-type ErrorResponse struct {
+type ZoomAPIError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
 
-var MaxMeetingsError = errors.New("a maximum of 100 meetings can be created/updated for a single user in one day")
+func (e ZoomAPIError) Error() string {
+	return e.Message
+}
 
 func parseError(statusCode int, data []byte) error {
-	var errorResponse ErrorResponse
+	var errorResponse ZoomAPIError
 	err := json.Unmarshal(data, &errorResponse)
 	if err != nil {
 		return fmt.Errorf("statusCode: %d, error: %s", statusCode, data)
 	}
-	switch errorResponse.Message {
-	case "A maximum of 100 meetings can be created/updated for a single user in one day.":
-		return MaxMeetingsError
-	default:
-		return errors.New(strings.ToLower(errorResponse.Message))
-	}
+	return errorResponse
 }
