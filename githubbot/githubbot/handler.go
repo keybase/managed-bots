@@ -239,7 +239,7 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	// check that user has authorization
 	tc, err := base.GetOAuthClient(msg.Sender.Username, msg, h.kbc, h.oauthConfig, h.db,
 		base.GetOAuthOpts{
-			AuthMessageTemplate: "Visit %s\n to authorize me to set up GitHub updates.",
+			AuthMessageTemplate: "Authorize me by clicking this link:\n%s",
 		})
 	if err != nil || tc == nil {
 		return false, err
