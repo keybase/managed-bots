@@ -121,7 +121,7 @@ func (s *BotServer) Go() (err error) {
 			TokenURL: "https://zoom.us/oauth/token",
 		},
 		RedirectURL: fmt.Sprintf("%s/zoombot/oauth", s.opts.HTTPPrefix),
-		Scopes:      []string{"meeting:write"},
+		Scopes:      []string{"user:read", "meeting:write"},
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -130,7 +130,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	defer sdb.Close()
-	db := base.NewOAuthDB(sdb)
+	db := zoombot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Errorf("advertise error: %s", err)
 		return err

@@ -14,8 +14,8 @@ In order to run the Zoom bot, there needs to be a running MySQL database in orde
    ```
 3. Create an OAuth App on the [Zoom Marketplace](https://marketplace.zoom.us/develop/create). Fill in all of
 the necessary details (name, description, etc.). Additionally, set the redirect URL *and* whitelist as
-`https://mydomain.com/zoombot/oauth`, the scopes to `meeting:write` and the deauthorization notification endpoint URL as
-`https://mydomain.com/zoombot/deauthorize`.
+`https://mydomain.com/zoombot/oauth`, add `user:read` and `meeting:write` to the Scopes and set the deauthorization
+notification endpoint URL as `https://mydomain.com/zoombot/deauthorize`.
 4. The bot sets itself up to serve HTTP requests on `/zoombot`. The HTTP server
    runs on port 8080. You can configure nginx or any other reverse proxy
    software to route to this port and path.

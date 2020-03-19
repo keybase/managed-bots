@@ -1,6 +1,8 @@
 package zoombot
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -15,14 +17,14 @@ type Handler struct {
 
 	stats  *base.StatsRegistry
 	kbc    *kbchat.API
-	db     *base.OAuthDB
+	db     *DB
 	config *oauth2.Config
 }
 
 var _ base.Handler = (*Handler)(nil)
 
 func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.OAuthDB, config *oauth2.Config) *Handler {
+	db *DB, config *oauth2.Config) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		stats:       stats.SetPrefix("Handler"),
@@ -37,7 +39,22 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
+func (h *Handler) HandleAuth(msg chat1.MsgSummary, identifier string) error {
+	token, err := h.db.GetToken(identifier)
+	if err != nil {
+		return fmt.Errorf("error getting token: %s", err)
+	}
+	client := h.config.Client(context.Background(), token)
+
+	user, err := GetUser(client, currentUserID)
+	if err != nil {
+		return err
+	}
+
+	err = h.db.CreateUser(user.ID, user.AccountID, identifier)
+	if err != nil {
+		return fmt.Errorf("error creating user entry: %s", err)
+	}
 	return h.HandleCommand(msg)
 }
 
@@ -64,11 +81,11 @@ func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
 		return h.zoomHandlerInner(msg)
 	}
 	err := h.zoomHandlerInner(msg)
-	switch err.(type) {
+	switch err := err.(type) {
 	case nil, base.OAuthRequiredError:
 		return nil
 	case ZoomAPIError:
-		if err.(ZoomAPIError).Code == invalidTokenCode {
+		if err.Code == invalidTokenCode {
 			return retry()
 		}
 		return err

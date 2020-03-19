@@ -14,14 +14,14 @@ import (
 type HTTPSrv struct {
 	*base.OAuthHTTPSrv
 
-	db      *base.OAuthDB
+	db      *DB
 	handler *Handler
 
 	credentials *Credentials
 }
 
 func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.OAuthDB, handler *Handler, oauthConfig *oauth2.Config, credentials *Credentials) *HTTPSrv {
+	db *DB, handler *Handler, oauthConfig *oauth2.Config, credentials *Credentials) *HTTPSrv {
 	h := &HTTPSrv{
 		db:          db,
 		handler:     handler,
@@ -60,7 +60,12 @@ func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO(marcel): remove user data
+	err = h.db.DeleteUserAndToken(deauthorizationRequest.Payload.UserID, deauthorizationRequest.Payload.AccountID)
+	if err != nil {
+		h.Errorf("zoomDeauthorize: unable to delete user: %s", err)
+		http.Error(w, "unable to delete user", http.StatusBadRequest)
+		return
+	}
 
 	_, err = DataCompliance(h.credentials.ClientID, h.credentials.ClientSecret, &DataComplianceRequest{
 		ClientID:                     deauthorizationRequest.Payload.ClientID,

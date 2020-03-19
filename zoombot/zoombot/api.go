@@ -51,6 +51,36 @@ type GlobalDialInNumbers struct {
 	Type        string `json:"type"`
 }
 
+// Get User
+
+type GetUserResponse struct {
+	ID                 string        `json:"id"`
+	FirstName          string        `json:"first_name"`
+	LastName           string        `json:"last_name"`
+	Email              string        `json:"email"`
+	Type               int           `json:"type"`
+	RoleName           string        `json:"role_name"`
+	Pmi                int           `json:"pmi"`
+	UsePmi             bool          `json:"use_pmi"`
+	PersonalMeetingURL string        `json:"personal_meeting_url"`
+	Timezone           string        `json:"timezone"`
+	Verified           int           `json:"verified"`
+	Dept               string        `json:"dept"`
+	CreatedAt          time.Time     `json:"created_at"`
+	LastLoginTime      time.Time     `json:"last_login_time"`
+	LastClientVersion  string        `json:"last_client_version"`
+	PicURL             string        `json:"pic_url"`
+	HostKey            string        `json:"host_key"`
+	Jid                string        `json:"jid"`
+	GroupIds           []interface{} `json:"group_ids"`
+	ImGroupIds         []string      `json:"im_group_ids"`
+	AccountID          string        `json:"account_id"`
+	Language           string        `json:"language"`
+	PhoneCountry       string        `json:"phone_country"`
+	PhoneNumber        string        `json:"phone_number"`
+	Status             string        `json:"status"`
+}
+
 // Create Meeting
 
 type CreateMeetingRequest struct {
@@ -160,6 +190,33 @@ type DataComplianceResponse struct {
 	Signature           string `json:"signature"`
 	DeauthorizationTime string `json:"deauthorization_time"`
 	ClientID            string `json:"client_id"`
+}
+
+func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
+	apiURL := fmt.Sprintf("%s/users/%s", apiBaseURLV2, userID)
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseError(resp.StatusCode, data)
+	}
+
+	var user GetUserResponse
+	err = json.Unmarshal(data, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func CreateMeeting(client *http.Client, userID string, request *CreateMeetingRequest) (*CreateMeetingResponse, error) {
