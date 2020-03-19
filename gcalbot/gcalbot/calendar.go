@@ -25,7 +25,7 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 		return nil
 	}
 
-	srv, err := GetCalendarService(account, h.oauth)
+	srv, err := GetCalendarService(account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"google.golang.org/api/calendar/v3"
 )
@@ -45,8 +47,13 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 }
 
 func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *gcalbot.Subscription) {
-	srv, err := gcalbot.GetCalendarService(account, r.oauth)
-	if err != nil {
+	srv, err := gcalbot.GetCalendarService(account, r.oauth, r.db)
+	switch err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		r.Debug("error retrieving token: %s", err)
+		return
+	default:
 		r.Errorf("error getting calendar service: %s", err)
 		return
 	}
@@ -64,7 +71,12 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 			events = append(events, page.Items...)
 			return nil
 		})
-	if err != nil {
+	switch err := err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		r.Errorf("error refreshing token API: %s", err)
+		return
+	default:
 		r.Errorf("error getting events from API: %s", err)
 		return
 	}
@@ -112,8 +124,13 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 		}
 	})
 
-	srv, err := gcalbot.GetCalendarService(account, r.oauth)
-	if err != nil {
+	srv, err := gcalbot.GetCalendarService(account, r.oauth, r.db)
+	switch err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		r.Debug("error retrieving token: %s", err)
+		return nil
+	default:
 		return err
 	}
 
