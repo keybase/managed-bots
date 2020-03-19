@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"google.golang.org/api/calendar/v3"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
@@ -98,8 +100,13 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	s.stats.Count("SendDailyScheduleMessage")
 	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
 
-	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth)
-	if err != nil {
+	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth, s.db)
+	switch err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		s.Debug("error retrieving token: %s", err)
+		return
+	default:
 		s.Errorf("unable to get calendar service: %s", err)
 		return
 	}
@@ -139,6 +146,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 				events = append(events, page.Items...)
 				return nil
 			})
+
 		if err != nil {
 			s.Errorf("error getting events from API: %s", err)
 			continue

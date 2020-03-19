@@ -39,7 +39,7 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	srv, err := GetCalendarService(account, h.oauth)
+	srv, err := GetCalendarService(account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 		return nil
 	}
 
-	srv, err := GetCalendarService(account, h.oauth)
+	srv, err := GetCalendarService(account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}

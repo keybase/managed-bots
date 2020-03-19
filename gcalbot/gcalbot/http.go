@@ -197,7 +197,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srv, err := GetCalendarService(selectedAccount, h.oauth)
+	srv, err := GetCalendarService(selectedAccount, h.oauth, h.db)
 	if err != nil {
 		return
 	}

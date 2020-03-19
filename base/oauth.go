@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -255,16 +256,18 @@ func GetOAuthClient(
 		return nil, OAuthRequiredError{}
 	} else {
 		// renew token
-		newToken, err := config.TokenSource(context.Background(), token).Token()
-		if err != nil {
-			return nil, fmt.Errorf("unable to renew token: %s", err)
-		}
-		if newToken.AccessToken != token.AccessToken {
-			err = storage.PutToken(tokenIdentifier, newToken)
+		if token.Expiry.Before(time.Now()) {
+			newToken, err := config.TokenSource(context.Background(), token).Token()
 			if err != nil {
-				return nil, fmt.Errorf("unable to update token: %s", err)
+				return nil, fmt.Errorf("unable to renew token: %s", err)
 			}
-			token = newToken
+			if newToken.AccessToken != token.AccessToken {
+				err = storage.PutToken(tokenIdentifier, newToken)
+				if err != nil {
+					return nil, fmt.Errorf("unable to update token: %s", err)
+				}
+				token = newToken
+			}
 		}
 	}
 

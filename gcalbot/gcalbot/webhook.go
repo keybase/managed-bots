@@ -57,8 +57,14 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	srv, err := GetCalendarService(account, h.oauth)
-	if err != nil {
+	srv, err := GetCalendarService(account, h.oauth, h.db)
+	switch err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		h.Debug("error retrieving token: %s", err)
+		err = nil // clear error
+		return
+	default:
 		return
 	}
 
@@ -243,7 +249,7 @@ func (h *Handler) removeSubscription(
 		}
 
 		if channel != nil {
-			srv, err := GetCalendarService(account, h.oauth)
+			srv, err := GetCalendarService(account, h.oauth, h.db)
 			if err != nil {
 				return err
 			}
@@ -273,7 +279,7 @@ func (h *Handler) removeSubscription(
 }
 
 func (h *Handler) createEventChannel(account *Account, calendarID string) error {
-	srv, err := GetCalendarService(account, h.oauth)
+	srv, err := GetCalendarService(account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
@@ -398,8 +404,13 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 
 func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) error {
 	r.stats.Count("renewChannel")
-	srv, err := GetCalendarService(account, r.config)
-	if err != nil {
+	srv, err := GetCalendarService(account, r.config, r.db)
+	switch err.(type) {
+	case nil:
+	case *oauth2.RetrieveError:
+		r.Debug("error retrieving token: %s", err)
+		return nil
+	default:
 		return err
 	}
 

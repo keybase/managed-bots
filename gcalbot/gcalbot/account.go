@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -88,7 +89,7 @@ func (h *Handler) deleteAccount(keybaseUsername, accountNickname string) error {
 		return fmt.Errorf("error getting account: %s", err)
 	}
 
-	srv, err := GetCalendarService(account, h.oauth)
+	srv, err := GetCalendarService(account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
@@ -122,7 +123,20 @@ func (h *Handler) deleteAccount(keybaseUsername, accountNickname string) error {
 	return err
 }
 
-func GetCalendarService(account *Account, config *oauth2.Config) (srv *calendar.Service, err error) {
+func GetCalendarService(account *Account, config *oauth2.Config, db *DB) (srv *calendar.Service, err error) {
+	if account.Token.Expiry.Before(time.Now()) {
+		newToken, err := config.TokenSource(context.Background(), &account.Token).Token()
+		if err != nil {
+			return nil, err
+		}
+		if newToken.AccessToken != account.Token.AccessToken {
+			account.Token = *newToken
+			err = db.InsertAccount(*account)
+			if err != nil {
+				return nil, fmt.Errorf("unable to update account token: %s", err)
+			}
+		}
+	}
 	client := config.Client(context.Background(), &account.Token)
 	return calendar.NewService(context.Background(), option.WithHTTPClient(client))
 }
