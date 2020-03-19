@@ -77,8 +77,8 @@ func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...inter
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
 		// error created in https://github.com/keybase/client/blob/1985b18c4e7659bede1d4a2e68e4f68467acebc6/go/client/chat_svc_handler.go#L1407
 		// error created in https://github.com/keybase/keybase/blob/9a82c96231ea2c6132532002e58bac80849265e6/go/chatbase/storage/sql_chat.go#L2324
-		if strings.HasPrefix(err.Error(), "no conversations matched") ||
-			strings.HasPrefix(err.Error(), "error from chat server: GetConvTriple called with unknown ConversationID") {
+		if strings.Contains(err.Error(), "no conversations matched") ||
+			strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID") {
 			d.Debug("ChatEcho: failed to send echo message: %s", err)
 			return
 		}
