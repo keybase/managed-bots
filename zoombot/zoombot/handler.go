@@ -75,7 +75,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
 	retry := func() error {
 		// retry auth after nuking stored credentials
-		if err := h.db.DeleteToken(base.IdentifierFromMsg(msg)); err != nil {
+		if err := h.db.DeleteToken(IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
 		return h.zoomHandlerInner(msg)
@@ -99,7 +99,7 @@ func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
-	identifier := base.IdentifierFromMsg(msg)
+	identifier := IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
 			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
