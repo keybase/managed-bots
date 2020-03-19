@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	apiBaseURL    = "https://api.zoom.us/v2"
-	currentUserID = "me"
+	apiBaseURL       = "https://api.zoom.us"
+	apiBaseURLV2     = "https://api.zoom.us/v2"
+	currentUserID    = "me"
+	invalidTokenCode = 124
 )
 
 // Common
@@ -47,6 +49,14 @@ type GlobalDialInNumbers struct {
 	CountryName string `json:"country_name"`
 	Number      string `json:"number"`
 	Type        string `json:"type"`
+}
+
+// Get User
+
+// intentionally leave out unnecessary user data
+type GetUserResponse struct {
+	ID        string `json:"id"`
+	AccountID string `json:"account_id"`
 }
 
 // Create Meeting
@@ -125,8 +135,70 @@ type CreateMeetingResponseSettings struct {
 	RegistrantsEmailNotification bool                  `json:"registrants_email_notification"`
 }
 
+// Deauthorization
+
+type DeauthorizationRequest struct {
+	Event   string               `json:"event"`
+	Payload DeauthorizationEvent `json:"payload"`
+}
+
+type DeauthorizationEvent struct {
+	UserDataRetention   string `json:"user_data_retention"`
+	AccountID           string `json:"account_id"`
+	UserID              string `json:"user_id"`
+	Signature           string `json:"signature"`
+	DeauthorizationTime string `json:"deauthorization_time"`
+	ClientID            string `json:"client_id"`
+}
+
+// Compliance
+
+type DataComplianceRequest struct {
+	ClientID                     string               `json:"client_id"`
+	UserID                       string               `json:"user_id"`
+	AccountID                    string               `json:"account_id"`
+	DeauthorizationEventReceived DeauthorizationEvent `json:"deauthorization_event_received"`
+	ComplianceCompleted          bool                 `json:"compliance_completed"`
+}
+
+type DataComplianceResponse struct {
+	UserDataRetention   bool   `json:"user_data_retention"`
+	AccountID           string `json:"account_id"`
+	UserID              string `json:"user_id"`
+	Signature           string `json:"signature"`
+	DeauthorizationTime string `json:"deauthorization_time"`
+	ClientID            string `json:"client_id"`
+}
+
+func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
+	apiURL := fmt.Sprintf("%s/users/%s", apiBaseURLV2, userID)
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseError(resp.StatusCode, data)
+	}
+
+	var user GetUserResponse
+	err = json.Unmarshal(data, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func CreateMeeting(client *http.Client, userID string, request *CreateMeetingRequest) (*CreateMeetingResponse, error) {
-	apiURL := fmt.Sprintf("%s/users/%s/meetings", apiBaseURL, userID)
+	apiURL := fmt.Sprintf("%s/users/%s/meetings", apiBaseURLV2, userID)
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -157,6 +229,45 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 	return &meeting, nil
 }
 
+func DataCompliance(clientID, clientSecret string, request *DataComplianceRequest) (*DataComplianceResponse, error) {
+	apiURL := fmt.Sprintf("%s/oauth/data/compliance", apiBaseURL)
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("content-type", "application/json")
+	req.SetBasicAuth(clientID, clientSecret)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseError(resp.StatusCode, data)
+	}
+
+	var event DataComplianceResponse
+	err = json.Unmarshal(data, &event)
+	if err != nil {
+		return nil, err
+	}
+
+	return &event, nil
+}
+
 type ZoomAPIError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -169,7 +280,7 @@ func (e ZoomAPIError) Error() string {
 func parseError(statusCode int, data []byte) error {
 	var errorResponse ZoomAPIError
 	err := json.Unmarshal(data, &errorResponse)
-	if err != nil {
+	if err != nil || errorResponse.Code == 0 {
 		return fmt.Errorf("statusCode: %d, error: %s", statusCode, data)
 	}
 	return errorResponse

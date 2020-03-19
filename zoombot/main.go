@@ -25,6 +25,7 @@ type Options struct {
 	HTTPPrefix        string
 	OAuthClientID     string
 	OAuthClientSecret string
+	VerificationToken string
 }
 
 func NewOptions() *Options {
@@ -68,13 +69,13 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	}
 }
 
-func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
-	var clientID string
-	var clientSecret string
-
-	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" {
-		clientID = s.opts.OAuthClientID
-		clientSecret = s.opts.OAuthClientSecret
+func (s *BotServer) getCredentials() (credentials *zoombot.Credentials, err error) {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.VerificationToken != "" {
+		credentials = &zoombot.Credentials{
+			ClientID:          s.opts.OAuthClientID,
+			ClientSecret:      s.opts.OAuthClientSecret,
+			VerificationToken: s.opts.VerificationToken,
+		}
 	} else {
 		if len(s.opts.KBFSRoot) == 0 {
 			return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
@@ -88,34 +89,18 @@ func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
 			return nil, err
 		}
 
-		type credentialsType struct {
-			ClientID     string `json:"client_id"`
-			ClientSecret string `json:"client_secret"`
-		}
-
-		var credentials credentialsType
-		if err := json.Unmarshal(out.Bytes(), &credentials); err != nil {
+		credentials = &zoombot.Credentials{}
+		if err := json.Unmarshal(out.Bytes(), credentials); err != nil {
 			return nil, err
 		}
-
-		clientID = credentials.ClientID
-		clientSecret = credentials.ClientSecret
 	}
 
-	if len(clientID) == 0 || len(clientSecret) == 0 {
-		return nil, fmt.Errorf("Must provide a clientID (len: %d) and clientSecret (len: %d)", len(clientID), len(clientSecret))
+	if len(credentials.ClientID) == 0 || len(credentials.ClientSecret) == 0 || len(credentials.VerificationToken) == 0 {
+		return nil, fmt.Errorf("must provide a clientID (len: %d), clientSecret (len: %d) and verificationToken (len: %d)",
+			len(credentials.ClientID), len(credentials.ClientSecret), len(credentials.VerificationToken))
 	}
 
-	return &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://zoom.us/oauth/authorize",
-			TokenURL: "https://zoom.us/oauth/token",
-		},
-		RedirectURL: fmt.Sprintf("%s/zoombot/oauth", s.opts.HTTPPrefix),
-		Scopes:      []string{"meeting:write"},
-	}, nil
+	return credentials, nil
 }
 
 func (s *BotServer) Go() (err error) {
@@ -123,9 +108,20 @@ func (s *BotServer) Go() (err error) {
 		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
-	config, err := s.getOAuthConfig()
+	credentials, err := s.getCredentials()
 	if err != nil {
-		return fmt.Errorf("failed to get config %v", err)
+		return fmt.Errorf("failed to get credentials %v", err)
+	}
+
+	config := &oauth2.Config{
+		ClientID:     credentials.ClientID,
+		ClientSecret: credentials.ClientSecret,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://zoom.us/oauth/authorize",
+			TokenURL: "https://zoom.us/oauth/token",
+		},
+		RedirectURL: fmt.Sprintf("%s/zoombot/oauth", s.opts.HTTPPrefix),
+		Scopes:      []string{"user:read", "meeting:write"},
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -134,7 +130,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	defer sdb.Close()
-	db := base.NewOAuthDB(sdb)
+	db := zoombot.NewDB(sdb)
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
 		s.Errorf("advertise error: %s", err)
 		return err
@@ -151,7 +147,7 @@ func (s *BotServer) Go() (err error) {
 	}
 	stats = stats.SetPrefix(s.Name())
 	handler := zoombot.NewHandler(stats, s.kbc, debugConfig, db, config)
-	httpSrv := zoombot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config)
+	httpSrv := zoombot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, config, credentials)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
@@ -173,8 +169,9 @@ func mainInner() int {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.KBFSRoot, "kbfs-root", os.Getenv("BOT_KBFS_ROOT"), "root path to bot's KBFS backed config")
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
-	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "GitHub OAuth2 client ID")
-	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "GitHub OAuth2 client secret")
+	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "Zoom OAuth2 client ID")
+	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "Zoom OAuth2 client secret")
+	fs.StringVar(&opts.VerificationToken, "verification-token", os.Getenv("BOT_VERIFICATION_TOKEN"), "Zoom verification token")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
