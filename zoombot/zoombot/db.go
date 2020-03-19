@@ -22,6 +22,8 @@ func (d *DB) CreateUser(userID, accountID, identifier string) error {
 			INSERT INTO user
 			(user_id, account_id, identifier)
 			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			identifier=identifier -- identifier stays the same
 		`, userID, accountID, identifier)
 		return err
 	})
