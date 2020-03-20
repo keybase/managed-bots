@@ -22,7 +22,9 @@ const buildSearchResultBody = (
   }
   const firstIssues = issues.slice(0, 11)
   const head =
-    `@${parsedMessage.context.senderUsername} I got ${issues.length} tickets from Jira` +
+    `@${parsedMessage.context.senderUsername} I got ${issues.length} ticket${
+      issues.length !== 1 ? 's' : ''
+    } from Jira` +
     (issues.length > 11 ? '. Here are the first 11:\n\n' : ':\n\n')
   const body = firstIssues.map(issueToLine).join('\n')
   return begin + head + body + (additional ? '\n\n' + additional : '')
