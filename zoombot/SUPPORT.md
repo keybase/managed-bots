@@ -1,3 +1,5 @@
+<!-- Hosted at https://zoombot.keybase.pub/support -->
+
 ## Installation
 * Step by step guide
     1. Install Keybase (https://keybase.io/download)
