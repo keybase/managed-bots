@@ -21,3 +21,5 @@
 ## Contact Support
 * Use the `!zoombot feedback <feedback here>` to provide feedback and questions.
 * Report issues here: https://github.com/keybase/managed-bots/issues
+* Join @keybasefriends to discuss with the community https://keybase.io/team/keybasefriends
+* In app going to `Settings > Feedback` to submit bugs or `keybase log send` from the command line.
