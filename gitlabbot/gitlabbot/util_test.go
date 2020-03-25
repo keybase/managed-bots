@@ -52,6 +52,17 @@ func TestParseRepoInputNamespaceSubGroups(t *testing.T) {
 	require.Equal(t, repo, namespace)
 }
 
+func TestParseRepoInputWithSuffix(t *testing.T) {
+	httpPrefix := "https://gitlab.com"
+	namespace := "owner/repo.git"
+
+	hostedURL, repo, err := parseRepoInput(namespace)
+	require.NoError(t, err)
+
+	require.Equal(t, httpPrefix, hostedURL)
+	require.Equal(t, "owner/repo", repo)
+}
+
 func TestParseRepoInputInvalidHostname(t *testing.T) {
 	url := "/owner/repo"
 	_, _, err := parseRepoInput(url)

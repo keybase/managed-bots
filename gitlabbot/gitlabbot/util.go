@@ -77,6 +77,7 @@ Happy coding!`,
 
 // parseRepoInput checks if url or <owner/repo> form
 func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err error) {
+	urlOrRepoPath = strings.TrimSuffix(urlOrRepoPath, ".git")
 	parsedURL, err := url.ParseRequestURI(urlOrRepoPath)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
 		repo = urlOrRepoPath
