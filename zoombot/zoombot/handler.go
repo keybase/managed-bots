@@ -132,6 +132,7 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
 					h.ChatErrorf(msg.ConvID, "zoomHandler unable to create meeting: attempt #%d %v", attempts, err)
 				}
 			}()
+			return nil
 		}
 	}
 	return err
