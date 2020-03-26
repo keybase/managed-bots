@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -125,6 +126,7 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
 			go func() {
 				attempts++
 				h.Debug("zoomHandlerInner: retrying attempt #%d: %v", attempts, err)
+				time.Sleep(500 * time.Millisecond)
 				err := h.zoomHandler(msg, attempts)
 				switch err := err.(type) {
 				case nil, base.OAuthRequiredError:
