@@ -67,20 +67,21 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	switch {
 	case strings.HasPrefix(cmd, "!zoom"):
 		h.stats.Count("zoom")
-		return h.zoomHandler(msg)
+		return h.zoomHandler(msg, 0)
 	}
 	return nil
 }
 
-func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
+func (h *Handler) zoomHandler(msg chat1.MsgSummary, attempts int) error {
 	retry := func() error {
 		// retry auth after nuking stored credentials
 		if err := h.db.DeleteToken(IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
-		return h.zoomHandlerInner(msg)
+		attempts++
+		return h.zoomHandlerInner(msg, attempts)
 	}
-	err := h.zoomHandlerInner(msg)
+	err := h.zoomHandlerInner(msg, attempts)
 	switch err := err.(type) {
 	case nil, base.OAuthRequiredError:
 		return nil
@@ -98,7 +99,7 @@ func (h *Handler) zoomHandler(msg chat1.MsgSummary) error {
 	}
 }
 
-func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
+func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
 	identifier := IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
@@ -117,10 +118,21 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary) error {
 		h.ChatEcho(msg.ConvID, meeting.JoinURL)
 	case ZoomAPIError:
 		if err.Code == http.StatusTooManyRequests {
-			h.ChatEcho(msg.ConvID, err.Error())
-			return nil
+			if attempts > 5 {
+				h.ChatEcho(msg.ConvID, err.Error())
+				return nil
+			}
+			go func() {
+				attempts++
+				h.Debug("zoomHandlerInner: retrying attempt #%d: %v", attempts, err)
+				err := h.zoomHandler(msg, attempts)
+				switch err := err.(type) {
+				case nil, base.OAuthRequiredError:
+				default:
+					h.ChatErrorf(msg.ConvID, "zoomHandler unable to create meeting: attempt #%d %v", attempts, err)
+				}
+			}()
 		}
 	}
-
 	return err
 }
