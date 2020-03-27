@@ -114,7 +114,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	// TODO(marcel): check if event was deleted
 	event, err := srv.Events.Get(invite.CalendarID, invite.EventID).Fields("attendees").Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting event: %s", err)
 	}
 
 	// update response status on event
@@ -134,12 +134,12 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	// patch event to reflect new response status
 	event, err = srv.Events.Patch(invite.CalendarID, invite.EventID, event).Fields("summary").Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("error patching event: %s", err)
 	}
 
 	invitedCalendar, err := srv.Calendars.Get(invite.CalendarID).Do()
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting calendar: %s", err)
 	}
 	accountCalendar := fmt.Sprintf("%s [%s]", invitedCalendar.Summary, account.AccountNickname)
 

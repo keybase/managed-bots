@@ -115,7 +115,10 @@ func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	} else if invite != nil && account != nil {
-		return h.updateEventResponseStatus(invite, account, InviteReaction(reaction))
+		err = h.updateEventResponseStatus(invite, account, InviteReaction(reaction))
+		if err != nil {
+			return fmt.Errorf("error updating event response status: %s", err)
+		}
 	}
 
 	return nil
