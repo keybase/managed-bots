@@ -142,6 +142,11 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	}
 
 	if !shouldPatch {
+		_, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername,
+			"I couldn't update your status. Are you sure you're still invited to this event?")
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
