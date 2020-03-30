@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/api/googleapi"
+
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"google.golang.org/api/calendar/v3"
 )
@@ -113,7 +115,19 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	// fetch event
 	// TODO(marcel): check if event was deleted
 	event, err := srv.Events.Get(invite.CalendarID, invite.EventID).Fields("attendees").Do()
-	if err != nil {
+	switch typedErr := err.(type) {
+	case nil:
+	case *googleapi.Error:
+		if typedErr.Code == 404 {
+			_, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername,
+				"I couldn't update your status. Are you sure this event still exists?")
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		return fmt.Errorf("error getting event: %s", err)
+	default:
 		return fmt.Errorf("error getting event: %s", err)
 	}
 
@@ -128,6 +142,11 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 	}
 
 	if !shouldPatch {
+		_, err = h.kbc.SendMessageByTlfName(account.KeybaseUsername,
+			"I couldn't update your status. Are you sure you're still invited to this event?")
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
