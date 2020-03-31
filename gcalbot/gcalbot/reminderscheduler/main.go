@@ -42,7 +42,8 @@ func NewReminderScheduler(
 	}
 }
 
-func (r *ReminderScheduler) Run() error {
+func (r *ReminderScheduler) Run() (err error) {
+	defer r.Trace(func() error { return err }, "Run")()
 	r.Lock()
 	shutdownCh := r.shutdownCh
 	r.Unlock()
@@ -53,11 +54,11 @@ func (r *ReminderScheduler) Run() error {
 		r.Debug("wait error: %s", err)
 		return err
 	}
-	r.Debug("shut down")
 	return nil
 }
 
-func (r *ReminderScheduler) Shutdown() error {
+func (r *ReminderScheduler) Shutdown() (err error) {
+	defer r.Trace(func() error { return err }, "Shutdown")()
 	r.Lock()
 	defer r.Unlock()
 	if r.shutdownCh != nil {

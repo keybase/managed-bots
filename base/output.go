@@ -37,8 +37,9 @@ func (d *DebugOutput) Config() *ChatDebugOutputConfig {
 	return d.config
 }
 
-func (d *DebugOutput) Debug(msg string, args ...interface{}) {
-	fmt.Printf(d.name+": "+msg+"\n", args...)
+func (d *DebugOutput) Debug(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	fmt.Printf("%s: %s\n", d.name, msg)
 }
 
 func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
@@ -92,6 +93,6 @@ func (d *DebugOutput) Trace(f func() error, format string, args ...interface{}) 
 	start := time.Now()
 	fmt.Printf("+ %s: %s\n", d.name, msg)
 	return func() {
-		fmt.Printf("- %s: %s -> %s [time=%v]", d.name, msg, ErrToOK(f()), time.Since(start))
+		fmt.Printf("- %s: %s -> %s [time=%v]\n", d.name, msg, ErrToOK(f()), time.Since(start))
 	}
 }

@@ -34,19 +34,19 @@ func NewScheduleScheduler(
 	}
 }
 
-func (s *ScheduleScheduler) Run() error {
+func (s *ScheduleScheduler) Run() (err error) {
+	defer s.Trace(func() error { return err }, "Run")()
 	s.Lock()
 	shutdownCh := s.shutdownCh
 	s.Unlock()
-	err := s.sendDailyScheduleLoop(shutdownCh)
-	if err != nil {
+	if err = s.sendDailyScheduleLoop(shutdownCh); err != nil {
 		return err
 	}
-	s.Debug("shut down")
 	return nil
 }
 
-func (s *ScheduleScheduler) Shutdown() error {
+func (s *ScheduleScheduler) Shutdown() (err error) {
+	defer s.Trace(func() error { return err }, "Shutdown")()
 	s.Lock()
 	defer s.Unlock()
 	if s.shutdownCh != nil {

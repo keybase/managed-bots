@@ -11,7 +11,7 @@ type StatsBackend interface {
 	Count(name string) error
 	CountMult(name string, count int) error
 	Value(name string, value float64) error
-	Shutdown()
+	Shutdown() error
 }
 
 type StatsBackendType int
@@ -46,7 +46,7 @@ func (d *DummyStatsBackend) Value(name string, value float64) error {
 	return nil
 }
 
-func (d *DummyStatsBackend) Shutdown() {}
+func (d *DummyStatsBackend) Shutdown() error { return nil }
 
 var _ StatsBackend = (*DummyStatsBackend)(nil)
 
@@ -78,8 +78,9 @@ func (s *StathatBackend) Value(name string, value float64) error {
 	return s.reporter.PostEZValue(name, s.config.ezkey, value)
 }
 
-func (s *StathatBackend) Shutdown() {
+func (s *StathatBackend) Shutdown() error {
 	s.reporter.WaitUntilFinished(s.config.shutdownTimeout)
+	return nil
 }
 
 func NewStatsBackend(btype StatsBackendType, config interface{}) (StatsBackend, error) {
@@ -143,9 +144,9 @@ func (r *StatsRegistry) Value(name string, value float64) {
 	}
 }
 
-func (r *StatsRegistry) Shutdown() {
-	r.Debug("shutting down stats backend")
-	r.backend.Shutdown()
+func (r *StatsRegistry) Shutdown() (err error) {
+	defer r.Trace(func() error { return err }, "Shutdown")()
+	return r.backend.Shutdown()
 }
 
 func NewStatsRegistryWithBackend(debugConfig *ChatDebugOutputConfig, backend StatsBackend) *StatsRegistry {

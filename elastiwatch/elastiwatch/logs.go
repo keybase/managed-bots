@@ -225,7 +225,8 @@ func (l *LogWatch) Peek() {
 	l.peekCh <- struct{}{}
 }
 
-func (l *LogWatch) Shutdown() error {
+func (l *LogWatch) Shutdown() (err error) {
+	defer l.Trace(func() error { return err }, "Shutdown")()
 	close(l.shutdownCh)
 	return nil
 }
