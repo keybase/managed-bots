@@ -353,3 +353,10 @@ func getStackBuffer(allGoroutines bool) []byte {
 	buf := make([]byte, 2<<20)
 	return buf[:runtime.Stack(buf, allGoroutines)]
 }
+
+func ErrToOK(err error) string {
+	if err == nil {
+		return "ok"
+	}
+	return "ERROR: " + err.Error()
+}
