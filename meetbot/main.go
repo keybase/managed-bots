@@ -66,7 +66,8 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	}
 }
 
-func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
+func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
+	defer s.Trace(func() error { return err }, "getOAuthConfig")()
 	if len(s.opts.KBFSRoot) == 0 {
 		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
@@ -80,7 +81,7 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	}
 
 	// If modifying these scopes, drop the saved tokens in the db
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
+	config, err = google.ConfigFromJSON(out.Bytes(), calendar.CalendarEventsScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}

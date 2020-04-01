@@ -135,27 +135,28 @@ Examples:%s
 	}
 }
 
-func (s *BotServer) getAppKey() ([]byte, error) {
+func (s *BotServer) getAppKey() (appKey []byte, err error) {
+	defer s.Trace(func() error { return err }, "getAppKey")()
 	if s.opts.PrivateKeyPath != "" {
 		keyFile, err := os.Open(s.opts.PrivateKeyPath)
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 		defer keyFile.Close()
 
 		b, err := ioutil.ReadAll(keyFile)
 		if err != nil {
-			return []byte{}, err
+			return nil, err
 		}
 
 		return b, nil
 	}
 
 	path := fmt.Sprintf("/keybase/private/%s/bot.private-key.pem", s.kbc.GetUsername())
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	cmd := s.opts.Command("fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
 		return []byte{}, err
 	}
@@ -171,6 +172,7 @@ type botConfig struct {
 }
 
 func (s *BotServer) getConfig() (config *botConfig, err error) {
+	defer s.Trace(func() error { return err }, "getConfig")()
 	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppName != "" && s.opts.AppID != -1 {
 		return &botConfig{
 			s.opts.AppName,
@@ -181,10 +183,10 @@ func (s *BotServer) getConfig() (config *botConfig, err error) {
 		}, nil
 	}
 	path := fmt.Sprintf("/keybase/private/%s/credentials.json", s.kbc.GetUsername())
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	cmd := s.opts.Command("fs", "read", path)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", path)
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
@@ -207,10 +209,6 @@ func (s *BotServer) Go() (err error) {
 		return
 	}
 
-	appKey, err := s.getAppKey()
-	if err != nil {
-		s.Errorf("failed to get private key: %s", err)
-	}
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
 		s.Errorf("failed to connect to MySQL: %s", err)
@@ -235,6 +233,10 @@ func (s *BotServer) Go() (err error) {
 		RedirectURL:  s.opts.HTTPPrefix + "/githubbot/oauth",
 	}
 
+	appKey, err := s.getAppKey()
+	if err != nil {
+		s.Errorf("failed to get private key: %s", err)
+	}
 	tr := http.DefaultTransport
 	atr, err := ghinstallation.NewAppsTransport(tr, botConfig.AppID, appKey)
 	if err != nil {

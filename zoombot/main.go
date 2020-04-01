@@ -70,6 +70,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 }
 
 func (s *BotServer) getCredentials() (credentials *zoombot.Credentials, err error) {
+	defer s.Trace(func() error { return err }, "getCredentials")()
 	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.VerificationToken != "" {
 		credentials = &zoombot.Credentials{
 			ClientID:          s.opts.OAuthClientID,

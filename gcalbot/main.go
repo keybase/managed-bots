@@ -139,7 +139,8 @@ Examples:%s
 	}
 }
 
-func (s *BotServer) getLoginSecret() (string, error) {
+func (s *BotServer) getLoginSecret() (secret string, err error) {
+	defer s.Trace(func() error { return err }, "getLoginSeret")()
 	if s.opts.LoginSecret != "" {
 		return s.opts.LoginSecret, nil
 	}
@@ -147,19 +148,20 @@ func (s *BotServer) getLoginSecret() (string, error) {
 	cmd := s.opts.Command("fs", "read", secretPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", secretPath)
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", secretPath)
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
 	return out.String(), nil
 }
 
-func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
+func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
+	defer s.Trace(func() error { return err }, "getOAuthConfig")()
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
 	cmd := s.opts.Command("fs", "read", configPath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	fmt.Printf("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
+	s.Debug("Running `keybase fs read` on %q and waiting for it to finish...\n", configPath)
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("could not read credentials.json: %v", err)
 	}
@@ -167,7 +169,7 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 	// If modifying these scopes, drop the saved tokens in the db
 	// Need CalendarReadonlyScope to list calendars and get primary calendar
 	// Need CalendarEventsScope to set a response status for events that a user is invited to
-	config, err := google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope, calendar.CalendarEventsScope)
+	config, err = google.ConfigFromJSON(out.Bytes(), calendar.CalendarReadonlyScope, calendar.CalendarEventsScope)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse client secret file to config: %v", err)
 	}
@@ -176,6 +178,10 @@ func (s *BotServer) getOAuthConfig() (*oauth2.Config, error) {
 }
 
 func (s *BotServer) Go() (err error) {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
+		return fmt.Errorf("failed to start keybase %v", err)
+	}
+
 	if len(s.opts.KBFSRoot) == 0 {
 		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}
@@ -187,10 +193,6 @@ func (s *BotServer) Go() (err error) {
 	secret, err := s.getLoginSecret()
 	if err != nil {
 		return fmt.Errorf("failed to get secret %v", err)
-	}
-
-	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
-		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
 	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
