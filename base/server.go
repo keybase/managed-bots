@@ -117,16 +117,20 @@ func (s *Server) Start(errReportConv string) (kbc *kbchat.API, err error) {
 	return s.kbc, nil
 }
 
-func (s *Server) SendAnnouncement(announcement, running string) (err error) {
+func (s *Server) AnnounceAndAdvertise(advert kbchat.Advertisement, running string) (err error) {
+	if _, err := s.kbc.AdvertiseCommands(advert); err != nil {
+		s.Errorf("advertise error: %s", err)
+		return err
+	}
 	if s.announcement == "" {
 		return nil
 	}
 	defer func() {
 		if err != nil {
-			s.Debug("SendAnnouncement: failed to announce to %q %v", announcement, err)
+			s.Debug("SendAnnouncement: failed to announce to %q %v", s.announcement, err)
 		}
 	}()
-	return SendByConvNameOrID(s.kbc, s.DebugOutput, announcement, running)
+	return SendByConvNameOrID(s.kbc, s.DebugOutput, s.announcement, running)
 }
 
 func (s *Server) Listen(handler Handler) (err error) {

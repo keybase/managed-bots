@@ -203,12 +203,6 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	botConfig, err := s.getConfig()
-	if err != nil {
-		s.Errorf("failed to get bot configuration: %s", err)
-		return
-	}
-
 	sdb, err := sql.Open("mysql", s.opts.DSN)
 	if err != nil {
 		s.Errorf("failed to connect to MySQL: %s", err)
@@ -216,12 +210,11 @@ func (s *BotServer) Go() (err error) {
 	}
 	defer sdb.Close()
 	db := githubbot.NewDB(sdb)
-	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Errorf("advertise error: %s", err)
-		return err
-	}
-	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Errorf("failed to announce self: %s", err)
+
+	botConfig, err := s.getConfig()
+	if err != nil {
+		s.Errorf("failed to get bot configuration: %s", err)
+		return
 	}
 
 	// If changing scopes, wipe tokens from DB
@@ -256,6 +249,7 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
 	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, stats) })
+	s.GoWithRecover(eg, func() error { return s.AnnounceAndAdvertise(s.makeAdvertisement(), "I live.") })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

@@ -132,13 +132,6 @@ func (s *BotServer) Go() (err error) {
 	}
 	defer sdb.Close()
 	db := zoombot.NewDB(sdb)
-	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Errorf("advertise error: %s", err)
-		return err
-	}
-	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Errorf("failed to announce self: %s", err)
-	}
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
@@ -153,6 +146,7 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
 	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, stats) })
+	s.GoWithRecover(eg, func() error { return s.AnnounceAndAdvertise(s.makeAdvertisement(), "I live.") })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

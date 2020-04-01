@@ -90,13 +90,13 @@ func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
 }
 
 func (s *BotServer) Go() (err error) {
+	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
+		return fmt.Errorf("failed to start keybase %v", err)
+	}
+
 	config, err := s.getOAuthConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get config %v", err)
-	}
-
-	if s.kbc, err = s.Start(s.opts.ErrReportConv); err != nil {
-		return fmt.Errorf("failed to start keybase %v", err)
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
@@ -106,14 +106,6 @@ func (s *BotServer) Go() (err error) {
 	}
 	defer sdb.Close()
 	db := base.NewOAuthDB(sdb)
-	if _, err := s.kbc.AdvertiseCommands(s.makeAdvertisement()); err != nil {
-		s.Errorf("advertise error: %s", err)
-		return err
-	}
-	if err := s.SendAnnouncement(s.opts.Announcement, "I live."); err != nil {
-		s.Errorf("failed to announce self: %s", err)
-	}
-
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
@@ -127,6 +119,7 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
 	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, stats) })
+	s.GoWithRecover(eg, func() error { return s.AnnounceAndAdvertise(s.makeAdvertisement(), "I live.") })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
