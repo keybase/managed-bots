@@ -30,10 +30,10 @@ func newMulti(name string, db *DB, debugConfig *ChatDebugOutputConfig) *multi {
 }
 
 func (m *multi) Heartbeat(shutdownCh chan struct{}) (err error) {
-	defer m.Trace(func() error { return err }, "Heartbeat")()
 	if m == nil {
 		return nil
 	}
+	defer m.Trace(func() error { return err }, "Heartbeat")()
 	m.id = RandHexString(8)
 	m.Debug("Heartbeat: starting multi coordination heartbeat loop: id: %s", m.id)
 	for {
