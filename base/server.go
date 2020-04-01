@@ -90,8 +90,18 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	}
 	for _, shutdowner := range shutdowners {
 		if shutdowner != nil {
-			if err := shutdowner.Shutdown(); err != nil {
-				s.Debug("Unable to shutdown shutdowner: %v", err)
+			done := make(chan struct{})
+			go func() {
+				defer func() { close(done) }()
+				if err := shutdowner.Shutdown(); err != nil {
+					s.Debug("Unable to shutdown shutdowner: %v", err)
+				}
+			}()
+			select {
+			case <-done:
+				s.Debug("Shutdown: %T", shutdowner)
+			case <-time.After(30 * time.Second):
+				s.Debug("Shutdown: %T timed out, charging forward", shutdowner)
 			}
 		}
 	}
@@ -155,7 +165,7 @@ func (s *Server) Listen(handler Handler) (err error) {
 	return nil
 }
 
-func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscription, handler Handler) (err error) {
+func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) (err error) {
 	for {
 		select {
 		case <-shutdownCh:
@@ -215,7 +225,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 	}
 }
 
-func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscription, handler Handler) error {
+func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) error {
 	for {
 		select {
 		case <-shutdownCh:
