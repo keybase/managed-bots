@@ -19,7 +19,8 @@ func NewHTTPSrv(stats *StatsRegistry, debugConfig *ChatDebugOutputConfig) *HTTPS
 	}
 }
 
-func (h *HTTPSrv) Listen() error {
+func (h *HTTPSrv) Listen() (err error) {
+	defer h.Trace(func() error { return err }, "ListenAndServe")()
 	return h.srv.ListenAndServe()
 }
 
