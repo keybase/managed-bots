@@ -90,8 +90,18 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	}
 	for _, shutdowner := range shutdowners {
 		if shutdowner != nil {
-			if err := shutdowner.Shutdown(); err != nil {
-				s.Debug("Unable to shutdown shutdowner: %v", err)
+			done := make(chan struct{})
+			go func() {
+				defer func() { close(done) }()
+				if err := shutdowner.Shutdown(); err != nil {
+					s.Debug("Unable to shutdown shutdowner: %v", err)
+				}
+			}()
+			select {
+			case <-done:
+				s.Debug("Shutdown: %T", shutdowner)
+			case <-time.After(30 * time.Second):
+				s.Debug("Shutdown: %T timed out, charging forward", shutdowner)
 			}
 		}
 	}
