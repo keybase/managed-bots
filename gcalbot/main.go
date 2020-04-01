@@ -204,7 +204,7 @@ func (s *BotServer) Go() (err error) {
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
-		s.Debug("unable to create stats", err)
+		s.Debug("unable to create stats: %v", err)
 		return err
 	}
 
@@ -228,7 +228,9 @@ func (s *BotServer) Go() (err error) {
 	s.GoWithRecover(eg, renewScheduler.Run)
 	s.GoWithRecover(eg, reminderScheduler.Run)
 	s.GoWithRecover(eg, scheduleScheduler.Run)
-	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, renewScheduler, reminderScheduler, scheduleScheduler) })
+	s.GoWithRecover(eg, func() error {
+		return s.HandleSignals(httpSrv, stats, renewScheduler, reminderScheduler, scheduleScheduler)
+	})
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err

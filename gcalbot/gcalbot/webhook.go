@@ -352,7 +352,8 @@ func NewRenewChannelScheduler(
 	}
 }
 
-func (r *RenewChannelScheduler) Shutdown() error {
+func (r *RenewChannelScheduler) Shutdown() (err error) {
+	defer r.Trace(func() error { return err }, "Shutdown")()
 	r.Lock()
 	defer r.Unlock()
 	if r.shutdownCh != nil {
@@ -362,7 +363,8 @@ func (r *RenewChannelScheduler) Shutdown() error {
 	return nil
 }
 
-func (r *RenewChannelScheduler) Run() error {
+func (r *RenewChannelScheduler) Run() (err error) {
+	defer r.Trace(func() error { return err }, "Run")()
 	r.Lock()
 	shutdownCh := r.shutdownCh
 	r.Unlock()

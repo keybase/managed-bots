@@ -23,6 +23,7 @@ func (h *HTTPSrv) Listen() error {
 	return h.srv.ListenAndServe()
 }
 
-func (h *HTTPSrv) Shutdown() error {
+func (h *HTTPSrv) Shutdown() (err error) {
+	defer h.Trace(func() error { return err }, "Shutdown")()
 	return h.srv.Shutdown(context.Background())
 }

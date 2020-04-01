@@ -501,7 +501,7 @@ func (h *HTTPSrv) authUser(w http.ResponseWriter, r *http.Request) (keybaseUsern
 		auth := cookie.Value
 		toks := strings.Split(auth, ":")
 		if len(toks) != 2 {
-			h.Debug("malformed auth cookie", auth)
+			h.Debug("malformed auth cookie: %v", auth)
 			return "", "", false
 		}
 		keybaseUsername = toks[0]

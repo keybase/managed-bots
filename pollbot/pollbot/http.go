@@ -67,7 +67,7 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 	auth := cookie.Value
 	toks := strings.Split(auth, ":")
 	if len(toks) != 2 {
-		h.Debug("malformed auth cookie", auth)
+		h.Debug("malformed auth cookie %v", auth)
 		h.showLoginInstructions(w)
 		return "", false
 	}

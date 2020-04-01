@@ -104,7 +104,7 @@ func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 	for _, d := range deferrals {
 		r, err := regexp.Compile(d.regex)
 		if err != nil {
-			l.Errorf("invalid regex: %s err: %s", d, err)
+			l.Errorf("invalid regex: %v err: %s", d, err)
 			continue
 		}
 		regexs = append(regexs, r)
@@ -225,7 +225,8 @@ func (l *LogWatch) Peek() {
 	l.peekCh <- struct{}{}
 }
 
-func (l *LogWatch) Shutdown() error {
+func (l *LogWatch) Shutdown() (err error) {
+	defer l.Trace(func() error { return err }, "Shutdown")()
 	close(l.shutdownCh)
 	return nil
 }

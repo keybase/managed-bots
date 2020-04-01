@@ -249,7 +249,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 
 	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
 	if err != nil {
-		h.Errorf("unable to update sync token:", err)
+		h.Errorf("unable to update sync token: %v", err)
 		return
 	}
 

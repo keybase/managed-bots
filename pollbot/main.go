@@ -118,7 +118,7 @@ func (s *BotServer) Go() (err error) {
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
 	if err != nil {
-		s.Debug("unable to create stats", err)
+		s.Debug("unable to create stats %v", err)
 		return err
 	}
 	stats = stats.SetPrefix(s.Name())
@@ -127,7 +127,7 @@ func (s *BotServer) Go() (err error) {
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)
-	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv) })
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, stats) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
 		return err
