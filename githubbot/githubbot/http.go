@@ -45,7 +45,6 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
-	defer h.Trace(func() error { return nil }, "handleHealthCheck")()
 	fmt.Fprintf(w, "beep boop! :)")
 }
 
