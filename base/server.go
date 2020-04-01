@@ -155,7 +155,7 @@ func (s *Server) Listen(handler Handler) (err error) {
 	return nil
 }
 
-func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscription, handler Handler) (err error) {
+func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) (err error) {
 	for {
 		select {
 		case <-shutdownCh:
@@ -215,7 +215,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.NewSubscrip
 	}
 }
 
-func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.NewSubscription, handler Handler) error {
+func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) error {
 	for {
 		select {
 		case <-shutdownCh:
