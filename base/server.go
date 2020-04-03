@@ -270,7 +270,7 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 	s.ChatEcho(msg.ConvID, "starting a log send...")
 	cmd := s.kbc.Command("log", "send", "--no-confirm", "--feedback",
 		fmt.Sprintf("managed-bot log requested by @%s", msg.Sender.Username),
-		"-n", 1024*1024*5) // request a small amount so we don't get killed
+		"-n", fmt.Sprintf("%d", 1024*1024*5)) // request a small amount so we don't get killed
 	output, err := cmd.StdoutPipe()
 	if err != nil {
 		s.Errorf("unable to get output pipe: %v", err)
