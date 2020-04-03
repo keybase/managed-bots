@@ -51,13 +51,11 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
-	h.Debug("received command: %s", cmd)
 	switch {
 	case strings.HasPrefix(cmd, "!meet"):
 		h.stats.Count("meet")
 		return h.meetHandler(msg)
 	}
-	h.Debug("ignoring command %s", cmd)
 	return nil
 }
 
