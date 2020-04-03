@@ -90,8 +90,10 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
 			OAuthOfflineAccessType: true,
 		})
-	if err != nil || client == nil {
+	if err != nil {
 		return err
+	} else if client == nil {
+		h.Errorf("unable to get oauth client: %q", identifier)
 	}
 
 	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
