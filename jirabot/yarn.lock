@@ -1206,9 +1206,9 @@ acorn-walk@^6.0.1:
   integrity sha512-7evsyfH1cLOCdAzZAd43Cic04yKydNx0cF+7tiA19p1XnLLPU4dpCQOqpjqwokFe//vS0QqfqqjCS2JkiIs0cA==
 
 acorn@^5.5.3:
-  version "5.7.3"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-5.7.3.tgz#67aa231bf8812974b85235a96771eb6bd07ea279"
-  integrity sha512-T/zvzYRfbVojPWahDsE5evJdHb3oJoQfFbsrKM7w5Zcs++Tr257tia3BmMP8XYVjp1S9RZXQMh7gao96BlqZOw==
+  version "5.7.4"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-5.7.4.tgz#3e8d8a9947d0599a1796d10225d7432f4a4acf5e"
+  integrity sha512-1D++VG7BhrtvQpNbBzovKNc1FLGGEE/oGe7b9xJm/RFHMBeUaUGpluV9RLjZa47YFdPcDAenEYuq9pQPcMdLJg==
 
 acorn@^6.0.1, acorn@^6.2.0:
   version "6.3.0"
@@ -3564,10 +3564,10 @@ jsprim@^1.2.2:
     json-schema "0.2.3"
     verror "1.10.0"
 
-keybase-bot@3.4.0:
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/keybase-bot/-/keybase-bot-3.4.0.tgz#9950c667a43e2691785efd9144f4bf0410f856d9"
-  integrity sha512-fcco6u4UH22t2Y2qvVc6uYnrLd9Yazw88GhP/ej9AOR8fWaFRd5YLz9lPeCLDab0inBNpNYIETCdE2oU1hB8Cg==
+keybase-bot@3.6.1:
+  version "3.6.1"
+  resolved "https://registry.yarnpkg.com/keybase-bot/-/keybase-bot-3.6.1.tgz#d0262ed8359026926da00b69b43c53104fcfd0bf"
+  integrity sha512-AUI/CXHC8EgBX9Gf/h0rcRF6WB97nYWH/KCYyitwh3MmXLltr34DzDLp8jPeRF92k6vCrZ5mIhC2ecXW3dtprg==
   dependencies:
     isexe "2.0.0"
     lodash.camelcase "4.3.0"
