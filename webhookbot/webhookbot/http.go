@@ -1,12 +1,14 @@
 package webhookbot
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/keybase/managed-bots/base"
@@ -40,24 +42,18 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 		return msg, nil
 	}
 
-	var buf bytes.Buffer
-	bodyTee := io.TeeReader(r.Body, &buf)
-	var payload msgPayload
-	decoder := json.NewDecoder(bufio.NewReader(bodyTee))
-	if err := decoder.Decode(&payload); err != nil {
-		body, err := ioutil.ReadAll(&buf)
-		if err != nil {
-			return "", err
-		}
-		return string(body), err
-	} else if len(payload.Msg) > 0 {
-		return payload.Msg, nil
-	}
-
-	body, err := ioutil.ReadAll(&buf)
+	defer r.Body.Close()
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return "", err
 	}
+
+	var payload msgPayload
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	if err := decoder.Decode(&payload); err == nil && len(payload.Msg) > 0 {
+		return payload.Msg, nil
+	}
+
 	msg = string(body)
 	if len(msg) > 0 {
 		return msg, nil
@@ -83,7 +79,40 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Stats.Count("handle - success")
-	h.ChatEcho(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg)
+	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
+		if err := base.GetNonFatalChatError(err); err != nil {
+			h.Debug("ChatEcho: failed to send echo message: %s", err)
+			return
+		}
+
+		// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
+		if strings.Contains(err.Error(), "exceeds the maximum length") {
+			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.name, time.Now().Unix())
+			filePath := fmt.Sprintf("/tmp/%s", fileName)
+			if err := ioutil.WriteFile(filePath, []byte(msg), 0644); err != nil {
+				h.Errorf("failed to write %s: %s", filePath, err)
+				return
+			}
+			base.GoWithRecover(h.DebugOutput, func() {
+				defer func() {
+					// Cleanup after the file is sent.
+					time.Sleep(time.Minute)
+					h.Debug("cleaning up %s", filePath)
+					if err = os.Remove(filePath); err != nil {
+						h.Errorf("unable to clean up %s: %v", filePath, err)
+					}
+				}()
+				title := fmt.Sprintf("[hook: *%s*]", hook.name)
+				if _, err := h.Config().KBC.SendAttachmentByConvID(hook.convID, filePath, title); err != nil {
+					h.Errorf("failed to send attachment %s: %s", filePath, err)
+					return
+				}
+			})
+			return
+		}
+
+		h.Errorf("ChatEcho: failed to send echo message: %s", err)
+	}
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
