@@ -90,23 +90,25 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "exceeds the maximum length") {
 			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.name, time.Now().Unix())
 			filePath := fmt.Sprintf("/tmp/%s", fileName)
-			defer func() {
-				// Cleanup after the file is sent.
-				time.Sleep(time.Minute)
-				h.Debug("cleaning up %s", filePath)
-				if err = os.Remove(filePath); err != nil {
-					h.Errorf("unable to clean up %s: %v", filePath, err)
-				}
-			}()
 			if err := ioutil.WriteFile(filePath, []byte(msg), 0644); err != nil {
 				h.Errorf("failed to write %s: %s", filePath, err)
 				return
 			}
-			title := fmt.Sprintf("[hook: *%s*]", hook.name)
-			if _, err := h.Config().KBC.SendAttachmentByConvID(hook.convID, filePath, title); err != nil {
-				h.Errorf("failed to send attachment %s: %s", filePath, err)
-				return
-			}
+			base.GoWithRecover(h.DebugOutput, func() {
+				defer func() {
+					// Cleanup after the file is sent.
+					time.Sleep(time.Minute)
+					h.Debug("cleaning up %s", filePath)
+					if err = os.Remove(filePath); err != nil {
+						h.Errorf("unable to clean up %s: %v", filePath, err)
+					}
+				}()
+				title := fmt.Sprintf("[hook: *%s*]", hook.name)
+				if _, err := h.Config().KBC.SendAttachmentByConvID(hook.convID, filePath, title); err != nil {
+					h.Errorf("failed to send attachment %s: %s", filePath, err)
+					return
+				}
+			})
 			return
 		}
 
