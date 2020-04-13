@@ -80,8 +80,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Stats.Count("handle - success")
 	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
-		if strings.Contains(err.Error(), "no conversations matched") ||
-			strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID") {
+		if err := base.GetNonFatalChatError(err); err != nil {
 			h.Debug("ChatEcho: failed to send echo message: %s", err)
 			return
 		}
