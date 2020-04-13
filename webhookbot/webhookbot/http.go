@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -81,8 +80,6 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Stats.Count("handle - success")
 	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
-		// error created in https://github.com/keybase/client/blob/1985b18c4e7659bede1d4a2e68e4f68467acebc6/go/client/chat_svc_handler.go#L1407
-		// error created in https://github.com/keybase/keybase/blob/9a82c96231ea2c6132532002e58bac80849265e6/go/chatbase/storage/sql_chat.go#L2324
 		if strings.Contains(err.Error(), "no conversations matched") ||
 			strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID") {
 			h.Debug("ChatEcho: failed to send echo message: %s", err)
@@ -90,16 +87,17 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
-		toBig, regexErr := regexp.MatchString("message of size [0-9]+ bytes exceeds the maximum length of [0-9]+ bytes",
-			err.Error())
-		if regexErr != nil {
-			h.Errorf("regex matching error: %s", regexErr)
-		}
-
-		if toBig {
+		if strings.Contains(err.Error(), "exceeds the maximum length") {
 			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.name, time.Now().Unix())
 			filePath := fmt.Sprintf("/tmp/%s", fileName)
-			defer os.Remove(filePath)
+			defer func() {
+				// Cleanup after the file is sent.
+				time.Sleep(time.Minute)
+				h.Debug("cleaning up %s", filePath)
+				if err = os.Remove(filePath); err != nil {
+					h.Errorf("unable to clean up %s: %v", filePath, err)
+				}
+			}()
 			if err := ioutil.WriteFile(filePath, []byte(msg), 0644); err != nil {
 				h.Errorf("failed to write %s: %s", filePath, err)
 				return
@@ -109,6 +107,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 				h.Errorf("failed to send attachment %s: %s", filePath, err)
 				return
 			}
+			return
 		}
 
 		h.Errorf("ChatEcho: failed to send echo message: %s", err)
