@@ -136,7 +136,7 @@ Examples:%s
 }
 
 func (s *BotServer) getAppKey() (appKey []byte, err error) {
-	defer s.Trace(func() error { return err }, "getAppKey")()
+	defer s.Trace(&err, "getAppKey")()
 	if s.opts.PrivateKeyPath != "" {
 		keyFile, err := os.Open(s.opts.PrivateKeyPath)
 		if err != nil {
@@ -172,7 +172,7 @@ type botConfig struct {
 }
 
 func (s *BotServer) getConfig() (config *botConfig, err error) {
-	defer s.Trace(func() error { return err }, "getConfig")()
+	defer s.Trace(&err, "getConfig")()
 	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.AppName != "" && s.opts.AppID != -1 {
 		return &botConfig{
 			s.opts.AppName,

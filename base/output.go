@@ -85,12 +85,12 @@ func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...inter
 	}
 }
 
-func (d *DebugOutput) Trace(f func() error, format string, args ...interface{}) func() {
+func (d *DebugOutput) Trace(err *error, format string, args ...interface{}) func() {
 	msg := fmt.Sprintf(format, args...)
 	start := time.Now()
 	fmt.Printf("+ %s: %s\n", d.name, msg)
 	return func() {
-		fmt.Printf("- %s: %s -> %s [time=%v]\n", d.name, msg, ErrToOK(f()), time.Since(start))
+		fmt.Printf("- %s: %s -> %s [time=%v]\n", d.name, msg, ErrToOK(err), time.Since(start))
 	}
 }
 

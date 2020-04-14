@@ -145,7 +145,7 @@ func (r *StatsRegistry) Value(name string, value float64) {
 }
 
 func (r *StatsRegistry) Shutdown() (err error) {
-	defer r.Trace(func() error { return err }, "Shutdown")()
+	defer r.Trace(&err, "Shutdown")()
 	return r.backend.Shutdown()
 }
 

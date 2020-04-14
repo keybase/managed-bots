@@ -20,11 +20,11 @@ func NewHTTPSrv(stats *StatsRegistry, debugConfig *ChatDebugOutputConfig) *HTTPS
 }
 
 func (h *HTTPSrv) Listen() (err error) {
-	defer h.Trace(func() error { return err }, "ListenAndServe")()
+	defer h.Trace(&err, "ListenAndServe")()
 	return h.srv.ListenAndServe()
 }
 
 func (h *HTTPSrv) Shutdown() (err error) {
-	defer h.Trace(func() error { return err }, "Shutdown")()
+	defer h.Trace(&err, "Shutdown")()
 	return h.srv.Shutdown(context.Background())
 }

@@ -226,7 +226,7 @@ func (l *LogWatch) Peek() {
 }
 
 func (l *LogWatch) Shutdown() (err error) {
-	defer l.Trace(func() error { return err }, "Shutdown")()
+	defer l.Trace(&err, "Shutdown")()
 	close(l.shutdownCh)
 	return nil
 }
