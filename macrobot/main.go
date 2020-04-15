@@ -121,8 +121,11 @@ func (s *BotServer) Go() (err error) {
 	}
 	stats = stats.SetPrefix(s.Name())
 	handler := macrobot.NewHandler(stats, s.kbc, debugConfig, db)
+	httpSrv := macrobot.NewHTTPSrv(stats, debugConfig)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
+	s.GoWithRecover(eg, httpSrv.Listen)
+	s.GoWithRecover(eg, func() error { return s.HandleSignals(httpSrv, stats) })
 	s.GoWithRecover(eg, func() error { return s.AnnounceAndAdvertise(s.makeAdvertisement(), "I live.") })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
