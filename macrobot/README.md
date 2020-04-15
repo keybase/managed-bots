@@ -13,7 +13,7 @@ In order to run the Macro bot, there needs to be a running MySQL database in ord
    ```
 3. To start the Macro bot, run a command like this:
    ```
-   $GOPATH/bin/macrobot --dsn 'root@/macrobot'
+   $GOPATH/bin/macrobot --dsn 'root@/macrobot?charset=utf8mb4'
    ```
 4. Run `macrobot --help` for more options.
 
