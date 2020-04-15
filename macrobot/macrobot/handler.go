@@ -136,7 +136,7 @@ func (h *Handler) handleList(msg chat1.MsgSummary) error {
 		data = append(data, macro.Name)
 		data = append(data, macro.Message)
 	}
-	calendarListMessage := "Here are the macros available for this %s:" + strings.Repeat("\n• %s: `%s`", len(macroList))
+	calendarListMessage := "Here are the macros available for this %s:" + strings.Repeat("\n• %s: `%q`", len(macroList))
 	h.ChatEcho(msg.ConvID, calendarListMessage, data...)
 	return nil
 }
