@@ -41,6 +41,8 @@ order to store account and webhook data.
   ```
   keybase chat conv-info teamname --channel channel
   ```
+- By default, bots are unable to read their own messages. For development, it may be useful to disable this safeguard.
+  You can do this using `--read-self` flag when running the bot.
 - The following links are helpful for using the Google Calendar API:
     - https://developers.google.com/calendar/quickstart/go
     - https://developers.google.com/calendar/v3/reference

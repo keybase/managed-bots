@@ -38,6 +38,8 @@ notification endpoint URL as `https://mydomain.com/zoombot/deauthorize`.
   ```
   keybase chat conv-info teamname --channel channel
   ```
+- By default, bots are unable to read their own messages. For development, it may be useful to disable this safeguard.
+  You can do this using `--read-self` flag when running the bot.
 - You can optionally save your Zoom credentials inside your bot account's private KBFS folder.
 To do this, create a `credentials.json` and use the `--kbfs-root` flag to specify the folder that it's in
 (example: `--kbfs-root /keybase/private/<YourZoomBot>`). The `credentials.json` file should follow this format:

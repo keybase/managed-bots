@@ -29,6 +29,8 @@ In order to run the Macro bot, there needs to be a running MySQL database in ord
   ```
   keybase chat conv-info teamname --channel channel
   ```
+- By default, bots are unable to read their own messages. For development, it may be useful to disable this safeguard.
+  You can do this using `--read-self` flag when running the bot.
 
 ### Docker
 

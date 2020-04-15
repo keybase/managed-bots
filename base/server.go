@@ -38,11 +38,15 @@ type Server struct {
 	botAdmins    []string
 	multiDBDSN   string
 	multi        *multi
+	readSelf     bool
 
 	runOptions kbchat.RunOptions
 }
 
-func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string, runOptions kbchat.RunOptions) *Server {
+func NewServer(
+	name, announcement string, awsOpts *AWSOptions, multiDBDSN string, readSelf bool,
+	runOptions kbchat.RunOptions,
+) *Server {
 	return &Server{
 		name:         name,
 		announcement: announcement,
@@ -50,6 +54,7 @@ func NewServer(name, announcement string, awsOpts *AWSOptions, multiDBDSN string
 		botAdmins:    DefaultBotAdmins,
 		shutdownCh:   make(chan struct{}),
 		multiDBDSN:   multiDBDSN,
+		readSelf:     readSelf,
 		runOptions:   runOptions,
 	}
 }
@@ -185,6 +190,11 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscriptio
 		}
 
 		msg := m.Message
+
+		if msg.Sender.Username == s.kbc.GetUsername() && !s.readSelf {
+			continue
+		}
+
 		if msg.Content.Text != nil {
 			cmd := strings.TrimSpace(msg.Content.Text.Body)
 			switch {

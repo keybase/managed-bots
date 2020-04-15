@@ -38,6 +38,8 @@ In order to run the Meet bot, there needs to be a running MySQL database in orde
   ```
   keybase chat conv-info teamname --channel channel
   ```
+- By default, bots are unable to read their own messages. For development, it may be useful to disable this safeguard.
+  You can do this using `--read-self` flag when running the bot.
 - The following links are helpful for using the Google Calendar API:
     - https://developers.google.com/calendar/quickstart/go
     - https://developers.google.com/calendar/create-events
