@@ -101,9 +101,18 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, args []string) error {
 		return nil
 	}
 
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
+	if err != nil {
+		return err
+	}
+	if !isAllowed {
+		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+		return nil
+	}
+
 	macroName := args[0]
 	macroMessage := args[1]
-	err := h.db.Create(msg.Channel, macroName, macroMessage)
+	err = h.db.Create(msg.Channel, macroName, macroMessage)
 	if err != nil {
 		return err
 	}
@@ -138,8 +147,17 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 		return nil
 	}
 
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
+	if err != nil {
+		return err
+	}
+	if !isAllowed {
+		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+		return nil
+	}
+
 	macroName := args[0]
-	err := h.db.Remove(msg.Channel, macroName)
+	err = h.db.Remove(msg.Channel, macroName)
 	if err != nil {
 		return err
 	}
