@@ -354,9 +354,9 @@ func getStackBuffer(allGoroutines bool) []byte {
 	return buf[:runtime.Stack(buf, allGoroutines)]
 }
 
-func ErrToOK(err error) string {
-	if err == nil {
+func ErrToOK(err *error) string {
+	if err == nil || *err == nil {
 		return "ok"
 	}
-	return "ERROR: " + err.Error()
+	return fmt.Sprintf("ERROR: %v", err)
 }

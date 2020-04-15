@@ -67,7 +67,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 }
 
 func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
-	defer s.Trace(func() error { return err }, "getOAuthConfig")()
+	defer s.Trace(&err, "getOAuthConfig")()
 	if len(s.opts.KBFSRoot) == 0 {
 		return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
 	}

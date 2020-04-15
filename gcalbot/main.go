@@ -140,7 +140,7 @@ Examples:%s
 }
 
 func (s *BotServer) getLoginSecret() (secret string, err error) {
-	defer s.Trace(func() error { return err }, "getLoginSeret")()
+	defer s.Trace(&err, "getLoginSeret")()
 	if s.opts.LoginSecret != "" {
 		return s.opts.LoginSecret, nil
 	}
@@ -156,7 +156,7 @@ func (s *BotServer) getLoginSecret() (secret string, err error) {
 }
 
 func (s *BotServer) getOAuthConfig() (config *oauth2.Config, err error) {
-	defer s.Trace(func() error { return err }, "getOAuthConfig")()
+	defer s.Trace(&err, "getOAuthConfig")()
 	configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
 	cmd := s.opts.Command("fs", "read", configPath)
 	var out bytes.Buffer

@@ -33,7 +33,7 @@ func (m *multi) Heartbeat(shutdownCh chan struct{}) (err error) {
 	if m == nil {
 		return nil
 	}
-	defer m.Trace(func() error { return err }, "Heartbeat")()
+	defer m.Trace(&err, "Heartbeat")()
 	m.id = RandHexString(8)
 	m.Debug("Heartbeat: starting multi coordination heartbeat loop: id: %s", m.id)
 	for {

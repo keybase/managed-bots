@@ -77,7 +77,7 @@ Start a poll`,
 }
 
 func (s *BotServer) getLoginSecret() (secret string, err error) {
-	defer s.Trace(func() error { return err }, "getLoginSecret")()
+	defer s.Trace(&err, "getLoginSecret")()
 	if s.opts.LoginSecret != "" {
 		return s.opts.LoginSecret, nil
 	}

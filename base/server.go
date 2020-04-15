@@ -67,7 +67,7 @@ func (s *Server) GoWithRecover(eg *errgroup.Group, f func() error) {
 }
 
 func (s *Server) Shutdown() (err error) {
-	defer s.Trace(func() error { return err }, "Shutdown")()
+	defer s.Trace(&err, "Shutdown")()
 	s.Lock()
 	defer s.Unlock()
 	if s.shutdownCh != nil {
@@ -84,7 +84,7 @@ func (s *Server) HandleSignals(shutdowners ...Shutdowner) (err error) {
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, os.Interrupt, os.Signal(syscall.SIGTERM))
 	sig := <-signalCh
-	defer s.Trace(func() error { return err }, "HandleSignals: Received %q, shutting down", sig)()
+	defer s.Trace(&err, "HandleSignals: Received %q, shutting down", sig)()
 	if err := s.Shutdown(); err != nil {
 		s.Debug("Unable to shutdown server: %v", err)
 	}
@@ -144,7 +144,7 @@ func (s *Server) AnnounceAndAdvertise(advert kbchat.Advertisement, running strin
 }
 
 func (s *Server) Listen(handler Handler) (err error) {
-	defer s.Trace(func() error { return err }, "Listen")()
+	defer s.Trace(&err, "Listen")()
 	sub, err := s.kbc.Listen(kbchat.ListenOptions{Convs: true})
 	if err != nil {
 		s.Errorf("Listen: failed to listen: %s", err)

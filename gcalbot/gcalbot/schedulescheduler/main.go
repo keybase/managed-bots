@@ -35,7 +35,7 @@ func NewScheduleScheduler(
 }
 
 func (s *ScheduleScheduler) Run() (err error) {
-	defer s.Trace(func() error { return err }, "Run")()
+	defer s.Trace(&err, "Run")()
 	s.Lock()
 	shutdownCh := s.shutdownCh
 	s.Unlock()
@@ -46,7 +46,7 @@ func (s *ScheduleScheduler) Run() (err error) {
 }
 
 func (s *ScheduleScheduler) Shutdown() (err error) {
-	defer s.Trace(func() error { return err }, "Shutdown")()
+	defer s.Trace(&err, "Shutdown")()
 	s.Lock()
 	defer s.Unlock()
 	if s.shutdownCh != nil {
