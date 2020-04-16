@@ -231,7 +231,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 				Direction: "desc",
 			},
 		)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "401 Bad credentials") {
 			h.Errorf("error getting pull requests from commit: %s", err)
 		}
 
