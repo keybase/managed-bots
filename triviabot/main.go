@@ -24,7 +24,7 @@ type BotServer struct {
 
 func NewBotServer(opts base.Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, kbchat.RunOptions{
+		Server: base.NewServer("triviabot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
 		}),

@@ -30,7 +30,9 @@ type Options struct {
 	DSN          string
 	MultiDSN     string
 	StathatEZKey string
-	AWSOpts      *AWSOptions
+	// Allow the bot to read it's own messages (default: false)
+	ReadSelf bool
+	AWSOpts  *AWSOptions
 }
 
 func NewOptions() *Options {
@@ -47,6 +49,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 	fs.StringVar(&o.MultiDSN, "multi-dsn", os.Getenv("BOT_MULTI_DSN"), "Bot multi coordination database DSN")
 	fs.StringVar(&o.StathatEZKey, "stathat-ezkey", os.Getenv("BOT_STATHAT_EZKEY"), "Bot stathat ezkey")
+	fs.BoolVar(&o.ReadSelf, "read-self", false, "Allow the bot to read it's own messages")
 
 	awsOpts := &AWSOptions{}
 	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_AWS_REGION"), "AWS region for cloudwatch logs, optional")
