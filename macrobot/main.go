@@ -35,19 +35,13 @@ const back = "`"
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	runDesc := fmt.Sprintf(`Run a macro created for the current team or conversation. You must specify the name of the macro.
-
-Examples:%s
-!macro run docs
-!macro run lunchflip%s`,
-		backs, backs)
-
-	createDesc := fmt.Sprintf(`Create a new macro for the current team or conversation. You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro using %s!macro run%s.
+	createDesc := fmt.Sprintf(`Create a new macro for the current team or conversation. You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro.
 
 Examples:%s
 !macro create docs 'You can find documentation at: https://keybase.io/docs'
-!macro create lunchflip '/flip alice, bob, charlie'%s`,
-		back, back, backs, backs)
+!macro create lunchflip '/flip alice, bob, charlie'%s
+You can run the above macros using %s!docs%s or %s!lunchflip%s`,
+		backs, backs, back, back, back, back)
 
 	removeDesc := fmt.Sprintf(`Remove a macro from the current team or conversation. You must specify the name of the macro.
 
@@ -57,15 +51,6 @@ Examples:%s
 		backs, backs)
 
 	cmds := []chat1.UserBotCommandInput{
-		{
-			Name:        "macro run",
-			Description: "Run a macro created for the current team or conversation",
-			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title:       `*!macro run* <name>`,
-				DesktopBody: runDesc,
-				MobileBody:  runDesc,
-			},
-		},
 		{
 			Name:        "macro create",
 			Description: "Create a new macro for the current team or conversation",

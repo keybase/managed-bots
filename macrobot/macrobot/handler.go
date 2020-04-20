@@ -2,6 +2,7 @@ package macrobot
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -46,7 +47,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 
-	if !strings.HasPrefix(cmd, "!macro") {
+	if !strings.HasPrefix(cmd, "!") {
 		return nil
 	}
 
@@ -59,8 +60,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	switch {
-	case strings.HasPrefix(cmd, "!macro run"):
-		return h.handleRun(msg, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro create"):
 		return h.handleCreate(msg, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro list"):
@@ -68,8 +67,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	case strings.HasPrefix(cmd, "!macro remove"):
 		return h.handleRemove(msg, tokens[2:])
 	default:
-		h.ChatEcho(msg.ConvID, "Unknown command %q", cmd)
-		return nil
+		return h.handleRun(msg, tokens)
 	}
 }
 
@@ -79,7 +77,7 @@ func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 		return nil
 	}
 
-	macroName := args[0]
+	macroName := strings.TrimPrefix(args[0], "!")
 	macroMessage, err := h.db.Get(msg.Channel, macroName)
 	switch err {
 	case nil:
@@ -116,6 +114,12 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	err = h.doPrivateAdvertisement(msg.Channel)
+	if err != nil {
+		return err
+	}
+
 	h.ChatEcho(msg.ConvID, "Macro '%s' created", macroName)
 	return nil
 }
@@ -162,8 +166,47 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 		return err
 	}
 
+	err = h.doPrivateAdvertisement(msg.Channel)
+	if err != nil {
+		return err
+	}
+
 	h.ChatEcho(msg.ConvID, "Macro '%s' removed", macroName)
 	return nil
+}
+
+func (h *Handler) doPrivateAdvertisement(channel chat1.ChatChannel) error {
+	macroList, err := h.db.List(channel)
+	if err != nil {
+		return err
+	}
+
+	cmds := make([]chat1.UserBotCommandInput, len(macroList))
+	for i, macro := range macroList {
+		cmds[i] = chat1.UserBotCommandInput{
+			Name:        macro.Name,
+			Description: fmt.Sprintf("Run the '%s' macro defined for this %s", macro.Name, getChannelType(channel)),
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       fmt.Sprintf("*!%s*", macro.Name),
+				DesktopBody: macro.Message,
+				MobileBody:  macro.Message,
+			},
+		}
+	}
+
+	ad := kbchat.Advertisement{
+		Advertisements: []chat1.AdvertiseCommandAPIParam{
+			{
+				Typ:      "teamconvs",
+				Commands: cmds,
+				TeamName: channel.Name,
+			},
+		},
+	}
+
+	_, err = h.kbc.AdvertiseCommands(ad)
+
+	return err
 }
 
 func getChannelType(channel chat1.ChatChannel) string {
