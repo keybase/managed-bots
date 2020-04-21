@@ -31,18 +31,22 @@ func NewBotServer(opts base.Options) *BotServer {
 	}
 }
 
-const back = "`"
-const backs = "```"
-
-func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createDesc := fmt.Sprintf(`Create a new macro for the current team or conversation. You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro.
+const (
+	back       = "`"
+	backs      = "```"
+	createHelp = `You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro.
 
 Examples:%s
 !macro create docs 'You can find documentation at: https://keybase.io/docs'
 !macro create lunchflip '/flip alice, bob, charlie'%s
-You can run the above macros using %s!docs%s or %s!lunchflip%s`,
-		backs, backs, back, back, back, back)
+You can run the above macros using %s!docs%s or %s!lunchflip%s`
+)
 
+func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
+	createDesc := fmt.Sprintf("Create a new macro for the current team or conversation. %s",
+		fmt.Sprintf(createHelp, backs, backs, back, back, back, back))
+	createForChannelDesc := fmt.Sprintf("Create a new macro for the current channel. %s",
+		fmt.Sprintf(createHelp, backs, backs, back, back, back, back))
 	removeDesc := fmt.Sprintf(`Remove a macro from the current team or conversation. You must specify the name of the macro.
 
 Examples:%s
@@ -58,6 +62,15 @@ Examples:%s
 				Title:       `*!macro create* <name> <message>`,
 				DesktopBody: createDesc,
 				MobileBody:  createDesc,
+			},
+		},
+		{
+			Name:        "macro create-for-channel",
+			Description: "Create a new macro for the current channel",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title:       `*!macro create-for-channel* <name> <message>`,
+				DesktopBody: createForChannelDesc,
+				MobileBody:  createForChannelDesc,
 			},
 		},
 		{
