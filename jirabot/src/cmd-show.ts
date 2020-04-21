@@ -67,8 +67,8 @@ export default async (
           .get({
             issueKey,
           })
-          .then((issue: JiraIssue) => ({issue, issueKey}))
-          .catch(error => ({error, issueKey}))
+          .then((issue: JiraIssue) => ({error: undefined, issue, issueKey}))
+          .catch(error => ({error, issue: undefined, issueKey}))
       )
     )
 

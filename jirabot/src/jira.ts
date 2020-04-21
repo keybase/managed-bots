@@ -1,5 +1,4 @@
 import JiraClient from 'jira-connector'
-import {Issue as JiraIssue} from 'jira-connector/api/issue'
 import {BotConfig} from './bot-config'
 import * as Configs from './configs'
 import logger from './logger'
@@ -7,6 +6,9 @@ import * as Errors from './errors'
 import {Context} from './context'
 import mem from 'mem'
 import moment from 'moment'
+
+type JiraIssue = any
+// import {Issue as JiraIssue} from 'jira-connector/api/issue'
 
 export const looksLikeIssueKey = (str: string) =>
   !!str.match(/[A-Za-z0-9]+-[0-9]+/)

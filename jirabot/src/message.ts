@@ -5,7 +5,8 @@ import * as Errors from './errors'
 import logger from './logger'
 import * as Configs from './configs'
 import * as Jira from './jira'
-import isValidDomain from 'is-valid-domain'
+// No types
+const isValidDomain = require('is-valid-domain')
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -740,7 +741,7 @@ export const parseMessage = async (
     case 'show': {
       const inputKeys = fields.slice(2)
       if (!inputKeys.length) {
-        if (!issueKeys.length) {
+        if (!inputKeys.length) {
           return {
             context: messageContext,
             type: BotMessageType.Unknown,
