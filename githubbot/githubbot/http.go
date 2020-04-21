@@ -212,7 +212,9 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 		// fetch the pull request object so we can get the right author
 		pr, _, err := client.PullRequests.Get(context.TODO(), parsedRepo[0], parsedRepo[1], runPR.GetNumber())
 		if err != nil {
-			h.Errorf("Error getting pull request object: %s", err)
+			if !strings.Contains(err.Error(), "401 Bad credentials") {
+				h.Errorf("Error getting pull request object: %s", err)
+			}
 			return formatCheckRunMessage(event, ""), branch
 		}
 		author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pr.GetUser().GetLogin(), convID)
