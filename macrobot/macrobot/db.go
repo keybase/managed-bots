@@ -94,6 +94,9 @@ func (d *DB) Remove(msg chat1.MsgSummary, macroName string) (removed bool, err e
 			DELETE FROM macro
 			WHERE channel_name = ? AND macro_name = ?
 		`, msg.ConvID, macroName)
+		if err != nil {
+			return err
+		}
 		rows, err := res.RowsAffected()
 		if err != nil {
 			return err
@@ -106,6 +109,9 @@ func (d *DB) Remove(msg chat1.MsgSummary, macroName string) (removed bool, err e
 			DELETE FROM macro
 			WHERE channel_name = ? AND macro_name = ?
 		`, msg.Channel.Name, macroName)
+		if err != nil {
+			return err
+		}
 		rows, err = res.RowsAffected()
 		removed = rows == 1
 		return err

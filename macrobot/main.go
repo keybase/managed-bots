@@ -44,9 +44,9 @@ You can run the above macros using %s!docs%s or %s!lunchflip%s`
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	createDesc := fmt.Sprintf("Create a new macro for the current team or conversation. %s",
-		createHelp, backs, backs, back, back, back, back)
+		fmt.Sprintf(createHelp, backs, backs, back, back, back, back))
 	createForChannelDesc := fmt.Sprintf("Create a new macro for the current channel. %s",
-		createHelp, back, back, backs, backs)
+		fmt.Sprintf(createHelp, backs, backs, back, back, back, back))
 	removeDesc := fmt.Sprintf(`Remove a macro from the current team or conversation. You must specify the name of the macro.
 
 Examples:%s
