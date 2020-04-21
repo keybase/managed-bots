@@ -118,9 +118,9 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string)
 		return err
 	}
 	if created {
-		h.ChatEcho(msg.ConvID, "Created %s.", macroName)
+		h.ChatEcho(msg.ConvID, "Created '%s'.", macroName)
 	} else {
-		h.ChatEcho(msg.ConvID, "Updated %s.", macroName)
+		h.ChatEcho(msg.ConvID, "Updated '%s'.", macroName)
 	}
 	return nil
 }
