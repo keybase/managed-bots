@@ -1,19 +1,31 @@
 import JiraClient from 'jira-connector'
-import {Issue as JiraIssue} from 'jira-connector/api/issue'
 import {BotConfig} from './bot-config'
 import * as Configs from './configs'
 import logger from './logger'
 import * as Errors from './errors'
 import {Context} from './context'
 import mem from 'mem'
+import moment from 'moment'
 
-const looksLikeIssueKey = (str: string) => !!str.match(/[A-Za-z]+-[0-9]+/)
+type JiraIssue = any
+// import {Issue as JiraIssue} from 'jira-connector/api/issue'
+
+export const looksLikeIssueKey = (str: string) =>
+  !!str.match(/[A-Za-z0-9]+-[0-9]+/)
+
+export const findIssueKeys = (str: string) =>
+  str.match(/([A-Za-z0-9]+-[0-9]+)/g) || []
 
 export type Issue = {
   key: string
   summary: string
   status: string
   url: string
+  issueType: string
+  assigneeJira: string
+  reporterJira: string
+  project: string
+  createdTimeHumanized: string
 }
 
 export enum JiraSubscriptionEvents {
@@ -40,11 +52,20 @@ export class JiraClientWrapper {
   }
 
   jiraRespMapper = (issue: JiraIssue): Issue => ({
+    assigneeJira: issue.fields.assignee?.displayName,
+    createdTimeHumanized: moment(issue.fields.created).fromNow(),
+    issueType: issue.fields.issuetype.name,
     key: issue.key,
-    summary: issue.fields.summary,
+    project: issue.fields.project.name,
+    reporterJira: issue.fields.reporter?.displayName,
     status: issue.fields.status.statusCategory.name,
+    summary: issue.fields.summary,
     url: `https://${this.jiraHost}/browse/${issue.key}`,
   })
+
+  get({issueKey}: {issueKey: string}): Promise<any> {
+    return this.jiraClient.issue.getIssue({issueKey}).then(this.jiraRespMapper)
+  }
 
   getOrSearch({
     query,

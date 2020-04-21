@@ -74,16 +74,19 @@ export const humanReadableArray = (list: Array<string>): string =>
 export const replyToMessageContext = (
   context: Context,
   messageContext: MessageContext,
-  body: string
+  body: string,
+  noQuote?: boolean
 ): Promise<any> =>
   context.bot.chat.send(
     messageContext.conversationId,
     {
       body,
     },
-    {
-      replyTo: messageContext.messageID,
-    }
+    noQuote
+      ? {
+          replyTo: messageContext.messageID,
+        }
+      : undefined
   )
 
 export const getJiraAccountID = async (
