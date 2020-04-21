@@ -16,6 +16,7 @@ export enum BotMessageType {
   Auth = 'auth',
   Feed = 'feed',
   Debug = 'debug',
+  Show = 'show',
 }
 
 export type MessageContext = Readonly<{
@@ -137,6 +138,12 @@ export type DebugPprofMessage = Readonly<{
 }>
 export type DebugMessage = DebugLogSendMessage | DebugPprofMessage
 
+export type ShowMessage = Readonly<{
+  context: MessageContext
+  type: BotMessageType.Show
+  issueKeys: Array<string>
+}>
+
 export type Message =
   | UnknownMessage
   | SearchMessage
@@ -147,6 +154,7 @@ export type Message =
   | AuthMessage
   | FeedMessage
   | DebugMessage
+  | ShowMessage
 
 const getTextMessage = (message: ChatTypes.MsgSummary): string | undefined => {
   if (!message || !message.content) {
@@ -371,6 +379,16 @@ export const parseMessage = async (
   }
 
   if (!textBody.startsWith('!jira')) {
+    if (textBody.includes(`@${context.botConfig.keybase.username}`)) {
+      const issueKeys = Jira.findIssueKeys(textBody)
+      if (issueKeys.length) {
+        return {
+          context: messageContext,
+          type: BotMessageType.Show,
+          issueKeys,
+        }
+      }
+    }
     return undefined
   }
 
@@ -709,6 +727,34 @@ export const parseMessage = async (
             type: BotMessageType.Unknown,
             error: `unknown debug command ${fields[2]}`,
           }
+      }
+    }
+    case 'show': {
+      const inputKeys = fields.slice(2)
+      if (!inputKeys.length) {
+        if (!issueKeys.length) {
+          return {
+            context: messageContext,
+            type: BotMessageType.Unknown,
+            error: `at least one Jira issue key is required`,
+          }
+        }
+      }
+      const issueKeys = inputKeys.filter(Jira.looksLikeIssueKey)
+      if (!issueKeys.length) {
+        return {
+          context: messageContext,
+          type: BotMessageType.Unknown,
+          error:
+            inputKeys.length === 1
+              ? `${inputKeys[0]} is not a Jira issue key`
+              : `no valid Jira issue key is found`,
+        }
+      }
+      return {
+        context: messageContext,
+        type: BotMessageType.Show,
+        issueKeys,
       }
     }
     default: {

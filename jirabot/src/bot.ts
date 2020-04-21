@@ -9,6 +9,7 @@ import CmdNew from './cmd-new'
 import CmdConfig from './cmd-config'
 import CmdFeed from './cmd-feed'
 import CmdDebug from './cmd-debug'
+import CmdShow from './cmd-show'
 import {Context} from './context'
 import logger from './logger'
 import * as Utils from './utils'
@@ -68,42 +69,33 @@ const onMessage = async (
         reportError(context, parsedMessage)
         return
       case Message.BotMessageType.Search: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdSearch(context, parsedMessage)
-        type === Errors.ReturnType.Ok
-          ? reactDone(context, parsedMessage.context, kbMessage.id)
-          : reactFail(context, parsedMessage.context, kbMessage.id)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Comment: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdComment(context, parsedMessage)
-        type === Errors.ReturnType.Ok
-          ? reactDone(context, parsedMessage.context, kbMessage.id)
-          : reactFail(context, parsedMessage.context, kbMessage.id)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Reacji:
         reacji(context, parsedMessage)
         return
       case Message.BotMessageType.Create: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdNew(context, parsedMessage)
-        type === Errors.ReturnType.Ok
-          ? reactDone(context, parsedMessage.context, kbMessage.id)
-          : reactFail(context, parsedMessage.context, kbMessage.id)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Config: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdConfig(context, parsedMessage)
-        type === Errors.ReturnType.Ok
-          ? reactDone(context, parsedMessage.context, kbMessage.id)
-          : reactFail(context, parsedMessage.context, kbMessage.id)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Auth: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdAuth(context, parsedMessage)
         type === Errors.ReturnType.Ok
           ? reactDone(context, parsedMessage.context, kbMessage.id)
@@ -111,11 +103,9 @@ const onMessage = async (
         return
       }
       case Message.BotMessageType.Feed: {
-        reactAck(context, parsedMessage.context, kbMessage.id)
         const {type} = await CmdFeed(context, parsedMessage)
-        type === Errors.ReturnType.Ok
-          ? reactDone(context, parsedMessage.context, kbMessage.id)
-          : reactFail(context, parsedMessage.context, kbMessage.id)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       case Message.BotMessageType.Debug: {
@@ -124,6 +114,12 @@ const onMessage = async (
         type === Errors.ReturnType.Ok
           ? reactDone(context, parsedMessage.context, kbMessage.id)
           : reactFail(context, parsedMessage.context, kbMessage.id)
+        return
+      }
+      case Message.BotMessageType.Show: {
+        const {type} = await CmdShow(context, parsedMessage)
+        type !== Errors.ReturnType.Ok &&
+          reactFail(context, parsedMessage.context, kbMessage.id)
         return
       }
       default:
@@ -197,6 +193,16 @@ const commands = [
       '!jira subscribe design\n' +
       '!jira subscribe frontend with updates\n' +
       '!jira unsubscribe 123',
+  },
+  {
+    name: 'jira show',
+    description: `Show Jira issue(s). You can also unfurl Jira issues by at-mentioning me.`,
+    usage: `show <issue-key> [<issue-key> ...]`,
+    title: `Show Jira issue(s)`,
+    body:
+      'Examples:\n\n' +
+      '!jira show DESIGN-1234\n' +
+      '!jira show DESIGN-1234 DESIGN-5678',
   },
   {
     name: 'jira debug',
