@@ -60,10 +60,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	switch {
+	case strings.HasPrefix(cmd, "!macro create "):
+		return h.handleCreate(msg, false, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro create-for-channel"):
 		return h.handleCreate(msg, true, tokens[2:])
-	case strings.HasPrefix(cmd, "!macro create"):
-		return h.handleCreate(msg, false, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro list"):
 		return h.handleList(msg)
 	case strings.HasPrefix(cmd, "!macro remove"):
@@ -84,7 +84,6 @@ func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 	switch err {
 	case nil:
 	case sql.ErrNoRows:
-		h.ChatEcho(msg.ConvID, "Macro '%s' is not defined for this %s", macroName, getChannelType(msg.Channel, true))
 		return nil
 	default:
 		return err
@@ -118,13 +117,11 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string)
 	if err = h.doPrivateAdvertisement(msg); err != nil {
 		return err
 	}
-	res := "Marco '%s' "
 	if created {
-		res += "created."
+		h.ChatEcho(msg.ConvID, "Created %s.", macroName)
 	} else {
-		res += "updated."
+		h.ChatEcho(msg.ConvID, "Updated %s.", macroName)
 	}
-	h.ChatEcho(msg.ConvID, res, macroName)
 	return nil
 }
 
@@ -132,9 +129,7 @@ func (h *Handler) handleList(msg chat1.MsgSummary) error {
 	macroList, err := h.db.List(msg)
 	if err != nil {
 		return err
-	}
-
-	if len(macroList) == 0 {
+	} else if len(macroList) == 0 {
 		h.ChatEcho(msg.ConvID, "There are no macros defined for this %s", getChannelType(msg.Channel, true))
 		return nil
 	}
@@ -189,9 +184,9 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 	}
 
 	if removed {
-		h.ChatEcho(msg.ConvID, "Macro '%s' removed.", macroName)
+		h.ChatEcho(msg.ConvID, "Removed '%s'.", macroName)
 	} else {
-		h.ChatEcho(msg.ConvID, "Macro '%s' does not exist.", macroName)
+		h.ChatEcho(msg.ConvID, "'%s' does not exist.", macroName)
 	}
 	return nil
 }

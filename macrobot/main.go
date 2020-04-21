@@ -31,25 +31,22 @@ func NewBotServer(opts base.Options) *BotServer {
 	}
 }
 
-const back = "`"
-const backs = "```"
-
-func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createDesc := fmt.Sprintf(`Create a new macro for the current team or conversation. You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro.
+const (
+	back       = "`"
+	backs      = "```"
+	createHelp = `You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro.
 
 Examples:%s
 !macro create docs 'You can find documentation at: https://keybase.io/docs'
 !macro create lunchflip '/flip alice, bob, charlie'%s
-You can run the above macros using %s!docs%s or %s!lunchflip%s`,
-		backs, backs, back, back, back, back)
+You can run the above macros using %s!docs%s or %s!lunchflip%s`
+)
 
-	createForChannelDesc := fmt.Sprintf(`Create a new macro for the current channel. This macro will only be accessible to members of the channel. You must specify a name for the macro, such as 'docs' or 'lunchflip' as well as a message for the bot to send whenever you invoke the macro using %s!macro run%s.
-
-Examples:%s
-!macro create-for-channel docs 'You can find documentation at: https://keybase.io/docs'
-!macro create-for-channel lunchflip '/flip alice, bob, charlie'%s`,
-		back, back, backs, backs)
-
+func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
+	createDesc := fmt.Sprintf("Create a new macro for the current team or conversation. %s",
+		createHelp, backs, backs, back, back, back, back)
+	createForChannelDesc := fmt.Sprintf("Create a new macro for the current channel. %s",
+		createHelp, back, back, backs, backs)
 	removeDesc := fmt.Sprintf(`Remove a macro from the current team or conversation. You must specify the name of the macro.
 
 Examples:%s

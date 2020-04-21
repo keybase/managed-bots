@@ -50,6 +50,7 @@ func (d *DB) Get(msg chat1.MsgSummary, macroName string) (message string, err er
 		SELECT macro_message
 		FROM macro
 		WHERE (channel_name = ? OR channel_name = ?) AND macro_name = ?
+		-- prefer is_conv=true
 		ORDER BY is_conv DESC
 		LIMIT 1
 	`, msg.Channel.Name, msg.ConvID, macroName)
@@ -69,6 +70,7 @@ func (d *DB) List(msg chat1.MsgSummary) (list []Macro, err error) {
 		FROM macro
 		WHERE channel_name = ?
 		OR channel_name = ?
+		-- prefer is_conv=true
 		ORDER BY macro_name ASC, is_conv DESC
 	`, msg.Channel.Name, msg.ConvID)
 	if err != nil {
