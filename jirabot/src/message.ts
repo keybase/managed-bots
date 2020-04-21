@@ -5,6 +5,7 @@ import * as Errors from './errors'
 import logger from './logger'
 import * as Configs from './configs'
 import * as Jira from './jira'
+import isValidDomain from 'is-valid-domain'
 
 export enum BotMessageType {
   Unknown = 'unknown',
@@ -559,6 +560,13 @@ export const parseMessage = async (
               context: messageContext,
               type: BotMessageType.Unknown,
               error: `unknown team config parameter ${toSetName}`,
+            }
+          }
+          if (!isValidDomain(toSetValue)) {
+            return {
+              context: messageContext,
+              type: BotMessageType.Unknown,
+              error: `${toSetValue} is not a valid domain`,
             }
           }
           return {

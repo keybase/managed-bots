@@ -3018,6 +3018,11 @@ is-typedarray@~1.0.0:
   resolved "https://registry.yarnpkg.com/is-typedarray/-/is-typedarray-1.0.0.tgz#e479c80858df0c1b11ddda6940f96011fcda4a9a"
   integrity sha1-5HnICFjfDBsR3dppQPlgEfzaSpo=
 
+is-valid-domain@^0.0.14:
+  version "0.0.14"
+  resolved "https://registry.yarnpkg.com/is-valid-domain/-/is-valid-domain-0.0.14.tgz#26f918ed6be2f8554db281efb9f7169d840a6664"
+  integrity sha512-MTUz/3y25zTtutAfwrLyFK+1l2IL4bcq2iHVdYHIPQbvBJLunlYu9dsQdtLwD9HKPDyxCDlKnSbGcRwvjVeCxA==
+
 is-windows@^1.0.1, is-windows@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/is-windows/-/is-windows-1.0.2.tgz#d1850eb9791ecd18e6182ce12a30f396634bb19d"
