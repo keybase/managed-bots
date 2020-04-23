@@ -74,11 +74,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
-	if len(args) != 1 {
-		h.ChatEcho(msg.ConvID, "Invalid number of arguments. Expected one: <name>")
-		return nil
-	}
-
 	macroName := strings.TrimPrefix(args[0], "!")
 	macroMessage, err := h.db.Get(msg, macroName)
 	switch err {
