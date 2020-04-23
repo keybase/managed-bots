@@ -217,7 +217,7 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 			TeamName: msg.Channel.Name,
 		})
 	} else {
-		if err = h.kbc.ClearCommandsWithFilter(chat1.ClearCommandAPIParam{
+		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
 			Typ:      "teamconvs",
 			TeamName: msg.Channel.Name,
 		}); err != nil {
@@ -231,7 +231,7 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 			ConvID:   msg.ConvID,
 		})
 	} else {
-		if err = h.kbc.ClearCommandsWithFilter(chat1.ClearCommandAPIParam{
+		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
 			Typ:    "conv",
 			ConvID: msg.ConvID,
 		}); err != nil {
