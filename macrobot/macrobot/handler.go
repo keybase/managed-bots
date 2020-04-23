@@ -216,6 +216,13 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 			Commands: teamCmds,
 			TeamName: msg.Channel.Name,
 		})
+	} else {
+		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
+			Typ:      "teamconvs",
+			TeamName: msg.Channel.Name,
+		}); err != nil {
+			return err
+		}
 	}
 	if len(convCmds) > 0 {
 		ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
@@ -223,9 +230,18 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 			Commands: convCmds,
 			ConvID:   msg.ConvID,
 		})
+	} else {
+		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
+			Typ:    "conv",
+			ConvID: msg.ConvID,
+		}); err != nil {
+			return err
+		}
 	}
 
-	_, err = h.kbc.AdvertiseCommands(ad)
+	if len(ad.Advertisements) > 0 {
+		_, err = h.kbc.AdvertiseCommands(ad)
+	}
 	return err
 }
 
