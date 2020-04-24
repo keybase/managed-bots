@@ -93,7 +93,7 @@ export class JiraClientWrapper {
         : new Promise(r => r()),
       this.jiraClient.search.search({
         jql,
-        fields: ['key', 'summary', 'status'],
+        fields: ['key', 'summary', 'status', 'project', 'issuetype'],
         method: 'GET',
         maxResults: 11,
       }),
