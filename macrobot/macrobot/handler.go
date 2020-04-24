@@ -36,6 +36,12 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+	// When we're put into a team conv, tell the team about the `create-for-channel` option.
+	if conv.Channel.MembersType == "team" && conv.IsDefaultConv {
+		if err := h.doPrivateAdvertisement(conv.Channel, conv.Id); err != nil {
+			h.Errorf("unable to advertise on new conv: %v", err)
+		}
+	}
 	welcomeMsg := "I can create and run simple macros! Try `!macro create` to get started."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
@@ -75,7 +81,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 	macroName := strings.TrimPrefix(args[0], "!")
-	macroMessage, err := h.db.Get(msg, macroName)
+	macroMessage, err := h.db.Get(msg.Channel.Name, msg.ConvID, macroName)
 	switch err {
 	case nil:
 	case sql.ErrNoRows:
@@ -88,9 +94,12 @@ func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 	return nil
 }
 
-func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string) error {
+func (h *Handler) handleCreate(msg chat1.MsgSummary, forceConv bool, args []string) error {
 	if len(args) != 2 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments. Expected two: <name> <message>")
+		return nil
+	} else if forceConv && msg.Channel.MembersType != "team" {
+		h.ChatEcho(msg.ConvID, "Unable to create macro. Please use `!macro create` instead")
 		return nil
 	}
 
@@ -108,12 +117,15 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string)
 		return nil
 	}
 	macroMessage := args[1]
-	created, err := h.db.Create(msg, isConv, macroName, macroMessage)
+	// non-team conversations always get a conv type advertisement. Teams have
+	// the option of registering a per team or per channel macro.
+	isConv := msg.Channel.MembersType != "team" || forceConv
+	created, err := h.db.Create(msg.Channel.Name, msg.ConvID, isConv, macroName, macroMessage)
 	if err != nil {
 		return err
 	}
 
-	if err = h.doPrivateAdvertisement(msg); err != nil {
+	if err = h.doPrivateAdvertisement(msg.Channel, msg.ConvID); err != nil {
 		return err
 	}
 	if created {
@@ -125,7 +137,7 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string)
 }
 
 func (h *Handler) handleList(msg chat1.MsgSummary) error {
-	macroList, err := h.db.List(msg)
+	macroList, err := h.db.List(msg.Channel.Name, msg.ConvID)
 	if err != nil {
 		return err
 	} else if len(macroList) == 0 {
@@ -173,12 +185,12 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 	}
 
 	macroName := args[0]
-	removed, err := h.db.Remove(msg, macroName)
+	removed, err := h.db.Remove(msg.Channel.Name, msg.ConvID, macroName)
 	if err != nil {
 		return err
 	}
 
-	if err = h.doPrivateAdvertisement(msg); err != nil {
+	if err = h.doPrivateAdvertisement(msg.Channel, msg.ConvID); err != nil {
 		return err
 	}
 
@@ -190,8 +202,8 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 	return nil
 }
 
-func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
-	macroList, err := h.db.List(msg)
+func (h *Handler) doPrivateAdvertisement(channel chat1.ChatChannel, convID chat1.ConvIDStr) error {
+	macroList, err := h.db.List(channel.Name, convID)
 	if err != nil {
 		return err
 	}
@@ -200,7 +212,7 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 	for _, macro := range macroList {
 		cmd := chat1.UserBotCommandInput{
 			Name:        macro.Name,
-			Description: fmt.Sprintf("Run the '%s' macro defined for this %s", macro.Name, getChannelType(msg.Channel, macro.IsConv)),
+			Description: fmt.Sprintf("Run the '%s' macro defined for this %s", macro.Name, getChannelType(channel, macro.IsConv)),
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       fmt.Sprintf("*!%s*", macro.Name),
 				DesktopBody: macro.Message,
@@ -213,31 +225,39 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 			teamCmds = append(teamCmds, cmd)
 		}
 	}
+
 	var ad kbchat.Advertisement
-	if len(teamCmds) > 0 {
-		ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
-			Typ:      "teamconvs",
-			Commands: teamCmds,
-			TeamName: msg.Channel.Name,
-		})
-	} else {
-		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
-			Typ:      "teamconvs",
-			TeamName: msg.Channel.Name,
-		}); err != nil {
-			return err
+	if channel.MembersType == "team" {
+		// only teams can see the create-for-channel command
+		teamCmds = append(teamCmds, getCreateForChannelCmd())
+		if len(teamCmds) > 0 {
+			ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
+				Typ:      "teamconvs",
+				Commands: teamCmds,
+				TeamName: channel.Name,
+			})
+		} else {
+			if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
+				Typ:      "teamconvs",
+				TeamName: channel.Name,
+			}); err != nil {
+				return err
+			}
 		}
+	} else if len(teamCmds) > 0 {
+		h.Errorf("skipping %d team ads for channel %+v", len(teamCmds), channel)
 	}
+
 	if len(convCmds) > 0 {
 		ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
 			Typ:      "conv",
 			Commands: convCmds,
-			ConvID:   msg.ConvID,
+			ConvID:   convID,
 		})
 	} else {
 		if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
 			Typ:    "conv",
-			ConvID: msg.ConvID,
+			ConvID: convID,
 		}); err != nil {
 			return err
 		}
@@ -247,34 +267,4 @@ func (h *Handler) doPrivateAdvertisement(msg chat1.MsgSummary) error {
 		_, err = h.kbc.AdvertiseCommands(ad)
 	}
 	return err
-}
-
-func getChannelType(channel chat1.ChatChannel, isConv bool) string {
-	if channel.MembersType == "team" {
-		if isConv {
-			return "channel"
-		}
-		return "team"
-	} else {
-		return "conversation"
-	}
-}
-
-func sanitizeMessage(message string) string {
-	if strings.HasPrefix(message, "/") && !isWhiteListed(message) {
-		// escape beginning slash
-		message = "\\" + message
-	}
-	// prevent stellar payments by escaping all '+'s
-	message = strings.ReplaceAll(message, "+", "\\+")
-	return message
-}
-
-func isWhiteListed(message string) bool {
-	for _, command := range whiteListedCommands {
-		if strings.HasPrefix(message, "/"+command) {
-			return true
-		}
-	}
-	return false
 }

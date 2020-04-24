@@ -17,11 +17,10 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) Create(msg chat1.MsgSummary, isConv bool, macroName, macroMessage string) (created bool, err error) {
+func (d *DB) Create(name string, convID chat1.ConvIDStr, isConv bool, macroName, macroMessage string) (created bool, err error) {
 	err = d.RunTxn(func(tx *sql.Tx) error {
-		name := msg.Channel.Name
 		if isConv {
-			name = string(msg.ConvID)
+			name = string(convID)
 		}
 		res, err := tx.Exec(`
 			INSERT INTO macro
@@ -45,7 +44,7 @@ func (d *DB) Create(msg chat1.MsgSummary, isConv bool, macroName, macroMessage s
 	return created, err
 }
 
-func (d *DB) Get(msg chat1.MsgSummary, macroName string) (message string, err error) {
+func (d *DB) Get(name string, convID chat1.ConvIDStr, macroName string) (message string, err error) {
 	row := d.DB.QueryRow(`
 		SELECT macro_message
 		FROM macro
@@ -53,7 +52,7 @@ func (d *DB) Get(msg chat1.MsgSummary, macroName string) (message string, err er
 		-- prefer is_conv=true
 		ORDER BY is_conv DESC
 		LIMIT 1
-	`, msg.Channel.Name, msg.ConvID, macroName)
+	`, name, convID, macroName)
 	err = row.Scan(&message)
 	return message, err
 }
@@ -64,7 +63,7 @@ type Macro struct {
 	IsConv  bool
 }
 
-func (d *DB) List(msg chat1.MsgSummary) (list []Macro, err error) {
+func (d *DB) List(name string, convID chat1.ConvIDStr) (list []Macro, err error) {
 	rows, err := d.DB.Query(`
 		SELECT macro_name, macro_message, is_conv
 		FROM macro
@@ -72,7 +71,7 @@ func (d *DB) List(msg chat1.MsgSummary) (list []Macro, err error) {
 		OR channel_name = ?
 		-- prefer is_conv=true
 		ORDER BY macro_name ASC, is_conv DESC
-	`, msg.Channel.Name, msg.ConvID)
+	`, name, convID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,13 +86,13 @@ func (d *DB) List(msg chat1.MsgSummary) (list []Macro, err error) {
 	return list, nil
 }
 
-func (d *DB) Remove(msg chat1.MsgSummary, macroName string) (removed bool, err error) {
+func (d *DB) Remove(name string, convID chat1.ConvIDStr, macroName string) (removed bool, err error) {
 	err = d.RunTxn(func(tx *sql.Tx) error {
 		// First try to delete for the conv
 		res, err := tx.Exec(`
 			DELETE FROM macro
 			WHERE channel_name = ? AND macro_name = ?
-		`, msg.ConvID, macroName)
+		`, convID, macroName)
 		if err != nil {
 			return err
 		}
@@ -108,7 +107,7 @@ func (d *DB) Remove(msg chat1.MsgSummary, macroName string) (removed bool, err e
 		res, err = tx.Exec(`
 			DELETE FROM macro
 			WHERE channel_name = ? AND macro_name = ?
-		`, msg.Channel.Name, macroName)
+		`, name, macroName)
 		if err != nil {
 			return err
 		}
