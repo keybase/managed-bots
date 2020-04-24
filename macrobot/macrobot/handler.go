@@ -103,6 +103,10 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, isConv bool, args []string)
 	}
 
 	macroName := args[0]
+	if strings.Contains(macroName, " ") {
+		h.ChatEcho(msg.ConvID, "The macro name cannot contain spaces.")
+		return nil
+	}
 	macroMessage := args[1]
 	created, err := h.db.Create(msg, isConv, macroName, macroMessage)
 	if err != nil {
