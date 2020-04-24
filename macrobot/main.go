@@ -89,7 +89,7 @@ Examples:%s
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 	return kbchat.Advertisement{
-		Alias: "Macros",
+		Alias: "Macro Bot",
 		Advertisements: []chat1.AdvertiseCommandAPIParam{
 			{
 				Typ:      "public",
