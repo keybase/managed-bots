@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -12,11 +14,14 @@ import (
 )
 
 type Handler struct {
+	sync.Mutex
 	*base.DebugOutput
 
 	stats *base.StatsRegistry
 	kbc   *kbchat.API
 	db    *DB
+	// Keep track of new teams we've seen.
+	newConvCache map[string]struct{}
 }
 
 var _ base.Handler = (*Handler)(nil)
@@ -28,19 +33,30 @@ var whiteListedCommands = [...]string{
 
 func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB) *Handler {
 	return &Handler{
-		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
-		stats:       stats.SetPrefix("Handler"),
-		kbc:         kbc,
-		db:          db,
+		DebugOutput:  base.NewDebugOutput("Handler", debugConfig),
+		stats:        stats.SetPrefix("Handler"),
+		kbc:          kbc,
+		db:           db,
+		newConvCache: make(map[string]struct{}),
 	}
 }
 
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
-	// When we're put into a team conv, tell the team about the `create-for-channel` option.
-	if conv.Channel.MembersType == "team" && conv.IsDefaultConv {
+	h.Lock()
+	defer h.Unlock()
+
+	// When we're put into a team conv, tell the team about the
+	// `create-for-channel` option.
+	if _, ok := h.newConvCache[conv.Channel.Name]; !ok && conv.Channel.MembersType == "team" {
 		if err := h.doPrivateAdvertisement(conv.Channel, conv.Id); err != nil {
 			h.Errorf("unable to advertise on new conv: %v", err)
 		}
+		h.newConvCache[conv.Channel.Name] = struct{}{}
+		go func() {
+			// cleanup the cache once we know about all the channels
+			time.Sleep(5 * time.Minute)
+			delete(h.newConvCache, conv.Channel.Name)
+		}()
 	}
 	welcomeMsg := "I can create and run simple macros! Try `!macro create` to get started."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
@@ -227,23 +243,13 @@ func (h *Handler) doPrivateAdvertisement(channel chat1.ChatChannel, convID chat1
 	}
 
 	var ad kbchat.Advertisement
+	// only teams can see the create-for-channel command
 	if channel.MembersType == "team" {
-		// only teams can see the create-for-channel command
-		teamCmds = append(teamCmds, getCreateForChannelCmd())
-		if len(teamCmds) > 0 {
-			ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
-				Typ:      "teamconvs",
-				Commands: teamCmds,
-				TeamName: channel.Name,
-			})
-		} else {
-			if err = h.kbc.ClearCommands(&chat1.ClearCommandAPIParam{
-				Typ:      "teamconvs",
-				TeamName: channel.Name,
-			}); err != nil {
-				return err
-			}
-		}
+		ad.Advertisements = append(ad.Advertisements, chat1.AdvertiseCommandAPIParam{
+			Typ:      "teamconvs",
+			Commands: append(teamCmds, getCreateForChannelCmd()),
+			TeamName: channel.Name,
+		})
 	} else if len(teamCmds) > 0 {
 		h.Errorf("skipping %d team ads for channel %+v", len(teamCmds), channel)
 	}
