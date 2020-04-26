@@ -53,6 +53,8 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 		}
 		h.newConvCache[conv.Channel.Name] = struct{}{}
 		go func() {
+			h.Lock()
+			defer h.Unlock()
 			// cleanup the cache once we know about all the channels
 			time.Sleep(5 * time.Minute)
 			delete(h.newConvCache, conv.Channel.Name)
