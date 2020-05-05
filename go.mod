@@ -12,7 +12,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20200428180029-c60589a4e608
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20200505162455-f2f05d17c30a
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

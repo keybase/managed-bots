@@ -63,8 +63,8 @@ github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNU
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51/go.mod h1:CzGEWj7cYgsdH8dAjBGEr58BoE7ScuLd+fwFZ44+/x8=
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 h1:yg56lYPqh9suJepqxOMd/liFgU/x+maRPiB30JNYykM=
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123/go.mod h1:r/eVVWCngg6TsFV/3HuS9sWhDkAzGG8mXhiuYA+Z/20=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200428180029-c60589a4e608 h1:ojgkbFqkpEk0GlntRvd0iCkn6bWT5DUiVeZ8pO67lL8=
-github.com/keybase/go-keybase-chat-bot v0.0.0-20200428180029-c60589a4e608/go.mod h1:xJA+X9ZVyT/irGldcb7q1XnJBq5F9s5H9h2L44Y+poY=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200505162455-f2f05d17c30a h1:53YQ7rYSnFr3i0M0KAmfMNSzxmtwX0SgfOEqeeUHFho=
+github.com/keybase/go-keybase-chat-bot v0.0.0-20200505162455-f2f05d17c30a/go.mod h1:xJA+X9ZVyT/irGldcb7q1XnJBq5F9s5H9h2L44Y+poY=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
