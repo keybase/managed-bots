@@ -12,7 +12,7 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 
-	"github.com/google/go-github/v28/github"
+	"github.com/google/go-github/v31/github"
 )
 
 func getCommitMessages(event *github.PushEvent) []string {

@@ -11,7 +11,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/go-github/v28/github"
+	"github.com/google/go-github/v31/github"
 
 	"github.com/keybase/managed-bots/githubbot/githubbot"
 )

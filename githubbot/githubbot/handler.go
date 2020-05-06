@@ -8,7 +8,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation"
 
-	"github.com/google/go-github/v28/github"
+	"github.com/google/go-github/v31/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
