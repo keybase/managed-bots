@@ -7,43 +7,52 @@ A Keybase chat bot that notifies a channel when an event happens on a GitHub rep
 In order to run the GitHub bot, you will need
 
 - a running MySQL database in order to store GitHub OAuth tokens, user preferences, and channel subscriptions
+- a [secret string](https://developer.github.com/webhooks/securing), used to authenticate webhooks from GitHub.
 - the app ID, app name, client ID, and client secret from a [GitHub app](https://developer.github.com/apps/building-github-apps/creating-a-github-app/)
-- a [secret string](https://developer.github.com/webhooks/securing), used to authenticate webhooks from GitHub. Remember to update the webhook secret on your Github app to this string!
 - the private key `.pem` file from your GitHub app
+
+### Configuring your GitHub app
+
+The GitHub bot sets itself up to serve HTTP requests on `/githubbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path.
+
+When creating the [GitHub app](https://developer.github.com/apps/building-github-apps/creating-a-github-app/) for your bot, set the user authorization callback URL to `http://<your web server>/githubbot/oauth`, and set the webhook URL to `http://<your web server>/githubbot/webhook`. You should also include your webhook [secret string](https://developer.github.com/webhooks/securing).
+
+The bot expects _read-only_ access to the Repository Permissions:
+
+```
+    - checks
+    - contents
+    - issues
+    - pull requests
+    - commit statuses
+```
+
+As well as the webhook events for:
+
+```
+    - check runs
+    - pushes
+    - statuses
+    - issues
+    - pull requests
+```
 
 ## Running
 
 1. On your SQL instance, create a database for the bot, and run `db.sql` to set up the tables.
 2. Build the bot using Go 1.13+, like such (in this directory):
+
    ```
    go install .
    ```
-3. The GitHub bot sets itself up to serve HTTP requests on `/githubbot` plus a prefix indicating what the URLs will look like. The HTTP server runs on port 8080. You can configure nginx or any other reverse proxy software to route to this port and path. Make sure the callback URL for your GitHub app is set to `http://<your web server>/githubbot/oauth`, and the webhook URL is set to `http://<your web server>/githubbot/webhook`.
-4. To start the GitHub bot, run a command like this:
+
+3. To start the GitHub bot, run a command like this:
    ```
    $GOPATH/bin/githubbot --http-prefix 'http://<your web server>:8080' --dsn 'root@/githubbot' --app-name 'my-bot' --app-id 12345 --client-id '<OAuth client ID>' --client-secret '<OAuth client secret>' --secret '<your secret string>' --private-key-path '/path/to/bot.private-key.pem'
    ```
-5. Run `githubbot --help` for more options.
+4. Run `githubbot --help` for more options.
 
 ### Helpful Tips
-
-- Remember to configure the permissions for your GitHub app. The bot expects
-  *read-only* access to the Repository Permissions:
-    ```
-        - checks
-        - contents
-        - issues
-        - pull requests
-        - commit statuses
-    ```
-    As well as the webhook events for:
-    ```
-        - check runs
-        - pushes
-        - statuses
-        - issues
-        - pull requests
-    ```
 
 - If you accidentally run the bot under your own username and wish to clear the `!` commands, run the following:
   ```
