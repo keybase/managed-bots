@@ -124,10 +124,6 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
-	if strings.HasPrefix(cmd, "!trivia begin") {
-		h.ChatEcho(msg.ConvID, "Sorry, I'm temporarily disabled, check back in a bit.")
-		return nil
-	}
 	switch {
 	case strings.HasPrefix(cmd, "!trivia begin"):
 		h.stats.Count("start")
