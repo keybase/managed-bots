@@ -77,11 +77,9 @@ func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...int
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...interface{}) {
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil {
-		if err := GetNonFatalChatError(err); err != nil {
-			d.Debug("ChatEcho: failed to send echo message: %s", err)
-			return
+		if !IsDeletedConvError(err) {
+			d.Errorf("ChatEcho: failed to send echo message: %s", err)
 		}
-		d.Errorf("ChatEcho: failed to send echo message: %s", err)
 	}
 }
 
@@ -94,12 +92,9 @@ func (d *DebugOutput) Trace(err *error, format string, args ...interface{}) func
 	}
 }
 
-func GetNonFatalChatError(err error) error {
+func IsDeletedConvError(err error) bool {
 	// error created in https://github.com/keybase/client/blob/1985b18c4e7659bede1d4a2e68e4f68467acebc6/go/client/chat_svc_handler.go#L1407
 	// error created in https://github.com/keybase/keybase/blob/9a82c96231ea2c6132532002e58bac80849265e6/go/chatbase/storage/sql_chat.go#L2324
-	if strings.Contains(err.Error(), "no conversations matched") ||
-		strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID") {
-		return err
-	}
-	return nil
+	return strings.Contains(err.Error(), "no conversations matched") ||
+		strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID")
 }

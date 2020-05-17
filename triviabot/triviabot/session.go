@@ -362,10 +362,16 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 			default:
 			}
 			if err := s.getNextQuestion(); err != nil {
+				if base.IsDeletedConvError(err) {
+					return
+				}
 				s.ChatErrorf(s.convID, "start: failed to get next question: %s", err)
 				continue
 			}
 			if err := s.askQuestion(); err != nil {
+				if base.IsDeletedConvError(err) {
+					return
+				}
 				s.ChatErrorf(s.convID, "start: failed to ask question: %s", err)
 				continue
 			}
