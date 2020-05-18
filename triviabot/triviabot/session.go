@@ -236,16 +236,15 @@ func (s *session) askQuestion() error {
 	s.Debug("askQuestion: question: %s answer: %d", q.question, q.correctAnswer+1)
 	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
 	if err != nil {
-		s.ChatErrorf(s.convID, "askQuestion: failed to ask question: %s", err)
 		return err
 	}
 	if sendRes.Result.MessageID == nil {
-		s.ChatErrorf(s.convID, "askQuestion: failed to get message ID of question ask")
+		return fmt.Errorf("askQuestion: failed to get message ID of question ask")
 	}
 	for index := range q.answers {
 		if _, err := s.kbc.ReactByConvID(s.convID, *sendRes.Result.MessageID,
 			base.NumberToEmoji(index+1)); err != nil {
-			s.ChatErrorf(s.convID, "askQuestion: failed to set reaction option: %s", err)
+			return fmt.Errorf("askQuestion: failed to set reaction option: %s", err)
 		}
 	}
 	s.curMsgID = *sendRes.Result.MessageID
