@@ -1,3 +1,4 @@
+import util from 'util'
 import Bot from './bot'
 import {init} from './context'
 import * as BotConfig from './bot-config'
@@ -5,8 +6,12 @@ import startHTTPServer from './http-server'
 import startBackgroundTasks from './background-tasks'
 import logger from './logger'
 
-process.on('unhandledRejection', error => {
-  logger.fatal({msg: 'unhandled promise', error})
+process.on('unhandledRejection', (reason, promise) => {
+  logger.fatal({
+    msg: 'unhandled promise rejection',
+    reason: reason?.toString(),
+    promise: util.format(promise),
+  })
   process.exit(1)
 })
 

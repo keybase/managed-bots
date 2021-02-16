@@ -127,9 +127,6 @@ export default (context: Context) =>
   http
     .createServer((req, res) => {
       try {
-        if (req.url === Constants.healthCheckPathname) {
-        }
-
         const parsedUrl = url.parse(req.url, true)
         switch (parsedUrl.pathname) {
           case Constants.healthCheckPathname:
