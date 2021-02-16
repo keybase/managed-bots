@@ -5,6 +5,10 @@ import startHTTPServer from './http-server'
 import startBackgroundTasks from './background-tasks'
 import logger from './logger'
 
+process.on('unhandledRejection', error => {
+  logger.fatal({msg: 'unhandled promise', error})
+})
+
 const botConfig = BotConfig.parse(process.env.JIRABOT_CONFIG || '')
 if (!botConfig) {
   logger.fatal('invalid bot-config')
