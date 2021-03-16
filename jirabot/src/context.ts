@@ -77,7 +77,6 @@ export const init = async (
     context.botConfig.keybase.paperkey,
     {
       verbose: true,
-      autoLogSendOnCrash: true,
     }
   )
   logger.info('init done')
