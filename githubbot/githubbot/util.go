@@ -216,6 +216,8 @@ func shouldParseEvent(event interface{}, features *Features) bool {
 		return features.PullRequests
 	case *github.PushEvent:
 		return features.Commits
+	case *github.ReleaseEvent:
+		return features.Releases
 	case *github.CheckRunEvent, *github.StatusEvent:
 		return features.Statuses
 	default:

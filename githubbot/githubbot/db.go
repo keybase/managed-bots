@@ -171,6 +171,7 @@ type Features struct {
 	PullRequests bool
 	Commits      bool
 	Statuses     bool
+	Releases     bool
 }
 
 func (f *Features) String() string {
@@ -190,6 +191,9 @@ func (f *Features) String() string {
 	if f.Statuses {
 		res = append(res, "commit statuses")
 	}
+	if f.Releases {
+		res = append(res, "releases")
+	}
 	if len(res) == 0 {
 		return "no events"
 	} else if len(res) == 4 {
@@ -202,7 +206,7 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO features
-			(conv_id, repo, issues, pull_requests, commits, statuses)
+			(conv_id, repo, issues, pull_requests, commits, statuses, releases)
 			VALUES
 			(?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
@@ -210,17 +214,18 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 			pull_requests=VALUES(pull_requests),
 			commits=VALUES(commits),
 			statuses=VALUES(statuses)
-		`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses)
+			releases=VALUES(releases)
+		`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses, features.Releases)
 		return err
 	})
 }
 
 func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error) {
-	row := d.DB.QueryRow(`SELECT issues, pull_requests, commits, statuses
+	row := d.DB.QueryRow(`SELECT issues, pull_requests, commits, statuses, releases
 		FROM features
 		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	features := &Features{}
-	err := row.Scan(&features.Issues, &features.PullRequests, &features.Commits, &features.Statuses)
+	err := row.Scan(&features.Issues, &features.PullRequests, &features.Commits, &features.Statuses, &features.Releases)
 	switch err {
 	case nil:
 		return features, nil
@@ -233,7 +238,7 @@ func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error)
 
 func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features, error) {
 	rows, err := d.DB.Query(`SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
-		COALESCE(commits, true), COALESCE(statuses, true)
+		COALESCE(commits, true), COALESCE(statuses, true), COALESCE(releases, true)
 		FROM subscriptions
 		LEFT JOIN features USING(conv_id, repo)
 		WHERE conv_id = ?`, convID)
@@ -245,7 +250,7 @@ func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features
 	for rows.Next() {
 		var repo string
 		var features Features
-		if err := rows.Scan(&repo, &features.Issues, &features.PullRequests, &features.Commits, &features.Statuses); err != nil {
+		if err := rows.Scan(&repo, &features.Issues, &features.PullRequests, &features.Commits, &features.Statuses, &features.Releases); err != nil {
 			return nil, err
 		}
 		res[repo] = features

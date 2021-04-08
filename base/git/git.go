@@ -130,3 +130,32 @@ func FormatPullRequestMsg(provider int, action string, username string, repo str
 
 	return res
 }
+
+/*
+Release Events
+
+GitHub: https://developer.github.com/v3/activity/events/types/#release
+Namespace: "published", "created", "edited", "deleted"
+
+GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#release
+Namespace: "publish", "create", "edit", "delete"
+
+*/
+
+func FormatReleaseMsg(action, username, repo, version, name, releaseUrl, changes string) (res string) {
+	switch action {
+	case "publish", "published":
+		res = fmt.Sprintf("%s published the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
+		res += releaseUrl
+	case "create", "created":
+		res = fmt.Sprintf("%s created the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
+		res += releaseUrl
+	case "edit", "edited":
+		res = fmt.Sprintf("%s edited the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
+		res += releaseUrl
+	case "delete", "deleted":
+		res = fmt.Sprintf("%s deleted the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
+		res += releaseUrl
+	}
+	return res
+}

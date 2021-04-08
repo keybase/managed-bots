@@ -150,6 +150,17 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo 
 			event.GetIssue().GetTitle(),
 			event.GetIssue().GetHTMLURL(),
 		), ""
+	case *github.ReleaseEvent:
+		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
+		return git.FormatReleaseMsg(
+			*event.Action,
+			author.String(),
+			event.GetRepo().GetName(),
+			event.GetRelease().GetTagName(),
+			event.GetRelease().GetName(),
+			event.GetRelease().GetURL(),
+			event.GetRelease().GetBody(),
+		), ""
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
