@@ -141,7 +141,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			}
 		}
 		switch args[1] {
-		case "issues", "pulls", "statuses", "commits":
+		case "issues", "pulls", "statuses", "commits", "releases":
 			return h.handleSubscribeToFeature(repo, args[1], msg, create)
 		default:
 			return h.handleSubscribeToBranch(repo, args[1], msg, create)
@@ -302,7 +302,7 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 	if currentFeatures == nil {
 		currentFeatures = &Features{}
 	}
-	// "issues", "pulls", "statuses", "commits"
+	// "issues", "pulls", "statuses", "commits", "releases"
 	switch feature {
 	case "issues":
 		currentFeatures.Issues = enable
@@ -312,6 +312,8 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		currentFeatures.Statuses = enable
 	case "commits":
 		currentFeatures.Commits = enable
+	case "releases":
+		currentFeatures.Releases = enable
 	default:
 		// Should never get here if check in handleSubscribe is correct
 		return fmt.Errorf("Error subscribing to feature: %s is not a valid feature", feature)

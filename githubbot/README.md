@@ -23,6 +23,7 @@ The bot expects _read-only_ access to the Repository Permissions:
     - checks
     - contents
     - issues
+    - releases
     - pull requests
     - commit statuses
 ```
@@ -34,6 +35,7 @@ As well as the webhook events for:
     - pushes
     - statuses
     - issues
+    - releases
     - pull requests
 ```
 

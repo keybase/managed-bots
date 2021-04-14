@@ -37,6 +37,7 @@ CREATE TABLE `features` (
   `pull_requests` boolean NOT NULL DEFAULT 1,
   `commits` boolean NOT NULL DEFAULT 0,
   `statuses` boolean NOT NULL DEFAULT 1,
+  `releases` boolean NOT NULL DEFAULT 1,
   UNIQUE KEY unique_subscription (`conv_id`, `repo`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
