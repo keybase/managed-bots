@@ -196,7 +196,7 @@ func (f *Features) String() string {
 	}
 	if len(res) == 0 {
 		return "no events"
-	} else if len(res) == 4 {
+	} else if len(res) == 5 {
 		return "all events"
 	}
 	return strings.Join(res, ", ")
