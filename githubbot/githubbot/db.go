@@ -213,7 +213,7 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 			issues=VALUES(issues),
 			pull_requests=VALUES(pull_requests),
 			commits=VALUES(commits),
-			statuses=VALUES(statuses)
+			statuses=VALUES(statuses),
 			releases=VALUES(releases)
 		`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses, features.Releases)
 		return err
