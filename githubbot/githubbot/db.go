@@ -208,7 +208,7 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 			INSERT INTO features
 			(conv_id, repo, issues, pull_requests, commits, statuses, releases)
 			VALUES
-			(?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 			issues=VALUES(issues),
 			pull_requests=VALUES(pull_requests),
