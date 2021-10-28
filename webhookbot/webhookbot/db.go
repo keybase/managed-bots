@@ -35,7 +35,7 @@ func (d *DB) makeID(name string, convID chat1.ConvIDStr) (string, error) {
 	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
-func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
+func (d *DB) Create(name, template string, convID chat1.ConvIDStr) (string, error) {
 	id, err := d.makeID(name, convID)
 	if err != nil {
 		return "", err
@@ -43,10 +43,10 @@ func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
 	err = d.RunTxn(func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`
 			INSERT INTO hooks
-			(id, name, conv_id)
+			(id, name, template, conv_id)
 			VALUES
-			(?, ?, ?)
-		`, id, name, convID); err != nil {
+			(?, ?, ?, ?)
+		`, id, name, template, convID); err != nil {
 			return err
 		}
 		return nil
@@ -54,20 +54,35 @@ func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
 	return id, err
 }
 
+func (d *DB) Update(name, template string, convID chat1.ConvIDStr) error {
+	err := d.RunTxn(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`
+			UPDATE hooks
+			SET template = ?
+			WHERE conv_id = ? AND name = ?
+		`, template, convID, name); err != nil {
+			return err
+		}
+		return nil
+	})
+	return err
+}
+
 func (d *DB) GetHook(id string) (res webhook, err error) {
 	row := d.DB.QueryRow(`
-		SELECT conv_id, name FROM hooks WHERE id = ?
+		SELECT conv_id, name, template FROM hooks WHERE id = ?
 	`, id)
-	if err := row.Scan(&res.convID, &res.name); err != nil {
+	if err := row.Scan(&res.convID, &res.name, &res.template); err != nil {
 		return res, err
 	}
 	return res, nil
 }
 
 type webhook struct {
-	id     string
-	convID chat1.ConvIDStr
-	name   string
+	id       string
+	convID   chat1.ConvIDStr
+	name     string
+	template string
 }
 
 func (d *DB) List(convID chat1.ConvIDStr) (res []webhook, err error) {

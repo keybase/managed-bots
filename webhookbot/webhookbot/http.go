@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -32,33 +33,56 @@ func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConf
 	return h
 }
 
-type msgPayload struct {
-	Msg string
+func injectTemplateVars(webhookName, webhookMethod, template string) string {
+	return fmt.Sprintf("{{$webhookName := %q}}{{$webhookMethod := %q}} %s", webhookName, webhookMethod, template)
 }
 
-func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
-	msg := r.URL.Query().Get("msg")
-	if len(msg) > 0 {
-		return msg, nil
+func (h *HTTPSrv) getMessage(r *http.Request, hook webhook) (string, error) {
+	if r.Method == http.MethodGet && len(hook.template) == 0 {
+		j, err := json.Marshal(r.URL.Query())
+		if err != nil {
+			return "", err
+		}
+		return string(j), nil
 	}
 
-	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+	if r.Method == http.MethodPost && len(hook.template) == 0 {
+		defer r.Body.Close()
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return "", err
+		}
+		return string(body), nil
+	}
+
+	tWithVars := injectTemplateVars(hook.name, r.Method, hook.template)
+	t, err := template.New("").Parse(tWithVars)
 	if err != nil {
-		return "", err
+		return "`Error: failed to parse template: " + err.Error() + "`", nil
 	}
 
-	var payload msgPayload
-	decoder := json.NewDecoder(bytes.NewReader(body))
-	if err := decoder.Decode(&payload); err == nil && len(payload.Msg) > 0 {
-		return payload.Msg, nil
+	if r.Method == http.MethodGet {
+		buf := new(bytes.Buffer)
+		if err := t.Execute(buf, r.URL.Query()); err == nil {
+			return buf.String(), nil
+		}
 	}
 
-	msg = string(body)
-	if len(msg) > 0 {
-		return msg, nil
+	if r.Method == http.MethodPost {
+		defer r.Body.Close()
+		body, err := ioutil.ReadAll(r.Body)
+
+		m := map[string]interface{}{}
+		err = json.Unmarshal(body, &m)
+		if err != nil {
+			return "", err
+		}
+		buf := new(bytes.Buffer)
+		if err := t.Execute(buf, m); err == nil && len(buf.String()) > 0 {
+			return buf.String(), nil
+		}
 	}
-	return "`Error: no body found. To use a webhook URL, supply a 'msg' URL parameter, or a JSON POST body with a field 'msg'`", nil
+	return "", nil
 }
 
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
@@ -71,15 +95,19 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	msg, err := h.getMessage(r)
+	msg, err := h.getMessage(r, hook)
 	if err != nil {
 		h.Stats.Count("handle - no message")
 		h.Errorf("handleHook: failed to find message: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(msg) == "" {
+		h.Stats.Count("handle - empty msg")
+		return
+	}
 	h.Stats.Count("handle - success")
-	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
+	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, " %s", msg); err != nil {
 		if base.IsDeletedConvError(err) {
 			h.Debug("ChatEcho: failed to send echo message: %s", err)
 			return

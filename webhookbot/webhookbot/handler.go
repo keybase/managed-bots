@@ -1,15 +1,19 @@
 package webhookbot
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
+	"text/template"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 )
+
+const defaultTemplate = "[hook: *{{$webhookName}}*]\n\n{{if eq $webhookMethod \"POST\"}}{{.msg}}{{else}}{{index .msg 0}}{{end}}"
 
 type Handler struct {
 	*base.DebugOutput
@@ -112,7 +116,7 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
 func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
-	if len(toks) != 3 {
+	if len(toks) < 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
 	}
@@ -128,7 +132,23 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 
 	h.stats.Count("create")
 	name := toks[2]
-	id, err := h.db.Create(name, convID)
+
+	// template is whatever remains after removing "!webhook create <name>", and trimming spaces.
+	// if the template is empty, we'll set a default one
+	templateSrc := strings.Replace(cmd, "!webhook create", "", 1)
+	templateSrc = strings.Replace(templateSrc, name, "", 1)
+	templateSrc = strings.TrimSpace(templateSrc)
+	if templateSrc == "" {
+		templateSrc = defaultTemplate
+	}
+	tWithVars := injectTemplateVars("testhook1", "POST", templateSrc)
+	_, err = template.New("").Parse(tWithVars)
+	if err != nil {
+		h.ChatEcho(convID, "failed to parse template: %v", err)
+		return fmt.Errorf("handleCreate: failed to parse template: %s", err)
+	}
+
+	id, err := h.db.Create(name, templateSrc, convID)
 	if err != nil {
 		return fmt.Errorf("handleCreate: failed to create webhook: %s", err)
 	}
@@ -136,6 +156,51 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 		h.Debug("handleCreate: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "Success! New URL sent to @%s", msg.Sender.Username)
+	return nil
+}
+
+func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
+	convID := msg.ConvID
+	toks := strings.Split(cmd, " ")
+	if len(toks) < 3 {
+		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
+		return nil
+	}
+	err = h.checkAllowed(msg)
+	switch err {
+	case nil:
+	case errNotAllowed:
+		h.ChatEcho(convID, err.Error())
+		return nil
+	default:
+		return err
+	}
+	h.stats.Count("update")
+	name := toks[2]
+	// template is whatever remains after removing "!webhook create <name>", and trimming spaces.
+	// if the template is empty, we'll set a default one
+	templateSrc := strings.Replace(cmd, "!webhook update", "", 1)
+	templateSrc = strings.Replace(templateSrc, name, "", 1)
+	templateSrc = strings.TrimSpace(templateSrc)
+	if templateSrc == "" {
+		templateSrc = defaultTemplate
+	}
+	tWithVars := injectTemplateVars("testhook1", "POST", templateSrc)
+	_, err = template.New("").Parse(tWithVars)
+	if err != nil {
+		h.ChatEcho(convID, "failed to parse template")
+		return nil
+	}
+
+	err = h.db.Update(name, templateSrc, convID)
+	switch err {
+	case nil:
+	case sql.ErrNoRows:
+	default:
+		h.ChatEcho(convID, "failed to update template: no webhook with that name exists in this conversation")
+		return nil
+	}
+	h.ChatEcho(convID, "Success!")
 	return nil
 }
 
@@ -156,6 +221,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleList(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook remove"):
 		return h.handleRemove(cmd, msg)
+	case strings.HasPrefix(cmd, "!webhook update"):
+		return h.handleUpdate(cmd, msg)
 	}
 	return nil
 }
