@@ -71,6 +71,9 @@ func (h *HTTPSrv) getMessage(r *http.Request, hook webhook) (string, error) {
 	if r.Method == http.MethodPost {
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return "", err
+		}
 
 		m := map[string]interface{}{}
 		err = json.Unmarshal(body, &m)
