@@ -113,6 +113,15 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
+func validateTemplate(templateSrc string) error {
+	tWithVars := injectTemplateVars("testhook1", "POST", templateSrc)
+	_, err := template.New("").Parse(tWithVars)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
@@ -141,8 +150,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	if templateSrc == "" {
 		templateSrc = defaultTemplate
 	}
-	tWithVars := injectTemplateVars("testhook1", "POST", templateSrc)
-	_, err = template.New("").Parse(tWithVars)
+	err = validateTemplate(templateSrc)
 	if err != nil {
 		h.ChatEcho(convID, "failed to parse template: %v", err)
 		return fmt.Errorf("handleCreate: failed to parse template: %s", err)
@@ -177,7 +185,7 @@ func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 	}
 	h.stats.Count("update")
 	name := toks[2]
-	// template is whatever remains after removing "!webhook create <name>", and trimming spaces.
+	// template is whatever remains after removing "!webhook update <name>", and trimming spaces.
 	// if the template is empty, we'll set a default one
 	templateSrc := strings.Replace(cmd, "!webhook update", "", 1)
 	templateSrc = strings.Replace(templateSrc, name, "", 1)
@@ -185,11 +193,10 @@ func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 	if templateSrc == "" {
 		templateSrc = defaultTemplate
 	}
-	tWithVars := injectTemplateVars("testhook1", "POST", templateSrc)
-	_, err = template.New("").Parse(tWithVars)
+	err = validateTemplate(templateSrc)
 	if err != nil {
-		h.ChatEcho(convID, "failed to parse template")
-		return nil
+		h.ChatEcho(convID, "failed to parse template: %v", err)
+		return fmt.Errorf("handleCreate: failed to parse template: %s", err)
 	}
 
 	err = h.db.Update(name, templateSrc, convID)
