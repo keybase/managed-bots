@@ -204,7 +204,7 @@ func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 	case nil:
 	case sql.ErrNoRows:
 	default:
-		h.ChatEcho(convID, "failed to update template: no webhook with that name exists in this conversation")
+		h.ChatEcho(convID, "failed to update template: no webhook with that name exists in this conversation. a new webhook can be created with the `!webhook create` command.")
 		return nil
 	}
 	h.ChatEcho(convID, "Success!")
