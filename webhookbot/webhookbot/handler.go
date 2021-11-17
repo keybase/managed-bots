@@ -58,7 +58,7 @@ func (h *Handler) checkAllowed(msg chat1.MsgSummary) error {
 
 func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
-	toks := strings.Split(cmd, " ")
+	toks := strings.Fields(cmd)
 	if len(toks) != 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
@@ -124,7 +124,7 @@ func validateTemplate(templateSrc string) error {
 
 func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
-	toks := strings.Split(cmd, " ")
+	toks := strings.Fields(cmd)
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
@@ -169,7 +169,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 
 func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
-	toks := strings.Split(cmd, " ")
+	toks := strings.Fields(cmd)
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "invalid number of arguments, must specify a name")
 		return nil
