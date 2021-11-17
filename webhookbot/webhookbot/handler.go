@@ -215,6 +215,7 @@ func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 }
 
 func (h *Handler) handleHelp(msg chat1.MsgSummary) (err error) {
+	h.stats.Count("help")
 	back := "`"
 	backs := "```"
 	convID := msg.ConvID
