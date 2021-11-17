@@ -45,29 +45,16 @@ const back = "`"
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s.
+	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s. You can also supply a template, which allows you to customize the message displayed by the webhook, and the URL and/or JSON fields it will accept. For more information on templates, use the %s!webhook help%s command.
 
 	Example:%s
 		!webhook create alerts%s
 
 	Example (using custom template):%s
 		!webhook create alerts *{{.title}}*
-		%s{{.body}}%s%s
-
-	Templates:
-		Information about creating templates, and some examples can be found at %shttps://pkg.go.dev/text/template%s
-		You can test your templates against your JSON data at %shttps://play.golang.org/p/vC06kRCQDfX%s
-
-		There are 2 custom variables you can use in your templates (see the default template below for example usage):
-		  - %s$webhookName%s: The name you gave the webhook
-		  - %s$webhookMethod%s: Whether GET or POST was used when the webhook endpoint was fetched
-
-		If you don't provide a template, this is the default:%s
-		[hook: *{{$webhookName}}*]
-
-		{{if eq $webhookMethod "POST"}}{{.msg}}{{else}}{{index .msg 0}}{{end}}%s`,
-		back, back, back, back, backs, backs, backs, back, back, backs, back, back, back, back, back, back, back, back, backs, backs)
-	updateExtended := fmt.Sprintf(`Update an existing webhook's template. Leave the template field empty to use the default template. For more information about templates, see the help text for %s!webhook create%s.
+		%s{{.body}}%s%s`,
+		back, back, back, back, back, back, backs, backs, backs, back, back, backs)
+	updateExtended := fmt.Sprintf(`Update an existing webhook's template. Leave the template field empty to use the default template. For more information on templates, use the %s!webhook help%s command.
 
 	Example:%s
 		!webhook update alerts *New Alert: {{.title}}*
@@ -113,6 +100,10 @@ Remove a webhook`,
 				DesktopBody: removeExtended,
 				MobileBody:  removeExtended,
 			},
+		},
+		{
+			Name:        "webhook help",
+			Description: "Get more information about using templates",
 		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}

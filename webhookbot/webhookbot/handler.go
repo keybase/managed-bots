@@ -214,6 +214,26 @@ func (h *Handler) handleUpdate(cmd string, msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
+func (h *Handler) handleHelp(msg chat1.MsgSummary) (err error) {
+	back := "`"
+	backs := "```"
+	convID := msg.ConvID
+	h.ChatEcho(convID, `
+*Templates:*
+	- Information about creating templates, and some examples can be found at https://pkg.go.dev/text/template
+	- You can test your templates against your JSON data at https://play.golang.org/p/vC06kRCQDfX
+
+	There are 2 custom variables you can use in your templates (see the default template below for example usage):
+	  - %s$webhookName%s: The name you gave the webhook
+	  - %s$webhookMethod%s: Whether GET or POST was used when the webhook endpoint was fetched
+
+	If you don't provide a template, this is the default:%s
+	[hook: *{{$webhookName}}*]
+
+	{{if eq $webhookMethod "POST"}}{{.msg}}{{else}}{{index .msg 0}}{{end}}%s`, back, back, back, back, backs, backs)
+	return nil
+}
+
 func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	welcomeMsg := "I can create generic webhooks into Keybase! Try `!webhook create` to get started."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
@@ -233,6 +253,8 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		return h.handleRemove(cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook update"):
 		return h.handleUpdate(cmd, msg)
+	case strings.HasPrefix(cmd, "!webhook help"):
+		return h.handleHelp(msg)
 	}
 	return nil
 }
