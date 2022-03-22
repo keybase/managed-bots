@@ -122,7 +122,11 @@ func (s *BotServer) Go() (err error) {
 			TokenURL: "https://zoom.us/oauth/token",
 		},
 		RedirectURL: fmt.Sprintf("%s/zoombot/oauth", s.opts.HTTPPrefix),
-		Scopes:      []string{"user:read", "meeting:write"},
+		// The bot uses the following scopes:
+		// {"user:read","meeting:write"}.
+		// We omit having these as part of our authorization URL these
+		// since Zoom now rejects these, for logged in web users. See
+		// https://devforum.zoom.us/t/invalid-scope-errors/52654/14
 	}
 
 	sdb, err := sql.Open("mysql", s.opts.DSN)
