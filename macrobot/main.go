@@ -37,7 +37,7 @@ const (
 )
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createDesc := fmt.Sprintf("Create a new macro for the current team or conversation. %s",
+	createDesc := fmt.Sprintf("Create or update a macro for the current team or conversation. %s",
 		fmt.Sprintf(macrobot.CreateCmdHelp, backs, backs, back, back, back, back))
 	removeDesc := fmt.Sprintf(`Remove a macro from the current team or conversation. You must specify the name of the macro.
 
@@ -49,7 +49,7 @@ Examples:%s
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "macro create",
-			Description: "Create a new macro for the current team or conversation",
+			Description: "Create or update a macro for the current team or conversation",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
 				Title:       `*!macro create* <name> <message>`,
 				DesktopBody: createDesc,

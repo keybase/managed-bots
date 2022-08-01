@@ -19,11 +19,11 @@ You can run the above macros using %s!docs%s or %s!lunchflip%s`
 )
 
 func getCreateForChannelCmd() chat1.UserBotCommandInput {
-	createForChannelDesc := fmt.Sprintf("Create a new macro for the current channel. %s",
+	createForChannelDesc := fmt.Sprintf("Create or update a macro for the current channel. %s",
 		fmt.Sprintf(CreateCmdHelp, backs, backs, back, back, back, back))
 	return chat1.UserBotCommandInput{
 		Name:        "macro create-for-channel",
-		Description: "Create a new macro for the current channel",
+		Description: "Create or update a macro for the current channel",
 		ExtendedDescription: &chat1.UserBotExtendedDescription{
 			Title:       `*!macro create-for-channel* <name> <message>`,
 			DesktopBody: createForChannelDesc,
