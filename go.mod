@@ -1,6 +1,6 @@
 module github.com/keybase/managed-bots
 
-go 1.17
+go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.28.1
@@ -13,7 +13,7 @@ require (
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20211201215354-ee4b23828b55
 	github.com/olivere/elastic v6.2.27+incompatible
 	github.com/stathat/go v1.0.0
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.8.0
 	github.com/xanzy/go-gitlab v0.29.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
@@ -48,5 +48,5 @@ require (
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
 	google.golang.org/grpc v1.20.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	gopkg.in/yaml.v2 v2.2.8 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

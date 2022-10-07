@@ -11,13 +11,12 @@ Currently supports:
 - GitHub
 - GitLab
 
- */
+*/
 
 const (
 	GITHUB = iota
 	GITLAB
 )
-
 
 func RefToName(ref string) (branch string) {
 	// refs are always given in the form "refs/heads/{branch name}" or "refs/tags/{tag name}"
@@ -29,14 +28,13 @@ func RefToName(ref string) (branch string) {
 	return branch
 }
 
-
 /*
 Push Events
 
 GitHub: https://developer.github.com/v3/activity/events/types/#pushevent
 GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#push-events
 
- */
+*/
 
 func FormatPushMsg(username string, repo string, branch string, numCommits int, messages []string, commitURL string) (res string) {
 	res = fmt.Sprintf("%s pushed %d commit", username, numCommits)
@@ -74,7 +72,7 @@ Namespace: "opened", "reopened", "closed"
 GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#issues-events
 Namespace: "open", "reopen", "close"
 
- */
+*/
 
 func FormatIssueMsg(action string, username string, repo string, repoNum int, issueTitle string, issueURL string) (res string) {
 	switch action {
@@ -103,7 +101,7 @@ as an action in GitHub.
 GitLab: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#merge-request-events
 Namespace: "open", "reopen", "close", "merge"
 
- */
+*/
 
 func FormatPullRequestMsg(provider int, action string, username string, repo string, repoNum int, issueTitle string, prURL string, targetBranch string) (res string) {
 	var requestName string

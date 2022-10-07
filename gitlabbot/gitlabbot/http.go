@@ -111,7 +111,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	for _, convID := range convs {
 		var secretToken = base.MakeSecret(repo, convID, h.secret)
 		if signature != secretToken {
