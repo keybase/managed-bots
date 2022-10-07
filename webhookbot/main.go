@@ -45,10 +45,20 @@ const back = "`"
 const backs = "```"
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s.
+	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s. You can also supply a template, which allows you to customize the message displayed by the webhook, and the URL and/or JSON fields it will accept. For more information on templates, use the %s!webhook help%s command.
 
 	Example:%s
-		!webhook create alerts%s`, back, back, back, back, backs, backs)
+		!webhook create alerts%s
+
+	Example (using custom template):%s
+		!webhook create alerts *{{.title}}*
+		%s{{.body}}%s%s`,
+		back, back, back, back, back, back, backs, backs, backs, back, back, backs)
+	updateExtended := fmt.Sprintf(`Update an existing webhook's template. Leave the template field empty to use the default template. For more information on templates, use the %s!webhook help%s command.
+
+	Example:%s
+		!webhook update alerts *New Alert: {{.title}}*
+		%s{{.body}}%s%s`, back, back, backs, back, back, backs)
 	removeExtended := fmt.Sprintf(`Remove a webhook from the current conversation. You must supply the name of the webhook.
 
 	Example:%s
@@ -57,12 +67,24 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	cmds := []chat1.UserBotCommandInput{
 		{
 			Name:        "webhook create",
+			Usage:       "<name> [<template>]",
 			Description: "Create a new webhook for sending into the current conversation",
 			ExtendedDescription: &chat1.UserBotExtendedDescription{
-				Title: `*!webhook create* <name>
+				Title: `*!webhook create* <name> [<template>]
 Create a webhook`,
 				DesktopBody: createExtended,
 				MobileBody:  createExtended,
+			},
+		},
+		{
+			Name:        "webhook update",
+			Usage:       "<name> [<template>]",
+			Description: "Update the template of an existing webhook in the current conversation",
+			ExtendedDescription: &chat1.UserBotExtendedDescription{
+				Title: `*!webhook update* <name> [<template>]
+Update a webhook's template`,
+				DesktopBody: updateExtended,
+				MobileBody:  updateExtended,
 			},
 		},
 		{
@@ -78,6 +100,10 @@ Remove a webhook`,
 				DesktopBody: removeExtended,
 				MobileBody:  removeExtended,
 			},
+		},
+		{
+			Name:        "webhook help",
+			Description: "Get more information about using templates",
 		},
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
