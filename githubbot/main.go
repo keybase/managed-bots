@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 
@@ -144,7 +144,7 @@ func (s *BotServer) getAppKey() (appKey []byte, err error) {
 		}
 		defer keyFile.Close()
 
-		b, err := ioutil.ReadAll(keyFile)
+		b, err := io.ReadAll(keyFile)
 		if err != nil {
 			return nil, err
 		}

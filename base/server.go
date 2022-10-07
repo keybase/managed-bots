@@ -3,7 +3,7 @@ package base
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -290,7 +290,7 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 		s.Errorf("unable to start command: %v", err)
 		return err
 	}
-	outputBytes, err := ioutil.ReadAll(output)
+	outputBytes, err := io.ReadAll(output)
 	if err != nil {
 		s.Errorf("unable to read ouput: %v", err)
 		return err
@@ -417,7 +417,7 @@ func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation st
 	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
 	filePath := fmt.Sprintf("/tmp/%s", fileName)
 	defer os.Remove(filePath)
-	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
 		return fmt.Errorf("kbfsOutput: failed to write %s output: %s", operation, err)
 	}
 	if err := s.runOptions.Command("fs", "mv", filePath, folder).Run(); err != nil {

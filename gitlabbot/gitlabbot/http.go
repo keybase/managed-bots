@@ -2,7 +2,7 @@ package gitlabbot
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -41,7 +41,7 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := ioutil.ReadAll(r.Body)
+	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.Errorf("Error reading payload: %s", err)
 		return
