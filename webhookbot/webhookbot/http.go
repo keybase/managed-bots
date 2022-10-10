@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -43,7 +43,7 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 	}
 
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +89,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "exceeds the maximum length") {
 			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.name, time.Now().Unix())
 			filePath := fmt.Sprintf("/tmp/%s", fileName)
-			if err := ioutil.WriteFile(filePath, []byte(msg), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(msg), 0644); err != nil {
 				h.Errorf("failed to write %s: %s", filePath, err)
 				return
 			}

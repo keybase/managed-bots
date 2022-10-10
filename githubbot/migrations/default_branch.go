@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 
@@ -28,7 +28,7 @@ func getAppKey(privateKeyPath string) ([]byte, error) {
 	}
 	defer keyFile.Close()
 
-	b, err := ioutil.ReadAll(keyFile)
+	b, err := io.ReadAll(keyFile)
 	if err != nil {
 		return []byte{}, err
 	}
