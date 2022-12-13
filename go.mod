@@ -20,10 +20,13 @@ require (
 	google.golang.org/api v0.14.0
 )
 
+require github.com/go-pkgz/expirable-cache v0.1.0 // indirect
+
 require (
 	cloud.google.com/go v0.38.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/didip/tollbooth/v7 v7.0.1
 	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
