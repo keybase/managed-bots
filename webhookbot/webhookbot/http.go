@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/didip/tollbooth/v7"
 	"github.com/gorilla/mux"
 	"github.com/keybase/managed-bots/base"
 )
@@ -27,7 +28,8 @@ func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConf
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	rtr := mux.NewRouter()
 	rtr.HandleFunc("/webhookbot", h.handleHealthCheck)
-	rtr.HandleFunc("/webhookbot/{id:[A-Za-z0-9_-]+}", h.handleHook)
+	// restrict to 1req/sec
+	rtr.Handle("/webhookbot/{id:[A-Za-z0-9_-]+}", tollbooth.LimitFuncHandler(tollbooth.NewLimiter(1, nil), h.handleHook))
 	http.Handle("/", rtr)
 	return h
 }
