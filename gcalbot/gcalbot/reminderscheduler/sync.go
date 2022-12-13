@@ -77,7 +77,7 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 		r.Errorf("error refreshing token API: %s", err)
 		return
 	default:
-		r.Errorf("error getting events from API: %s", err)
+		r.Debug("error getting events from API: %s", err)
 		return
 	}
 	for _, event := range events {
