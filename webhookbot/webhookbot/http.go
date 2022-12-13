@@ -83,7 +83,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	h.Stats.Count("handle - success")
 	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
 		if base.IsDeletedConvError(err) {
-			h.Debug("ChatEcho: failed to send echo message: %s", err)
+			h.Debug("handleHook: failed to send message: %s", err)
 			return
 		}
 
@@ -113,7 +113,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Errorf("ChatEcho: failed to send echo message: %s", err)
+		h.Debug("handleHook: failed to send message: %s", err)
 	}
 }
 
