@@ -190,7 +190,6 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscriptio
 		}
 
 		msg := m.Message
-
 		if msg.Sender.Username == s.kbc.GetUsername() && !s.readSelf {
 			continue
 		}
