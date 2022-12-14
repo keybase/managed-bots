@@ -36,6 +36,7 @@ func NewBotServer(opts Options) *BotServer {
 		Server: base.NewServer("webhookbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
+			NumPipes:        5,
 		}),
 		opts: opts,
 	}
