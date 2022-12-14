@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20221214174352-0488b0c69627
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20221214200033-f3cd3e1c607b
 	github.com/olivere/elastic v6.2.27+incompatible
 	github.com/stathat/go v1.0.0
 	github.com/stretchr/testify v1.8.0
