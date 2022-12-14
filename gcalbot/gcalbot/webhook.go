@@ -396,7 +396,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 				}
 				err = r.renewChannel(&pair.Account, &pair.Channel)
 				if err != nil {
-					r.Errorf("error renewing channel '%s': %s", pair.Channel.ChannelID, err)
+					r.Debug("error renewing channel '%s': %s", pair.Channel.ChannelID, err)
 				}
 			}
 			r.stats.Value("renewScheduler - duration - seconds", time.Since(renewMinute).Seconds())
