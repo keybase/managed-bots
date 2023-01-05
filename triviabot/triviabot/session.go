@@ -287,6 +287,9 @@ func (s *session) numAnswers() int {
 func (s *session) waitForCorrectAnswer() {
 	timeoutCh := make(chan struct{})
 	doneCh := make(chan struct{})
+	// Store the current question to reference it if we timeout. We don't
+	// want to lose a race with final answer that sets curQuestion = nil
+	curQuestion := s.curQuestion
 	base.GoWithRecover(s.DebugOutput, func() {
 		for {
 			select {
@@ -338,7 +341,7 @@ func (s *session) waitForCorrectAnswer() {
 	select {
 	case <-time.After(20 * time.Second):
 		s.ChatEcho(s.convID, "Times up, next question!\nCorrect answer was %s *%q*",
-			base.NumberToEmoji(s.curQuestion.correctAnswer+1), s.curQuestion.Answer())
+			base.NumberToEmoji(curQuestion.correctAnswer+1), curQuestion.Answer())
 		close(timeoutCh)
 		return
 	case <-doneCh:
