@@ -23,7 +23,7 @@
     "jira-connector": "2.16.1",
     "keybase-bot": "3.6.1",
     "mem": "^6.0.1",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "pino": "^5.14.0"
   },
   "scripts": {
