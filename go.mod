@@ -13,10 +13,10 @@ require (
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20221214200033-f3cd3e1c607b
 	github.com/olivere/elastic v6.2.27+incompatible
 	github.com/stathat/go v1.0.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.4
 	github.com/xanzy/go-gitlab v0.29.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sync v0.5.0
 	google.golang.org/api v0.14.0
 )
 
