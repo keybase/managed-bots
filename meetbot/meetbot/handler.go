@@ -51,8 +51,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
-	switch {
-	case strings.HasPrefix(cmd, "!meet"):
+	if strings.HasPrefix(cmd, "!meet") {
 		h.stats.Count("meet")
 		return h.meetHandler(msg)
 	}
@@ -121,12 +120,12 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 		},
 	}
 
-	calendarId := "primary"
-	event, err = srv.Events.Insert(calendarId, event).ConferenceDataVersion(1).Do()
+	calendarID := "primary"
+	event, err = srv.Events.Insert(calendarID, event).ConferenceDataVersion(1).Do()
 	if err != nil {
 		return fmt.Errorf("meetHandler: unable to create event %s", err)
 	}
-	if err := srv.Events.Delete(calendarId, event.Id).Do(); err != nil {
+	if err := srv.Events.Delete(calendarID, event.Id).Do(); err != nil {
 		return fmt.Errorf("meetHandler: unable to delete event %s", err)
 	}
 
@@ -138,7 +137,7 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 				if link == "" {
 					continue
 				}
-				h.ChatEcho(msg.ConvID, link)
+				h.ChatEcho(msg.ConvID, "%s", link)
 				return nil
 			}
 		}

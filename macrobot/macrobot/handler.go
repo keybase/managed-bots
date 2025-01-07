@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -79,7 +78,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(msg.ConvID, userErr)
+		h.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 
@@ -108,7 +107,7 @@ func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 		return err
 	}
 	sanitizedMacroMessage := sanitizeMessage(macroMessage)
-	h.ChatEcho(msg.ConvID, sanitizedMacroMessage)
+	h.ChatEcho(msg.ConvID, "%s", sanitizedMacroMessage)
 	return nil
 }
 

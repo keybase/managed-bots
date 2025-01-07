@@ -71,7 +71,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(msg.ConvID, userErr)
+		h.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
-			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, formatSetupInstructions(repo, hostedURL, msg, h.httpPrefix, h.secret))
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", formatSetupInstructions(repo, hostedURL, msg, h.httpPrefix, h.secret))
 			if err != nil {
 				return fmt.Errorf("error sending message: %s", err)
 			}
@@ -140,6 +140,6 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 	for _, repo := range subscriptions {
 		res += fmt.Sprintf("- *%s*\n", repo)
 	}
-	h.ChatEcho(msg.ConvID, res)
+	h.ChatEcho(msg.ConvID, "%s", res)
 	return nil
 }

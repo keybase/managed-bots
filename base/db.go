@@ -32,7 +32,7 @@ func (d *DB) RunTxn(fn func(tx *sql.Tx) error) error {
 	return tx.Commit()
 }
 
-type BaseOAuthDB struct {
+type BaseOAuthDB struct { //nolint
 	*DB
 }
 

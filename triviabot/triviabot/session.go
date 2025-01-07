@@ -234,7 +234,7 @@ func (s *session) askQuestion() error {
 	}
 	q := *s.curQuestion
 	s.Debug("askQuestion: question: %s answer: %d", q.question, q.correctAnswer+1)
-	sendRes, err := s.kbc.SendMessageByConvID(s.convID, q.String())
+	sendRes, err := s.kbc.SendMessageByConvID(s.convID, "%s", q.String())
 	if err != nil {
 		return err
 	}

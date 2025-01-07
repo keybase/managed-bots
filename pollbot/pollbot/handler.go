@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -42,11 +41,11 @@ func (h *Handler) generateVoteLink(id string, choice int) string {
 	return strings.ReplaceAll(link, "%", "%%")
 }
 
-func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.MessageID, prompt string,
+func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string,
 	options []string) error {
 	id := base.RandHexString(8)
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
-	sendRes, err := h.kbc.SendMessageByConvID(convID, promptBody)
+	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", promptBody)
 	if err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}
@@ -59,7 +58,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.Mess
 		body += fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
 			h.generateVoteLink(id, index+1))
 	}
-	h.ChatEcho(convID, body)
+	h.ChatEcho(convID, "%s", body)
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}
@@ -73,14 +72,14 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, msgID chat1.Mess
 	return nil
 }
 
-func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, prompt string,
+func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string,
 	options []string) error {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
 		body += fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option)
 	}
 	body += "Tap a reaction below to register your vote!"
-	sendRes, err := h.kbc.SendMessageByConvID(convID, body)
+	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", body)
 	if err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}
@@ -96,7 +95,7 @@ func (h *Handler) generatePoll(convID chat1.ConvIDStr, msgID chat1.MessageID, pr
 	return nil
 }
 
-func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.MessageID) error {
+func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr) error {
 	cmd = strings.ReplaceAll(cmd, "‘", "'")
 	cmd = strings.ReplaceAll(cmd, "’", "'")
 	cmd = strings.ReplaceAll(cmd, "“", "\"")
@@ -105,7 +104,7 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.Mes
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(convID, userErr)
+		h.ChatEcho(convID, "%s", userErr)
 		return nil
 	}
 	var anonymous bool
@@ -124,10 +123,9 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr, msgID chat1.Mes
 	h.stats.Count("handlePoll")
 	if anonymous {
 		h.stats.Count("handlePoll - anonymous")
-		return h.generateAnonymousPoll(convID, msgID, prompt, args[1:])
-	} else {
-		return h.generatePoll(convID, msgID, prompt, args[1:])
+		return h.generateAnonymousPoll(convID, prompt, args[1:])
 	}
+	return h.generatePoll(convID, prompt, args[1:])
 }
 
 func (h *Handler) handleLogin(convName, username string) {
@@ -142,7 +140,7 @@ func (h *Handler) handleLogin(convName, username string) {
 To login your web browser in order to vote in anonymous polls, please follow the link below. Once that is completed, you will be able to vote in anonymous polls simply by clicking the links that I provide in the polls.
 
 %s`, fmt.Sprintf("%s/pollbot/login?token=%s&username=%s", h.httpPrefix, token, username))
-	if _, err := h.kbc.SendMessageByTlfName(username, body); err != nil {
+	if _, err := h.kbc.SendMessageByTlfName(username, "%s", body); err != nil {
 		h.Debug("failed to send login attempt: %s", err)
 		return
 	}
@@ -160,7 +158,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
-		return h.handlePoll(cmd, msg.ConvID, msg.Id)
+		return h.handlePoll(cmd, msg.ConvID)
 	case strings.ToLower(cmd) == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	}

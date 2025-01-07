@@ -95,7 +95,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(msg.ConvID, userErr)
+		h.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 					return nil
 				}
 			} else {
-				h.ChatEcho("You aren't subscribed to notifications for `%s`!", repo)
+				h.ChatEcho(msg.ConvID, "You aren't subscribed to notifications for `%s`!", repo)
 				return nil
 			}
 		}
@@ -168,7 +168,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 	// unsubscribing
 	if !alreadyExists {
-		h.ChatEcho("You aren't subscribed to updates for `%s`!", repo)
+		h.ChatEcho(msg.ConvID, "You aren't subscribed to updates for `%s`!", repo)
 		return nil
 	}
 
@@ -215,7 +215,7 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 			}
 		}
 	}
-	h.ChatEcho(msg.ConvID, res)
+	h.ChatEcho(msg.ConvID, "%s", res)
 	return nil
 }
 
@@ -290,7 +290,7 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		if enable {
 			h.ChatEcho(msg.ConvID, "You aren't subscribed to updates yet!\nSend this first: `!github subscribe %s`", repo)
 		} else {
-			h.ChatEcho("You aren't subscribed to notifications for `%s`!", repo)
+			h.ChatEcho(msg.ConvID, "You aren't subscribed to notifications for `%s`!", repo)
 		}
 		return nil
 	}
@@ -368,7 +368,7 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(msg.ConvID, userErr)
+		h.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 	args := toks[2:]

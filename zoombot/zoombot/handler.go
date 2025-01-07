@@ -65,8 +65,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
-	switch {
-	case strings.HasPrefix(cmd, "!zoom"):
+	if strings.HasPrefix(cmd, "!zoom") {
 		h.stats.Count("zoom")
 		return h.zoomHandler(msg, 0)
 	}
@@ -116,11 +115,11 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
 	})
 	switch err := err.(type) {
 	case nil:
-		h.ChatEcho(msg.ConvID, meeting.JoinURL)
+		h.ChatEcho(msg.ConvID, "%s", meeting.JoinURL)
 	case ZoomAPIError:
 		if err.Code == http.StatusTooManyRequests {
 			if attempts > 5 {
-				h.ChatEcho(msg.ConvID, err.Error())
+				h.ChatEcho(msg.ConvID, "%s", err.Error())
 				return nil
 			}
 			go func() {

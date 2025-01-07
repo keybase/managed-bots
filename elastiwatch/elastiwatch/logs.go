@@ -87,7 +87,7 @@ func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 		}
 		body += fmt.Sprintf("\n%s %d %s", c.Severity, c.Count, c.Message)
 	}
-	l.ChatEcho(l.emailConvID, "```"+body+"```")
+	l.ChatEcho(l.emailConvID, "```%s```", body)
 }
 
 func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
@@ -102,7 +102,7 @@ func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 	}
 	var regexs []*regexp.Regexp
 	for _, d := range deferrals {
-		r, err := regexp.Compile(d.regex)
+		r, err := regexp.Compile(d.Regex)
 		if err != nil {
 			l.Errorf("invalid regex: %v err: %s", d, err)
 			continue

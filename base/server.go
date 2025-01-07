@@ -145,7 +145,7 @@ func (s *Server) AnnounceAndAdvertise(advert kbchat.Advertisement, running strin
 			s.Debug("SendAnnouncement: failed to announce to %q %v", s.announcement, err)
 		}
 	}()
-	return SendByConvNameOrID(s.kbc, s.DebugOutput, s.announcement, running)
+	return SendByConvNameOrID(s.kbc, s.DebugOutput, s.announcement, "%s", running)
 }
 
 func (s *Server) Listen(handler Handler) (err error) {
@@ -315,7 +315,7 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		s.ChatEcho(msg.ConvID, userErr)
+		s.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 	if len(toks) <= 1 {

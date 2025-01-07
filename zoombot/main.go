@@ -79,7 +79,7 @@ func (s *BotServer) getCredentials() (credentials *zoombot.Credentials, err erro
 		}
 	} else {
 		if len(s.opts.KBFSRoot) == 0 {
-			return nil, fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+			return nil, fmt.Errorf("envvar BOT_KBFS_ROOT must be specified")
 		}
 		configPath := filepath.Join(s.opts.KBFSRoot, "credentials.json")
 		cmd := s.opts.Command("fs", "read", configPath)

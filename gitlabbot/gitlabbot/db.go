@@ -167,8 +167,7 @@ func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
 
 func (d *DB) DeleteToken(identifier string) error {
 	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := d.DB.Exec(`DELETE FROM oauth
-	WHERE identifier = ?`, identifier)
+		_, err := tx.Exec("DELETE FROM oauth WHERE identifier = ?", identifier)
 		return err
 	})
 	return err

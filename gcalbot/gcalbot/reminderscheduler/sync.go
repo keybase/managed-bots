@@ -220,7 +220,7 @@ func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscripti
 
 	r.subscriptionReminders.ForEachReminderMessageInSubscription(
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
-		func(msg *ReminderMessage, removeReminderMessageFromSubscription func()) {
+		func(msg *ReminderMessage, _ func()) {
 			r.minuteReminders.AddReminderMessageToMinute(subscription.DurationBefore, msg)
 		})
 

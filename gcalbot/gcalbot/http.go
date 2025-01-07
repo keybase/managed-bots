@@ -79,7 +79,7 @@ var dsScheduleOptions = []DSScheduleOption{
 	{"Tomorrow", ScheduleToSendTomorrow},
 }
 
-func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {}
+func (h *HTTPSrv) healthCheckHandler(_ http.ResponseWriter, _ *http.Request) {}
 
 func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	h.Stats.Count("config")
@@ -443,7 +443,7 @@ func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
 	})
 }
 
-func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) homeHandler(w http.ResponseWriter, _ *http.Request) {
 	h.Stats.Count("home")
 	homePage := `Google Calendar Bot is a <a href="https://keybase.io">Keybase</a> chatbot
 	which connects with your Google calendar to notify you of invites, upcoming events and more!
@@ -456,7 +456,7 @@ func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) logoHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Add("Cache-Control", "max-age=86400")
 	dat, _ := base64.StdEncoding.DecodeString(base.Images["logo"])
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
@@ -465,7 +465,7 @@ func (h *HTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) screenshotHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) screenshotHandler(w http.ResponseWriter, _ *http.Request) {
 	dat, _ := base64.StdEncoding.DecodeString(screenshot)
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

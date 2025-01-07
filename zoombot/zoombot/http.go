@@ -34,7 +34,7 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	return h
 }
 
-func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "OK")
 }
 

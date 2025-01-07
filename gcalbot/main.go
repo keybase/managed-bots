@@ -183,7 +183,7 @@ func (s *BotServer) Go() (err error) {
 	}
 
 	if len(s.opts.KBFSRoot) == 0 {
-		return fmt.Errorf("BOT_KBFS_ROOT must be specified\n")
+		return fmt.Errorf("envvar BOT_KBFS_ROOT must be specified")
 	}
 
 	config, err := s.getOAuthConfig()

@@ -47,7 +47,7 @@ func (h *Handler) handleDefer(convID chat1.ConvIDStr, author, cmd string) error 
 	return nil
 }
 
-func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, cmd string) error {
+func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, _ string) error {
 	deferrals, err := h.db.List()
 	if err != nil {
 		return err
@@ -58,9 +58,9 @@ func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, cmd string) error {
 		return nil
 	}
 	for _, d := range deferrals {
-		body += fmt.Sprintf("id: %d author: %s regex: %s (created: %v)\n", d.id, d.author, d.regex, d.ctime)
+		body += fmt.Sprintf("id: %d author: %s regex: %s (created: %v)\n", d.ID, d.Author, d.Regex, d.Ctime)
 	}
-	h.ChatEcho(convID, body)
+	h.ChatEcho(convID, "%s", body)
 	return nil
 }
 
