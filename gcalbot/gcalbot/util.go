@@ -85,29 +85,25 @@ func FormatTimeRange(
 	if startYear == endYear && startMonth == endMonth && startDay == endDay {
 		if isAllDay {
 			return start.Format("Mon Jan 2, 2006"), nil
-		} else {
-			return fmt.Sprintf("%s %s - %s (%s)",
-				start.Format("Mon Jan 2, 2006"), startTime, endTime, start.Format("MST")), nil
 		}
+		return fmt.Sprintf("%s %s - %s (%s)",
+			start.Format("Mon Jan 2, 2006"), startTime, endTime, start.Format("MST")), nil
 	} else if startYear == endYear {
 		if isAllDay {
 			return fmt.Sprintf("%s - %s",
 				start.Format("Mon Jan 2"), end.Format("Mon Jan 2, 2006")), nil
-		} else {
-			return fmt.Sprintf("%s %s - %s %s (%s)",
-				start.Format("Mon Jan 2"), startTime, end.Format("Mon Jan 2, 2006"), endTime,
-				start.Format("MST")), nil
 		}
-	} else {
-		if isAllDay {
-			return fmt.Sprintf("%s - %s",
-				start.Format("Mon Jan 2, 2006"), end.Format("Mon Jan 2, 2006")), nil
-		} else {
-			return fmt.Sprintf("%s %s - %s %s (%s)",
-				start.Format("Mon Jan 2, 2006"), startTime, end.Format("Mon Jan 2, 2006"), endTime,
-				start.Format("MST")), nil
-		}
+		return fmt.Sprintf("%s %s - %s %s (%s)",
+			start.Format("Mon Jan 2"), startTime, end.Format("Mon Jan 2, 2006"), endTime,
+			start.Format("MST")), nil
 	}
+	if isAllDay {
+		return fmt.Sprintf("%s - %s",
+			start.Format("Mon Jan 2, 2006"), end.Format("Mon Jan 2, 2006")), nil
+	}
+	return fmt.Sprintf("%s %s - %s %s (%s)",
+		start.Format("Mon Jan 2, 2006"), startTime, end.Format("Mon Jan 2, 2006"), endTime,
+		start.Format("MST")), nil
 }
 
 func FormatTime(dateTime time.Time, format24HourTime, trailingZeroes bool) string {
@@ -164,9 +160,8 @@ func GetDurationFromMinutes(minutes int) time.Duration {
 func MinutesBeforeString(minutesBefore int) string {
 	if minutesBefore == 1 {
 		return "1 minute"
-	} else {
-		return fmt.Sprintf("%d minutes", minutesBefore)
 	}
+	return fmt.Sprintf("%d minutes", minutesBefore)
 }
 
 func GetConvHelpText(channel chat1.ChatChannel, convIsPrivateMsg, isKeybaseMessage bool) string {

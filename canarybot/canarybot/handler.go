@@ -3,7 +3,6 @@ package canarybot
 import (
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -31,7 +30,7 @@ func (h *Handler) handleEcho(cmd string, msg chat1.MsgSummary) error {
 	if len(body) == 0 {
 		h.ChatEcho(msg.ConvID, "uh-oh I need something to echo!")
 	} else {
-		h.ChatEcho(msg.ConvID, body)
+		h.ChatEcho(msg.ConvID, "%s", body)
 	}
 	return nil
 }

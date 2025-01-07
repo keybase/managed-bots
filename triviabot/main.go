@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -100,8 +100,6 @@ func main() {
 }
 
 func mainInner() int {
-	rand.Seed(time.Now().Unix())
-
 	opts := base.NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	if err := opts.Parse(fs, os.Args); err != nil {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/keybase/managed-bots/macrobot/macrobot"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"

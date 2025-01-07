@@ -38,9 +38,8 @@ func getChannelType(channel chat1.ChatChannel, isConv bool) string {
 			return "channel"
 		}
 		return "team"
-	} else {
-		return "conversation"
 	}
+	return "conversation"
 }
 
 func sanitizeMessage(message string) string {

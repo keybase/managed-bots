@@ -140,20 +140,20 @@ Namespace: "publish", "create", "edit", "delete"
 
 */
 
-func FormatReleaseMsg(action, username, repo, version, name, releaseUrl, changes string) (res string) {
+func FormatReleaseMsg(action, username, repo, version, name, releaseURL, changes string) (res string) {
 	switch action {
 	case "publish", "published":
 		res = fmt.Sprintf("%s published the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
-		res += releaseUrl
+		res += releaseURL
 	case "create", "created":
 		res = fmt.Sprintf("%s created the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
-		res += releaseUrl
+		res += releaseURL
 	case "edit", "edited":
 		res = fmt.Sprintf("%s edited the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
-		res += releaseUrl
+		res += releaseURL
 	case "delete", "deleted":
 		res = fmt.Sprintf("%s deleted the release %s (%s) on %s: \n%s\n", username, version, name, repo, changes)
-		res += releaseUrl
+		res += releaseURL
 	}
 	return res
 }

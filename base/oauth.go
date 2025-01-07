@@ -164,7 +164,7 @@ func (o *OAuthHTTPSrv) showOAuthError(w http.ResponseWriter) {
 	}
 }
 
-func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, r *http.Request) {
+func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, _ *http.Request) {
 	dat, _ := base64.StdEncoding.DecodeString(o.htmlLogoB64)
 	if _, err := io.Copy(w, bytes.NewBuffer(dat)); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -254,20 +254,19 @@ func GetOAuthClient(
 		}
 
 		return nil, OAuthRequiredError{}
-	} else {
-		// renew token
-		if token.Expiry.Before(time.Now()) {
-			newToken, err := config.TokenSource(context.Background(), token).Token()
+	}
+	// renew token
+	if token.Expiry.Before(time.Now()) {
+		newToken, err := config.TokenSource(context.Background(), token).Token()
+		if err != nil {
+			return nil, fmt.Errorf("unable to renew token: %s", err)
+		}
+		if newToken.AccessToken != token.AccessToken {
+			err = storage.PutToken(tokenIdentifier, newToken)
 			if err != nil {
-				return nil, fmt.Errorf("unable to renew token: %s", err)
+				return nil, fmt.Errorf("unable to update token: %s", err)
 			}
-			if newToken.AccessToken != token.AccessToken {
-				err = storage.PutToken(tokenIdentifier, newToken)
-				if err != nil {
-					return nil, fmt.Errorf("unable to update token: %s", err)
-				}
-				token = newToken
-			}
+			token = newToken
 		}
 	}
 

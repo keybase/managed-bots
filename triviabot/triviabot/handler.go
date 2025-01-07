@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -35,7 +34,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleStart(msg chat1.MsgSummary) {
 	h.Lock()
 	defer h.Unlock()
 	convID := msg.ConvID
@@ -50,12 +49,12 @@ func (h *Handler) handleStart(cmd string, msg chat1.MsgSummary) {
 		h.ChatEcho(convID, "Session complete, here are the top players")
 		err := h.handleTop(convID)
 		if err != nil {
-			h.ChatErrorf(msg.ConvID, err.Error())
+			h.ChatErrorf(msg.ConvID, "%s", err.Error())
 		}
 	})
 }
 
-func (h *Handler) handleStop(cmd string, msg chat1.MsgSummary) {
+func (h *Handler) handleStop(msg chat1.MsgSummary) {
 	h.Lock()
 	defer h.Unlock()
 	convID := msg.ConvID
@@ -80,13 +79,13 @@ func (h *Handler) handleTop(convID chat1.ConvIDStr) error {
 	}
 	for index, u := range users {
 		resLines = append(resLines, fmt.Sprintf("%d. @%s (%d points, %d correct, %d incorrect)",
-			index+1, u.username, u.points, u.correct, u.incorrect))
+			index+1, u.Username, u.Points, u.Correct, u.Incorrect))
 	}
-	h.ChatEcho(convID, strings.Join(resLines, "\n"))
+	h.ChatEcho(convID, "%s", strings.Join(resLines, "\n"))
 	return nil
 }
 
-func (h *Handler) handleReset(cmd string, msg chat1.MsgSummary) error {
+func (h *Handler) handleReset(msg chat1.MsgSummary) error {
 	convID := msg.ConvID
 	if err := h.db.ResetConv(convID); err != nil {
 		return fmt.Errorf("handleReset: failed to reset: %s", err)
@@ -127,16 +126,16 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	switch {
 	case strings.HasPrefix(cmd, "!trivia begin"):
 		h.stats.Count("start")
-		h.handleStart(cmd, msg)
+		h.handleStart(msg)
 	case strings.HasPrefix(cmd, "!trivia end"):
 		h.stats.Count("stop")
-		h.handleStop(cmd, msg)
+		h.handleStop(msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
 		h.stats.Count("top")
 		return h.handleTop(msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
 		h.stats.Count("reset")
-		return h.handleReset(cmd, msg)
+		return h.handleReset(msg)
 	}
 	return nil
 }

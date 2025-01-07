@@ -44,11 +44,11 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	return h
 }
 
-func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "beep boop! :)")
 }
 
-func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	payload, err := github.ValidatePayload(r, []byte(h.secret))
 	if err != nil {
 		h.Debug("Error validating payload (%s): %v\n", r.Header.Get("X-GitHub-Delivery"), err)
@@ -129,7 +129,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Stats.Count("webhook - success")
-		h.ChatEcho(convID, message)
+		h.ChatEcho(convID, "%s", message)
 	}
 }
 

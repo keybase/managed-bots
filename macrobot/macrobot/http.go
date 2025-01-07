@@ -17,7 +17,7 @@ func NewHTTPSrv(stats *base.StatsRegistry, debugConfig *base.ChatDebugOutputConf
 	return h
 }
 
-func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
 	if _, err := w.Write([]byte("my life for aiur")); err != nil {
 		h.Errorf("handleHealthCheck: unable to write: %v", err)
 	}

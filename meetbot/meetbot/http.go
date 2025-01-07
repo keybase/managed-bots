@@ -34,11 +34,11 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	return h
 }
 
-func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "OK")
 }
 
-func (h *HTTPSrv) homeHandler(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) homeHandler(w http.ResponseWriter, _ *http.Request) {
 	h.Stats.Count("home")
 	homePage := `Meetbot is a <a href="https://keybase.io"> Keybase</a> chatbot
 	which creates links to Google Meet meetings for you.

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -63,7 +62,7 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
 	switch err {
 	case nil:
 	case errNotAllowed:
-		h.ChatEcho(convID, err.Error())
+		h.ChatEcho(convID, "%s", err.Error())
 		return nil
 	default:
 		return err
@@ -77,7 +76,7 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
-func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
+func (h *Handler) handleList(_ string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	hooks, err := h.db.List(convID)
 	if err != nil {
@@ -87,7 +86,7 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
 	switch err {
 	case nil:
 	case errNotAllowed:
-		h.ChatEcho(convID, err.Error())
+		h.ChatEcho(convID, "%s", err.Error())
 		return nil
 	default:
 		return err
@@ -100,9 +99,9 @@ func (h *Handler) handleList(cmd string, msg chat1.MsgSummary) (err error) {
 	}
 	var body string
 	for _, hook := range hooks {
-		body += fmt.Sprintf("%s, %s\n", hook.name, h.formURL(hook.id))
+		body += fmt.Sprintf("%s, %s\n", hook.Name, h.formURL(hook.ID))
 	}
-	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, body); err != nil {
+	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", body); err != nil {
 		h.Debug("handleList: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "List sent to @%s", msg.Sender.Username)
@@ -120,7 +119,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	switch err {
 	case nil:
 	case errNotAllowed:
-		h.ChatEcho(convID, err.Error())
+		h.ChatEcho(convID, "%s", err.Error())
 		return nil
 	default:
 		return err

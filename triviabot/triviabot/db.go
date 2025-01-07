@@ -38,14 +38,14 @@ func (d *DB) RecordAnswer(convID chat1.ConvIDStr, username string, pointAdjust i
 	})
 }
 
-type topUser struct {
-	username  string
-	points    int
-	correct   int
-	incorrect int
+type TopUser struct {
+	Username  string
+	Points    int
+	Correct   int
+	Incorrect int
 }
 
-func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []topUser, err error) {
+func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []TopUser, err error) {
 	rows, err := d.Query(`
 		SELECT username, points, correct, incorrect
 		FROM leaderboard
@@ -58,8 +58,8 @@ func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []topUser, err error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var user topUser
-		if err := rows.Scan(&user.username, &user.points, &user.correct, &user.incorrect); err != nil {
+		var user TopUser
+		if err := rows.Scan(&user.Username, &user.Points, &user.Correct, &user.Incorrect); err != nil {
 			return res, err
 		}
 		res = append(res, user)

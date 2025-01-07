@@ -81,7 +81,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Stats.Count("handle - success")
-	if _, err := h.Config().KBC.SendMessageByConvID(hook.convID, "[hook: *%s*]\n\n%s", hook.name, msg); err != nil {
+	if _, err := h.Config().KBC.SendMessageByConvID(hook.ConvID, "[hook: *%s*]\n\n%s", hook.Name, msg); err != nil {
 		if base.IsDeletedConvError(err) {
 			h.Debug("handleHook: failed to send message: %s", err)
 			return
@@ -89,7 +89,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 
 		// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
 		if strings.Contains(err.Error(), "exceeds the maximum length") {
-			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.name, time.Now().Unix())
+			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.Name, time.Now().Unix())
 			filePath := fmt.Sprintf("/tmp/%s", fileName)
 			if err := os.WriteFile(filePath, []byte(msg), 0644); err != nil {
 				h.Errorf("failed to write %s: %s", filePath, err)
@@ -104,8 +104,8 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 						h.Errorf("unable to clean up %s: %v", filePath, err)
 					}
 				}()
-				title := fmt.Sprintf("[hook: *%s*]", hook.name)
-				if _, err := h.Config().KBC.SendAttachmentByConvID(hook.convID, filePath, title); err != nil {
+				title := fmt.Sprintf("[hook: *%s*]", hook.Name)
+				if _, err := h.Config().KBC.SendAttachmentByConvID(hook.ConvID, filePath, title); err != nil {
 					h.Errorf("failed to send attachment %s: %s", filePath, err)
 					return
 				}
@@ -117,4 +117,4 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
+func (h *HTTPSrv) handleHealthCheck(_ http.ResponseWriter, _ *http.Request) {}

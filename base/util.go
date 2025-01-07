@@ -129,7 +129,7 @@ func HandleNewTeam(stats *StatsRegistry, log *DebugOutput, kbc *kbchat.API, conv
 	go func() {
 		time.Sleep(time.Second)
 		stats.Count("HandleNewTeam - new conv")
-		if _, err := kbc.SendMessageByConvID(conv.Id, welcomeMsg); err != nil {
+		if _, err := kbc.SendMessageByConvID(conv.Id, "%s", welcomeMsg); err != nil {
 			log.Errorf("unable to HandleNewTeam: %v", err)
 		}
 	}()
@@ -155,7 +155,7 @@ func IsAtLeastWriter(kbc *kbchat.API, senderUsername string, channel chat1.ChatC
 	return false, nil
 }
 
-func MakeOAuthHTML(botName string, title, msg string, logoUrl string) []byte {
+func MakeOAuthHTML(botName string, title, msg string, logoURL string) []byte {
 	return []byte(`
 <html>
 <head>
@@ -216,7 +216,7 @@ footer {
 <body>
   <main>
 	<div class="content">
-	  <a href="https://keybase.io"><img class="logo" src="` + logoUrl + `"></a>
+	  <a href="https://keybase.io"><img class="logo" src="` + logoURL + `"></a>
 	  <div>
 		<div class="msg">` + msg + `</div>
 	  </div>

@@ -77,7 +77,7 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if err != nil {
 		return err
 	} else if userErr != "" {
-		h.ChatEcho(msg.ConvID, userErr)
+		h.ChatEcho(msg.ConvID, "%s", userErr)
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	isPrivate := base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg.Sender.Username, msg.Channel)
 
 	body := fmt.Sprintf("Configure Google Calendar notifications %s: %s", GetConvHelpText(msg.Channel, isPrivate, true), link)
-	if _, err := h.kbc.SendMessageByTlfName(keybaseUsername, body); err != nil {
+	if _, err := h.kbc.SendMessageByTlfName(keybaseUsername, "%s", body); err != nil {
 		h.Debug("failed to send login attempt: %s", err)
 	}
 

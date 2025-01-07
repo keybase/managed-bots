@@ -54,23 +54,23 @@ func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
 	return id, err
 }
 
-func (d *DB) GetHook(id string) (res webhook, err error) {
+func (d *DB) GetHook(id string) (res Webhook, err error) {
 	row := d.DB.QueryRow(`
 		SELECT conv_id, name FROM hooks WHERE id = ?
 	`, id)
-	if err := row.Scan(&res.convID, &res.name); err != nil {
+	if err := row.Scan(&res.ConvID, &res.Name); err != nil {
 		return res, err
 	}
 	return res, nil
 }
 
-type webhook struct {
-	id     string
-	convID chat1.ConvIDStr
-	name   string
+type Webhook struct {
+	ID     string
+	ConvID chat1.ConvIDStr
+	Name   string
 }
 
-func (d *DB) List(convID chat1.ConvIDStr) (res []webhook, err error) {
+func (d *DB) List(convID chat1.ConvIDStr) (res []Webhook, err error) {
 	rows, err := d.DB.Query(`
 		SELECT id, name FROM hooks WHERE conv_id = ?
 	`, convID)
@@ -79,9 +79,9 @@ func (d *DB) List(convID chat1.ConvIDStr) (res []webhook, err error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var hook webhook
-		hook.convID = convID
-		if err := rows.Scan(&hook.id, &hook.name); err != nil {
+		var hook Webhook
+		hook.ConvID = convID
+		if err := rows.Scan(&hook.ID, &hook.Name); err != nil {
 			return res, err
 		}
 		res = append(res, hook)

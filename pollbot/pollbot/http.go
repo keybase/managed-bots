@@ -143,7 +143,7 @@ func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {}
+func (h *HTTPSrv) handleHealthCheck(_ http.ResponseWriter, _ *http.Request) {}
 
 func (h *HTTPSrv) LoginToken(username string) string {
 	return hex.EncodeToString(hmac.New(sha256.New, []byte(h.tokenSecret)).Sum([]byte(username)))

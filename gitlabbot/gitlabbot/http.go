@@ -36,11 +36,11 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	return h
 }
 
-func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "beep boop! :)")
 }
 
-func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.Errorf("Error reading payload: %s", err)
@@ -117,6 +117,6 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			h.Debug("Error validating payload signature for conversation %s: %v", convID, err)
 			continue
 		}
-		h.ChatEcho(convID, message)
+		h.ChatEcho(convID, "%s", message)
 	}
 }

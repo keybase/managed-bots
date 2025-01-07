@@ -15,7 +15,7 @@ type Emailer interface {
 type DummyEmailer struct {
 }
 
-func (d DummyEmailer) Send(address, subject, message string) error {
+func (d DummyEmailer) Send(_, subject, _ string) error {
 	fmt.Printf("subject: %s\n", subject)
 	return nil
 }
