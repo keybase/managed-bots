@@ -13,3 +13,5 @@ starting place as a simple example. You can also checkout the various API
 libaries in [Golang](https://github.com/keybase/go-keybase-chat-bot),
 [Javascript](https://github.com/keybase/keybase-bot) and
 [Python](https://github.com/keybase/pykeybasebot/).
+
+Post issues to: https://github.com/keybase/keybase-issues
