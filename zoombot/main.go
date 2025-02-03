@@ -25,7 +25,7 @@ type Options struct {
 	HTTPPrefix        string
 	OAuthClientID     string
 	OAuthClientSecret string
-	VerificationToken string
+	SecretToken       string
 }
 
 func NewOptions() *Options {
@@ -71,11 +71,11 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 
 func (s *BotServer) getCredentials() (credentials *zoombot.Credentials, err error) {
 	defer s.Trace(&err, "getCredentials")()
-	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.VerificationToken != "" {
+	if s.opts.OAuthClientID != "" && s.opts.OAuthClientSecret != "" && s.opts.SecretToken != "" {
 		credentials = &zoombot.Credentials{
-			ClientID:          s.opts.OAuthClientID,
-			ClientSecret:      s.opts.OAuthClientSecret,
-			VerificationToken: s.opts.VerificationToken,
+			ClientID:     s.opts.OAuthClientID,
+			ClientSecret: s.opts.OAuthClientSecret,
+			SecretToken:  s.opts.SecretToken,
 		}
 	} else {
 		if len(s.opts.KBFSRoot) == 0 {
@@ -96,9 +96,9 @@ func (s *BotServer) getCredentials() (credentials *zoombot.Credentials, err erro
 		}
 	}
 
-	if len(credentials.ClientID) == 0 || len(credentials.ClientSecret) == 0 || len(credentials.VerificationToken) == 0 {
-		return nil, fmt.Errorf("must provide a clientID (len: %d), clientSecret (len: %d) and verificationToken (len: %d)",
-			len(credentials.ClientID), len(credentials.ClientSecret), len(credentials.VerificationToken))
+	if len(credentials.ClientID) == 0 || len(credentials.ClientSecret) == 0 || len(credentials.SecretToken) == 0 {
+		return nil, fmt.Errorf("must provide a clientID (len: %d), clientSecret (len: %d) and secretToken (len: %d)",
+			len(credentials.ClientID), len(credentials.ClientSecret), len(credentials.SecretToken))
 	}
 
 	return credentials, nil
@@ -170,7 +170,7 @@ func mainInner() int {
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
 	fs.StringVar(&opts.OAuthClientID, "client-id", os.Getenv("BOT_OAUTH_CLIENT_ID"), "Zoom OAuth2 client ID")
 	fs.StringVar(&opts.OAuthClientSecret, "client-secret", os.Getenv("BOT_OAUTH_CLIENT_SECRET"), "Zoom OAuth2 client secret")
-	fs.StringVar(&opts.VerificationToken, "verification-token", os.Getenv("BOT_VERIFICATION_TOKEN"), "Zoom verification token")
+	fs.StringVar(&opts.SecretToken, "secret-token", os.Getenv("BOT_SECRET_TOKEN"), "Zoom secret token")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
