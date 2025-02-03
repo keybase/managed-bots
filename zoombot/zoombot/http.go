@@ -1,8 +1,13 @@
 package zoombot
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"golang.org/x/oauth2"
@@ -38,19 +43,45 @@ func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "OK")
 }
 
-func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
-	var deauthorizationRequest DeauthorizationRequest
-	err := json.NewDecoder(r.Body).Decode(&deauthorizationRequest)
+// see https://developers.zoom.us/docs/api/webhooks/#verify-with-zooms-header
+func (h *HTTPSrv) validateWebhookMessage(bodyBytes []byte, r *http.Request) (err error) {
+	requestTimestamp := r.Header.Get("x-zm-request-timestamp")
+	message := fmt.Sprintf("v0:%s:%s", requestTimestamp, bodyBytes)
+	hash := hmac.New(sha256.New, []byte(h.credentials.SecretToken))
+	_, err = hash.Write([]byte(message))
 	if err != nil {
-		h.Errorf("zoomDeauthorize: parsing error: %s", err)
+		return err
+	}
+	actualSig := fmt.Sprintf("v0=%s", hex.EncodeToString(hash.Sum(nil)))
+	givenSig := r.Header.Get("x-zm-signature")
+	if givenSig != actualSig {
+		return fmt.Errorf("invalid signature %s!=%s", actualSig, givenSig)
+	}
+	return nil
+}
+
+func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		h.Errorf("zoomDeauthorize: unable to read body: %s", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	verificationToken := r.Header.Get("Authorization")
-	if verificationToken != h.credentials.VerificationToken {
-		h.Errorf("zoomDeauthorize: wrong verificationToken: %s", verificationToken)
-		http.Error(w, "wrong verificationToken", http.StatusBadRequest)
+	err = h.validateWebhookMessage(bodyBytes, r)
+	if err != nil {
+		h.Errorf("zoomDeauthorize: invalid signature: %s", err)
+		http.Error(w, "invalid signature", http.StatusBadRequest)
+		return
+	}
+
+	reader := bytes.NewReader(bodyBytes)
+	var deauthorizationRequest DeauthorizationRequest
+	err = json.NewDecoder(reader).Decode(&deauthorizationRequest)
+	if err != nil {
+		h.Errorf("zoomDeauthorize: parsing error: %s", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

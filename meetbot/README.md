@@ -41,12 +41,11 @@ In order to run the Meet bot, there needs to be a running MySQL database in orde
 - By default, bots are unable to read their own messages. For development, it may be useful to disable this safeguard.
   You can do this using `--read-self` flag when running the bot.
 - The following links are helpful for using the Google Calendar API:
-    - https://developers.google.com/calendar/quickstart/go
-    - https://developers.google.com/calendar/create-events
+  - https://developers.google.com/calendar/quickstart/go
+  - https://developers.google.com/calendar/create-events
 
 ### Docker
 
 There are a few complications running a Keybase chat bot, and it is likely
 easiest to deploy using Docker. See https://hub.docker.com/r/keybaseio/client
 for our preferred client image to get started.
-

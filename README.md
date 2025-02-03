@@ -1,6 +1,6 @@
 # Keybase Managed Bots
 
-[![Travis CI](https://travis-ci.com/keybase/managed-bots.svg?branch=master)](https://travis-ci.com/keybase/managed-bots)
+[![CI](https://github.com/keybase/managed-bots/actions/workflows/ci.yml/badge.svg)](https://github.com/keybase/managed-bots/actions/workflows/ci.yml)
 
 Home of bots managed by [Keybase](https://keybase.io). All of the managed bots
 within this repo can be run independently, each directory contains a readme to
