@@ -102,17 +102,4 @@ func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to delete user", http.StatusBadRequest)
 		return
 	}
-
-	_, err = DataCompliance(h.credentials.ClientID, h.credentials.ClientSecret, &DataComplianceRequest{
-		ClientID:                     deauthorizationRequest.Payload.ClientID,
-		UserID:                       deauthorizationRequest.Payload.UserID,
-		AccountID:                    deauthorizationRequest.Payload.AccountID,
-		DeauthorizationEventReceived: deauthorizationRequest.Payload,
-		ComplianceCompleted:          true,
-	})
-	if err != nil {
-		h.Errorf("zoomDeauthorize: compliance error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 }
