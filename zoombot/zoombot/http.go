@@ -36,11 +36,16 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 		"zoombot", base.Images["logo"], "/zoombot")
 	http.HandleFunc("/zoombot", h.healthCheckHandler)
 	http.HandleFunc("/zoombot/deauthorize", h.zoomDeauthorize)
+	http.HandleFunc("/zoombot/support", h.supportHandler)
 	return h
 }
 
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "OK")
+}
+
+func (h *HTTPSrv) supportHandler(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprint(w, supportHTML)
 }
 
 // see https://developers.zoom.us/docs/api/webhooks/#verify-with-zooms-header
@@ -95,19 +100,6 @@ func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Errorf("zoomDeauthorize: unable to delete user: %s", err)
 		http.Error(w, "unable to delete user", http.StatusBadRequest)
-		return
-	}
-
-	_, err = DataCompliance(h.credentials.ClientID, h.credentials.ClientSecret, &DataComplianceRequest{
-		ClientID:                     deauthorizationRequest.Payload.ClientID,
-		UserID:                       deauthorizationRequest.Payload.UserID,
-		AccountID:                    deauthorizationRequest.Payload.AccountID,
-		DeauthorizationEventReceived: deauthorizationRequest.Payload,
-		ComplianceCompleted:          true,
-	})
-	if err != nil {
-		h.Errorf("zoomDeauthorize: compliance error: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

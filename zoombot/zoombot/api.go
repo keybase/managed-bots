@@ -151,25 +151,6 @@ type DeauthorizationEvent struct {
 	ClientID            string `json:"client_id"`
 }
 
-// Compliance
-
-type DataComplianceRequest struct {
-	ClientID                     string               `json:"client_id"`
-	UserID                       string               `json:"user_id"`
-	AccountID                    string               `json:"account_id"`
-	DeauthorizationEventReceived DeauthorizationEvent `json:"deauthorization_event_received"`
-	ComplianceCompleted          bool                 `json:"compliance_completed"`
-}
-
-type DataComplianceResponse struct {
-	UserDataRetention   bool   `json:"user_data_retention"`
-	AccountID           string `json:"account_id"`
-	UserID              string `json:"user_id"`
-	Signature           string `json:"signature"`
-	DeauthorizationTime string `json:"deauthorization_time"`
-	ClientID            string `json:"client_id"`
-}
-
 func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
 	apiURL := fmt.Sprintf("%s/users/%s", apiBaseURLV2, userID)
 	resp, err := client.Get(apiURL)
@@ -227,45 +208,6 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 	}
 
 	return &meeting, nil
-}
-
-func DataCompliance(clientID, clientSecret string, request *DataComplianceRequest) (*DataComplianceResponse, error) {
-	apiURL := fmt.Sprintf("%s/oauth/data/compliance", apiBaseURL)
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("content-type", "application/json")
-	req.SetBasicAuth(clientID, clientSecret)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, parseError(resp.StatusCode, data)
-	}
-
-	var event DataComplianceResponse
-	err = json.Unmarshal(data, &event)
-	if err != nil {
-		return nil, err
-	}
-
-	return &event, nil
 }
 
 type ZoomAPIError struct {
