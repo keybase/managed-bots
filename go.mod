@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.4
 
 require (
-	github.com/aws/aws-sdk-go v1.28.1
+	github.com/aws/aws-sdk-go v1.55.7
 	github.com/bradleyfalzon/ghinstallation v1.1.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/go-github/v31 v31.0.0
@@ -13,7 +13,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20250106203511-859265729a56
-	github.com/olivere/elastic v6.2.27+incompatible
+	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/stathat/go v1.0.0
 	github.com/stretchr/testify v1.10.0
 	github.com/xanzy/go-gitlab v0.29.0
@@ -32,7 +32,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/didip/tollbooth/v7 v7.0.1
-	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/google/go-github/v28 v28.1.1 // indirect
@@ -40,11 +39,9 @@ require (
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
-	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.22.1 // indirect
 	golang.org/x/crypto v0.1.0 // indirect

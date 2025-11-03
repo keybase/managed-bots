@@ -4,17 +4,15 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/elastiwatch/elastiwatch"
-	"github.com/olivere/elastic"
-	elaws "github.com/olivere/elastic/aws/v4"
+	"github.com/opensearch-project/opensearch-go/v4"
+	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -120,7 +118,6 @@ func (s *BotServer) Go() (err error) {
 	db := elastiwatch.NewDB(sdb)
 	s.Debug("Connect to Elasticsearch at %s", s.opts.ESAddress)
 	var emailer base.Emailer
-	var httpClient *http.Client
 	emailer = base.DummyEmailer{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
 	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
@@ -129,14 +126,15 @@ func (s *BotServer) Go() (err error) {
 	}
 	if s.opts.AWSOpts != nil {
 		s.Debug("Using AWS HTTP client: region: %s", s.opts.AWSOpts.AWSRegion)
-		httpClient = elaws.NewV4SigningClient(defaults.Get().Config.Credentials, s.opts.AWSOpts.AWSRegion)
 		emailer = base.NewSESEmailer(s.opts.SenderEmail, s.opts.AWSOpts.AWSRegion, debugConfig)
 	}
-	cli, err := elastic.NewClient(
-		elastic.SetURL(s.opts.ESAddress),
-		elastic.SetSniff(false),
-		elastic.SetHealthcheck(false),
-		elastic.SetHttpClient(httpClient),
+
+	cli, err := opensearchapi.NewClient(
+		opensearchapi.Config{
+			Client: opensearch.Config{
+				Addresses: []string{s.opts.ESAddress},
+			},
+		},
 	)
 	if err != nil {
 		s.Errorf("unable to connect to Elasticsearch: %s", err)

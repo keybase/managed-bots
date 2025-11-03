@@ -8,13 +8,13 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
-	"github.com/olivere/elastic"
+	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 )
 
 type LogWatch struct {
 	*base.DebugOutput
 	db           *DB
-	cli          *elastic.Client
+	cli          *opensearchapi.Client
 	index, email string
 	entries      []*entry
 	emailer      base.Emailer
@@ -26,7 +26,7 @@ type LogWatch struct {
 	peekCh       chan struct{}
 }
 
-func NewLogWatch(cli *elastic.Client, db *DB, index, email string, emailer base.Emailer,
+func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer base.Emailer,
 	alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
 	return &LogWatch{
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
@@ -166,27 +166,25 @@ func (l *LogWatch) generateAndSend(entries []*entry) {
 }
 
 func (l *LogWatch) runOnce() {
-	query := elastic.NewBoolQuery().
-		Must(elastic.NewRangeQuery("@timestamp").
-			From(time.Now().Add(-time.Minute)).
-			To(time.Now())).
-		MustNot(elastic.NewTermQuery("severity", "debug"))
-	res, err := l.cli.Search().
-		Index(l.index).
-		Query(query).
-		Pretty(true).
-		From(0).Size(10000).
-		Do(context.Background())
+	res, err := l.cli.Search(context.Background(), &opensearchapi.SearchReq{
+		Indices: []string{l.index},
+		Params: opensearchapi.SearchParams{
+			Query:  `NOT severity:debug AND @timestamp: [now-1m TO now]`,
+			Sort:   []string{"@timestamp:desc"},
+			Size:   opensearchapi.ToPointer(10000),
+			Pretty: true,
+		},
+	})
 	if err != nil {
 		l.Debug("failed to run Elasticsearch query: %s", err)
 		return
 	}
 
 	var entries []*entry
-	if res.TotalHits() > 0 {
-		l.Debug("query hits: %d", res.TotalHits())
+	if res.Hits.Total.Value > 0 {
+		l.Debug("query hits: %d", res.Hits.Total.Value)
 		for _, hit := range res.Hits.Hits {
-			entry, err := newEntry(*hit.Source)
+			entry, err := newEntry(hit.Source)
 			if err != nil {
 				l.Errorf("failed to unmarshal log entry: %s", err)
 				continue
@@ -196,7 +194,6 @@ func (l *LogWatch) runOnce() {
 	} else {
 		l.Debug("no query hits, doing nothing")
 	}
-
 	l.addAndCheckForSend(entries)
 }
 
