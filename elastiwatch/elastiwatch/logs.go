@@ -169,11 +169,10 @@ func (l *LogWatch) runOnce() {
 	res, err := l.cli.Search(context.Background(), &opensearchapi.SearchReq{
 		Indices: []string{l.index},
 		Params: opensearchapi.SearchParams{
-			Query:  `NOT severity:debug`,
+			Query:  `NOT severity:debug AND @timestamp:[now-1m TO now]`,
 			Sort:   []string{"@timestamp:desc"},
 			Size:   opensearchapi.ToPointer(10000),
 			Pretty: true,
-			Scroll: time.Minute,
 		},
 	})
 	if err != nil {
