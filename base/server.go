@@ -345,7 +345,7 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 			// Cleanup after the file is sent.
 			time.Sleep(time.Minute)
 			s.Debug("cleaning up %s", outfile)
-			if err = os.Remove(outfile); err != nil && !os.IsNotExist(err) {
+			if err = os.Remove(outfile); err != nil {
 				s.Errorf("unable to clean up %s: %v", outfile, err)
 			}
 		}()

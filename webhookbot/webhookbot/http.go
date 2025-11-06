@@ -119,7 +119,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 					// Cleanup after the file is sent.
 					time.Sleep(time.Minute)
 					h.Debug("cleaning up %s", filePath)
-					if err = os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+					if err = os.Remove(filePath); err != nil {
 						h.Errorf("unable to clean up %s: %v", filePath, err)
 					}
 				}()
