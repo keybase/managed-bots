@@ -63,6 +63,26 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 	return "`Error: no body found. To use a webhook URL, supply a 'msg' URL parameter, or a JSON POST body with a field 'msg'`", nil
 }
 
+func (h *HTTPSrv) safeWriteToFile(hookName, content string) (string, error) {
+	pattern := fmt.Sprintf("webhookbot-%s-*.txt", hookName)
+	file, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer file.Close()
+
+	if _, err := file.Write([]byte(content)); err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// Explicitly sync to ensure all data is written to disk before upload
+	if err := file.Sync(); err != nil {
+		return "", fmt.Errorf("failed to sync file: %w", err)
+	}
+
+	return file.Name(), nil
+}
+
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -89,10 +109,9 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 
 		// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
 		if strings.Contains(err.Error(), "exceeds the maximum length") {
-			fileName := fmt.Sprintf("webhookbot-%s-%d.txt", hook.Name, time.Now().Unix())
-			filePath := fmt.Sprintf("/tmp/%s", fileName)
-			if err := os.WriteFile(filePath, []byte(msg), 0644); err != nil {
-				h.Errorf("failed to write %s: %s", filePath, err)
+			filePath, err := h.safeWriteToFile(hook.Name, msg)
+			if err != nil {
+				h.Errorf("failed to write attachment file: %s", err)
 				return
 			}
 			base.GoWithRecover(h.DebugOutput, func() {
