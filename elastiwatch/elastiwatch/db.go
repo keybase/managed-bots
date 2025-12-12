@@ -2,6 +2,7 @@ package elastiwatch
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/keybase/managed-bots/base"
@@ -40,7 +41,11 @@ func (d *DB) List() (res []Deferral, err error) {
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("elastiwatch: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var def Deferral
 		if err := rows.Scan(&def.ID, &def.Regex, &def.Author, &def.Ctime); err != nil {

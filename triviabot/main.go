@@ -72,7 +72,11 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
-	defer sdb.Close()
+	defer func() {
+		if cerr := sdb.Close(); cerr != nil {
+			fmt.Printf("failed to close DB: %v\n", cerr)
+		}
+	}()
 	db := triviabot.NewDB(sdb)
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)

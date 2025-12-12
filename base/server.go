@@ -218,9 +218,7 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscriptio
 				}
 				continue
 			case strings.HasPrefix(cmd, fmt.Sprintf("!%s", feedbackCmd(s.kbc.GetUsername()))):
-				if err := s.handleFeedback(msg); err != nil {
-					s.Errorf("listenForMsgs: unable to handleFeedback: %v", err)
-				}
+				s.handleFeedback(msg)
 				continue
 			}
 		}
@@ -291,7 +289,7 @@ func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
 	}
 	outputBytes, err := io.ReadAll(output)
 	if err != nil {
-		s.Errorf("unable to read ouput: %v", err)
+		s.Errorf("unable to read output: %v", err)
 		return err
 	}
 	if len(outputBytes) > 0 {
@@ -345,8 +343,8 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 			// Cleanup after the file is sent.
 			time.Sleep(time.Minute)
 			s.Debug("cleaning up %s", outfile)
-			if err = os.Remove(outfile); err != nil {
-				s.Errorf("unable to clean up %s: %v", outfile, err)
+			if rmErr := os.Remove(outfile); rmErr != nil {
+				s.Errorf("unable to clean up %s: %v", outfile, rmErr)
 			}
 		}()
 		if _, err := s.kbc.SendAttachmentByConvID(msg.ConvID, outfile, ""); err != nil {
@@ -389,7 +387,7 @@ func (s *Server) handleStack(msg chat1.MsgSummary) error {
 	return s.kbfsDebugOutput(msg, stack, "stack")
 }
 
-func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
+func (s *Server) handleFeedback(msg chat1.MsgSummary) {
 	toks := strings.Split(strings.TrimSpace(msg.Content.Text.Body), " ")
 	if len(toks) < 3 {
 		s.ChatEcho(msg.ConvID, "Woah there @%s, I can't deliver a blank message...not again. What did you want to say?",
@@ -400,7 +398,6 @@ func (s *Server) handleFeedback(msg chat1.MsgSummary) error {
 		s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
 			msg.Sender.Username)
 	}
-	return nil
 }
 
 func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation string) error {
@@ -415,8 +412,12 @@ func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation st
 	}
 	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
 	filePath := fmt.Sprintf("/tmp/%s", fileName)
-	defer os.Remove(filePath)
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	defer func() {
+		if rmErr := os.Remove(filePath); rmErr != nil {
+			s.Errorf("unable to clean up %s: %v", filePath, rmErr)
+		}
+	}()
+	if err := os.WriteFile(filePath, data, 0o600); err != nil {
 		return fmt.Errorf("kbfsOutput: failed to write %s output: %s", operation, err)
 	}
 	if err := s.runOptions.Command("fs", "mv", filePath, folder).Run(); err != nil {

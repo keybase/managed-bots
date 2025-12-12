@@ -203,26 +203,24 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 
 func (h *Handler) createSubscription(
 	account *Account, subscription Subscription,
-) (exists bool, err error) {
-	exists, err = h.db.ExistsSubscription(account, subscription)
+) error {
+	exists, err := h.db.ExistsSubscription(account, subscription)
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
-		return exists, err
+		return err
 	}
 
-	err = h.createEventChannel(account, subscription.CalendarID)
-	if err != nil {
-		return exists, err
+	if err := h.createEventChannel(account, subscription.CalendarID); err != nil {
+		return err
 	}
 
-	err = h.db.InsertSubscription(account, subscription)
-	if err != nil {
-		return exists, err
+	if err := h.db.InsertSubscription(account, subscription); err != nil {
+		return err
 	}
 
 	h.reminderScheduler.AddSubscription(account, subscription)
 
-	return false, nil
+	return nil
 }
 
 func (h *Handler) removeSubscription(
@@ -311,7 +309,6 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 		ResourceID: res.ResourceId,
 		Expiry:     time.Unix(res.Expiration/1e3, 0),
 	})
-
 	if err != nil {
 		return err
 	}

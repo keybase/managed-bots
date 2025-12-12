@@ -1,24 +1,24 @@
 module github.com/keybase/managed-bots
 
-go 1.23
+go 1.24.0
 
-toolchain go1.23.4
+toolchain go1.25.5
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/bradleyfalzon/ghinstallation v1.1.0
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-github/v31 v31.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20250106203511-859265729a56
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20251212163122-450fd0812017
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/stathat/go v1.0.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.29.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.14.0
 )
 

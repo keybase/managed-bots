@@ -16,7 +16,7 @@ import (
 )
 
 func getCommitMessages(event *github.PushEvent) []string {
-	var commitMsgs = make([]string, 0)
+	commitMsgs := make([]string, 0)
 	for _, commit := range event.Commits {
 		commitMsgs = append(commitMsgs, commit.GetMessage())
 	}

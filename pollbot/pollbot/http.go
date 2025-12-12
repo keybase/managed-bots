@@ -26,7 +26,9 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, tokenSecret string) *HTTPSrv {
+	db *DB,
+	tokenSecret string,
+) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:         kbc,
 		db:          db,

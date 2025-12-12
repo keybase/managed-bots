@@ -44,7 +44,11 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 		return msg, nil
 	}
 
-	defer r.Body.Close()
+	defer func() {
+		if cerr := r.Body.Close(); cerr != nil {
+			h.Errorf("getMessage: failed to close request body: %s", cerr)
+		}
+	}()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return "", err
@@ -69,7 +73,11 @@ func (h *HTTPSrv) safeWriteToFile(hookName, content string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil {
+			h.Errorf("safeWriteToFile: failed to close temp file: %s", cerr)
+		}
+	}()
 
 	if _, err := file.Write([]byte(content)); err != nil {
 		return "", fmt.Errorf("failed to write file: %w", err)

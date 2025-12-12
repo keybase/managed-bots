@@ -22,8 +22,14 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, handler *Handler, secret string) *HTTPSrv {
+func NewHTTPSrv(
+	stats *base.StatsRegistry,
+	kbc *kbchat.API,
+	debugConfig *base.ChatDebugOutputConfig,
+	db *DB,
+	handler *Handler,
+	secret string,
+) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
@@ -37,7 +43,9 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "beep boop! :)")
+	if _, err := fmt.Fprintf(w, "beep boop! :)"); err != nil {
+		h.Debug("handleHealthCheck: failed to write response: %s", err)
+	}
 }
 
 func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
@@ -46,7 +54,11 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 		h.Errorf("Error reading payload: %s", err)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if cerr := r.Body.Close(); cerr != nil {
+			h.Errorf("handleWebhook: failed to close request body: %s", cerr)
+		}
+	}()
 
 	event, err := gitlab.ParseWebhook(gitlab.WebhookEventType(r), payload)
 	if err != nil {
@@ -112,7 +124,7 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, convID := range convs {
-		var secretToken = base.MakeSecret(repo, convID, h.secret)
+		secretToken := base.MakeSecret(repo, convID, h.secret)
 		if signature != secretToken {
 			h.Debug("Error validating payload signature for conversation %s: %v", convID, err)
 			continue

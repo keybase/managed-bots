@@ -22,8 +22,7 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
+func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		stats:       stats.SetPrefix("Handler"),

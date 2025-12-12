@@ -21,8 +21,7 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	httpSrv *HTTPSrv, db *DB, logs *LogWatch) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSrv *HTTPSrv, db *DB, logs *LogWatch) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,

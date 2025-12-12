@@ -25,8 +25,15 @@ type HTTPSrv struct {
 	credentials *Credentials
 }
 
-func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *DB, handler *Handler, oauthConfig *oauth2.Config, credentials *Credentials) *HTTPSrv {
+func NewHTTPSrv(
+	stats *base.StatsRegistry,
+	kbc *kbchat.API,
+	debugConfig *base.ChatDebugOutputConfig,
+	db *DB,
+	handler *Handler,
+	oauthConfig *oauth2.Config,
+	credentials *Credentials,
+) *HTTPSrv {
 	h := &HTTPSrv{
 		db:          db,
 		handler:     handler,
@@ -41,11 +48,15 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "OK")
+	if _, err := fmt.Fprintf(w, "OK"); err != nil {
+		h.Debug("healthCheckHandler: failed to write response: %s", err)
+	}
 }
 
 func (h *HTTPSrv) supportHandler(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprint(w, supportHTML)
+	if _, err := fmt.Fprint(w, supportHTML); err != nil {
+		h.Debug("supportHandler: failed to write response: %s", err)
+	}
 }
 
 // see https://developers.zoom.us/docs/api/webhooks/#verify-with-zooms-header
@@ -67,7 +78,11 @@ func (h *HTTPSrv) validateWebhookMessage(bodyBytes []byte, r *http.Request) (err
 
 func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
+	defer func() {
+		if cerr := r.Body.Close(); cerr != nil {
+			h.Errorf("zoomDeauthorize: unable to close body: %s", cerr)
+		}
+	}()
 	if err != nil {
 		h.Errorf("zoomDeauthorize: unable to read body: %s", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -1,6 +1,7 @@
 package triviabot
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -117,15 +118,23 @@ func newSession(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB
 }
 
 func (s *session) getCategory() int {
+	//nolint:gosec // math/rand is sufficient for non-security-sensitive trivia category selection
 	return eligibleCategories[rand.Intn(len(eligibleCategories))]
 }
 
 func (s *session) getAPIToken() (string, error) {
-	resp, err := http.Get("https://opentdb.com/api_token.php?command=request")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"https://opentdb.com/api_token.php?command=request", nil)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	var apiResp apiTokenResponse
 	decoder := json.NewDecoder(resp.Body)
 	if err := decoder.Decode(&apiResp); err != nil {
@@ -173,11 +182,17 @@ func (s *session) getNextQuestion() error {
 		url := fmt.Sprintf("https://opentdb.com/api.php?amount=1&category=%d&token=%s&type=multiple",
 			s.getCategory(), token)
 		s.Debug("getNextQuestion: url: %s", url)
-		resp, err := http.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 		decoder := json.NewDecoder(resp.Body)
 		if err := decoder.Decode(&apiResp); err != nil {
 			return err
@@ -349,8 +364,8 @@ func (s *session) waitForCorrectAnswer() {
 	}
 }
 
-func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
-	doneCb = make(chan struct{})
+func (s *session) start(intotal int) chan struct{} {
+	doneCb := make(chan struct{})
 	total := defaultTotal
 	if intotal > 0 {
 		total = intotal
@@ -380,7 +395,7 @@ func (s *session) start(intotal int) (doneCb chan struct{}, err error) {
 			s.waitForCorrectAnswer()
 		}
 	})
-	return doneCb, nil
+	return doneCb
 }
 
 func (s *session) stop() {

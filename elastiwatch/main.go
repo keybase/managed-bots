@@ -50,8 +50,10 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
-const backs = "```"
-const back = "`"
+const (
+	backs = "```"
+	back  = "`"
+)
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	deferExtended := fmt.Sprintf(`Defer reporting on logs lines that match the givesn regular expression. Useful if there is a known error spamming emails that is not a problem
@@ -114,7 +116,11 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
-	defer sdb.Close()
+	defer func() {
+		if cerr := sdb.Close(); cerr != nil {
+			fmt.Printf("failed to close DB: %v\n", cerr)
+		}
+	}()
 	db := elastiwatch.NewDB(sdb)
 	s.Debug("Connect to Elasticsearch at %s", s.opts.ESAddress)
 	var emailer base.Emailer

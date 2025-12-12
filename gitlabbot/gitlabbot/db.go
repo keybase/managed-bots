@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
@@ -64,7 +65,11 @@ func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) 
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetSubscribedConvs: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -122,7 +127,11 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetAllSubscriptionsForConvID: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var repo string
 		if err := rows.Scan(&repo); err != nil {

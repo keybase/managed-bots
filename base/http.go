@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"net/http"
+	"time"
 )
 
 type HTTPSrv struct {
@@ -15,7 +16,10 @@ func NewHTTPSrv(stats *StatsRegistry, debugConfig *ChatDebugOutputConfig) *HTTPS
 	return &HTTPSrv{
 		DebugOutput: NewDebugOutput("HTTPSrv", debugConfig),
 		Stats:       stats.SetPrefix("HTTPSrv"),
-		srv:         &http.Server{Addr: ":8080"},
+		srv: &http.Server{
+			Addr:              ":8080",
+			ReadHeaderTimeout: 10 * time.Second,
+		},
 	}
 }
 

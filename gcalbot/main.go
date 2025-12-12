@@ -54,11 +54,12 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
-const back = "`"
-const backs = "```"
+const (
+	back  = "`"
+	backs = "```"
+)
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-
 	accountsConnectDesc := fmt.Sprintf(`Connects a Google account to the Google Calendar bot and stores the connection under a descriptive nickname.
 View your connected Google accounts using %s!gcal accounts list%s
 
@@ -207,7 +208,11 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
-	defer sdb.Close()
+	defer func() {
+		if cerr := sdb.Close(); cerr != nil {
+			fmt.Printf("failed to close DB: %v\n", cerr)
+		}
+	}()
 	db := gcalbot.NewDB(sdb, debugConfig)
 
 	stats = stats.SetPrefix(s.Name())

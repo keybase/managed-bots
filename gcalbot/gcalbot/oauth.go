@@ -95,7 +95,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = h.handler.createSubscription(&account, Subscription{
+		err = h.handler.createSubscription(&account, Subscription{
 			CalendarID:    primaryCalendar.Id,
 			KeybaseConvID: req.KeybaseConvID,
 			Type:          SubscriptionTypeInvite,
@@ -103,7 +103,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		_, err = h.handler.createSubscription(&account, Subscription{
+		err = h.handler.createSubscription(&account, Subscription{
 			CalendarID:     primaryCalendar.Id,
 			KeybaseConvID:  req.KeybaseConvID,
 			DurationBefore: GetDurationFromMinutes(5),
