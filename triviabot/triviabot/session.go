@@ -1,7 +1,6 @@
 package triviabot
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -123,12 +122,7 @@ func (s *session) getCategory() int {
 }
 
 func (s *session) getAPIToken() (string, error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
-		"https://opentdb.com/api_token.php?command=request", nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.Get("https://opentdb.com/api_token.php?command=request")
 	if err != nil {
 		return "", err
 	}
@@ -182,11 +176,7 @@ func (s *session) getNextQuestion() error {
 		url := fmt.Sprintf("https://opentdb.com/api.php?amount=1&category=%d&token=%s&type=multiple",
 			s.getCategory(), token)
 		s.Debug("getNextQuestion: url: %s", url)
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-		if err != nil {
-			return err
-		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.Get(url)
 		if err != nil {
 			return err
 		}

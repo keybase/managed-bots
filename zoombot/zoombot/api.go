@@ -2,7 +2,6 @@ package zoombot
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -154,11 +153,7 @@ type DeauthorizationEvent struct {
 
 func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
 	apiURL := fmt.Sprintf("%s/users/%s", apiBaseURLV2, userID)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.Do(req)
+	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +187,7 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, apiURL, bytes.NewBuffer(payload))
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.Do(req)
+	resp, err := client.Post(apiURL, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, err
 	}
