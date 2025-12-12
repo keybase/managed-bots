@@ -50,7 +50,7 @@ func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.M
 }
 
 func (d *DB) GetTally(id string) (res Tally, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT choice, count(*)
 		FROM votes
 		WHERE id = ?

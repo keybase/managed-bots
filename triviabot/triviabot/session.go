@@ -176,6 +176,7 @@ func (s *session) getNextQuestion() error {
 		url := fmt.Sprintf("https://opentdb.com/api.php?amount=1&category=%d&token=%s&type=multiple",
 			s.getCategory(), token)
 		s.Debug("getNextQuestion: url: %s", url)
+		//nolint:gosec // URL is constructed from trusted API base and validated token
 		resp, err := http.Get(url)
 		if err != nil {
 			return err
