@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/go-github/v31/github"
 

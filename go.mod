@@ -6,7 +6,7 @@ toolchain go1.25.5
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
-	github.com/bradleyfalzon/ghinstallation v1.1.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-github/v31 v31.0.0
 	github.com/gorilla/mux v1.7.3
@@ -25,17 +25,17 @@ require (
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache v0.1.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/google/go-github/v75 v75.0.0 // indirect
 )
 
 require (
 	cloud.google.com/go v0.38.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/didip/tollbooth/v7 v7.0.1
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/go-github/v28 v28.1.1 // indirect
-	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
@@ -44,10 +44,10 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.22.1 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
