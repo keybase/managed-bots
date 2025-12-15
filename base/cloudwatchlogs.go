@@ -26,7 +26,7 @@ func GetLatestCloudwatchLogs(region string, logGroupName string) ([]string, erro
 		LogGroupName: aws.String(logGroupName),
 		OrderBy:      orderBy,
 	}
-	
+
 	streamsOut, err := svc.DescribeLogStreams(ctx, streamsIn)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func GetLatestCloudwatchLogs(region string, logGroupName string) ([]string, erro
 		LogGroupName:  aws.String(logGroupName),
 		LogStreamName: streamName,
 	}
-	
+
 	eventOut, err := svc.GetLogEvents(ctx, eventIn)
 	if err != nil {
 		return nil, err
