@@ -260,7 +260,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// get list of times in half hour increments
-		baseTime := time.Date(2006, 01, 02, 0, 0, 0, 0, dsTimezone)
+		baseTime := time.Date(2006, time.January, 2, 0, 0, 0, 0, dsTimezone)
 		for i := 0; i < 48; i++ {
 			var title string
 			minutes := i * 30
@@ -378,8 +378,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			} else if !page.Invite && invite {
 				// create invite subscription
 				h.Stats.Count("config - update - invite - create")
-				_, err = h.handler.createSubscription(selectedAccount, inviteSubscription)
-				if err != nil {
+				if err = h.handler.createSubscription(selectedAccount, inviteSubscription); err != nil {
 					return
 				}
 			}
@@ -416,7 +415,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			_, err = h.handler.createSubscription(selectedAccount, Subscription{
+			err = h.handler.createSubscription(selectedAccount, Subscription{
 				CalendarID:     calendarID,
 				KeybaseConvID:  keybaseConvID,
 				DurationBefore: GetDurationFromMinutes(newMinutesBefore),

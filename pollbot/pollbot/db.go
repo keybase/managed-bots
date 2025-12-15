@@ -2,6 +2,7 @@ package pollbot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -37,7 +38,7 @@ func (d *DB) CreatePoll(id string, convID chat1.ConvIDStr, msgID chat1.MessageID
 }
 
 func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.MessageID, numChoices int, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT conv_id, result_msg_id, choices
 		FROM polls
 		WHERE id = ?
@@ -49,7 +50,7 @@ func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.M
 }
 
 func (d *DB) GetTally(id string) (res Tally, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT choice, count(*)
 		FROM votes
 		WHERE id = ?
@@ -58,7 +59,11 @@ func (d *DB) GetTally(id string) (res Tally, err error) {
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetTally: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var tres TallyResult
 		if err := rows.Scan(&tres.choice, &tres.votes); err != nil {

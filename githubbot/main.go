@@ -12,7 +12,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -142,7 +142,11 @@ func (s *BotServer) getAppKey() (appKey []byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		defer keyFile.Close()
+		defer func() {
+			if cerr := keyFile.Close(); cerr != nil {
+				s.Errorf("getAppKey: failed to close key file: %v", cerr)
+			}
+		}()
 
 		b, err := io.ReadAll(keyFile)
 		if err != nil {
@@ -208,7 +212,11 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
-	defer sdb.Close()
+	defer func() {
+		if cerr := sdb.Close(); cerr != nil {
+			s.Errorf("Go: failed to close DB: %v", cerr)
+		}
+	}()
 	db := githubbot.NewDB(sdb)
 
 	botConfig, err := s.getConfig()

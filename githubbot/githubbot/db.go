@@ -2,6 +2,7 @@ package githubbot
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -88,7 +89,7 @@ func (d *DB) DeleteBranchesForRepo(convID chat1.ConvIDStr, repo string) error {
 }
 
 func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (res []chat1.ConvIDStr, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT conv_id
 		FROM subscriptions
 		WHERE repo = ? AND installation_id = ?
@@ -97,7 +98,11 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetConvIDsFromRepoInstallation: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -109,7 +114,7 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 }
 
 func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 	SELECT 1
 	FROM branches
 	WHERE conv_id = ? AND repo = ? AND branch = ?
@@ -128,7 +133,7 @@ func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string,
 }
 
 func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE conv_id = ? AND repo = ?
@@ -146,14 +151,16 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 }
 
 func (d *DB) GetAllBranchesForRepo(convID chat1.ConvIDStr, repo string) ([]string, error) {
-	rows, err := d.DB.Query(`SELECT branch
+	rows, err := d.Query(`SELECT branch
 		FROM branches
 		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	if err != nil {
 		return nil, err
 	}
 	res := []string{}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var branch string
 		if err := rows.Scan(&branch); err != nil {
@@ -221,7 +228,7 @@ func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features
 }
 
 func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error) {
-	row := d.DB.QueryRow(`SELECT issues, pull_requests, commits, statuses, releases
+	row := d.QueryRow(`SELECT issues, pull_requests, commits, statuses, releases
 		FROM features
 		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	features := &Features{}
@@ -237,7 +244,7 @@ func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error)
 }
 
 func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features, error) {
-	rows, err := d.DB.Query(`SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
+	rows, err := d.Query(`SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
 		COALESCE(commits, true), COALESCE(statuses, true), COALESCE(releases, true)
 		FROM subscriptions
 		LEFT JOIN features USING(conv_id, repo)
@@ -246,7 +253,9 @@ func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features
 		return nil, err
 	}
 	res := make(map[string]Features)
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var repo string
 		var features Features
@@ -272,7 +281,7 @@ func (d *DB) DeleteFeaturesForRepo(convID chat1.ConvIDStr, repo string) error {
 
 func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
-	row := d.DB.QueryRow(`SELECT access_token, token_type
+	row := d.QueryRow(`SELECT access_token, token_type
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType)
@@ -315,7 +324,7 @@ type UserPreferences struct {
 }
 
 func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserPreferences, error) {
-	row := d.DB.QueryRow(`SELECT mention
+	row := d.QueryRow(`SELECT mention
 		FROM user_prefs
 		WHERE username = ? AND conv_id = ?`, username, convID)
 	prefs := &UserPreferences{}
@@ -354,14 +363,16 @@ type DBSubscription struct {
 }
 
 func (d *DB) GetAllSubscriptions() (res []DBSubscription, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 	SELECT conv_id, repo, installation_id
 	FROM subscriptions
 `)
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var subscription DBSubscription
 		if err := rows.Scan(&subscription.ConvID, &subscription.Repo, &subscription.InstallationID); err != nil {

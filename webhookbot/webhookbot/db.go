@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -55,7 +56,7 @@ func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
 }
 
 func (d *DB) GetHook(id string) (res Webhook, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT conv_id, name FROM hooks WHERE id = ?
 	`, id)
 	if err := row.Scan(&res.ConvID, &res.Name); err != nil {
@@ -71,13 +72,17 @@ type Webhook struct {
 }
 
 func (d *DB) List(convID chat1.ConvIDStr) (res []Webhook, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT id, name FROM hooks WHERE conv_id = ?
 	`, convID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("List: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var hook Webhook
 		hook.ConvID = convID

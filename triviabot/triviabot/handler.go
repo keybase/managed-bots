@@ -39,10 +39,7 @@ func (h *Handler) handleStart(msg chat1.MsgSummary) {
 	defer h.Unlock()
 	convID := msg.ConvID
 	session := newSession(h.kbc, h.debugConfig, h.db, convID)
-	doneCb, err := session.start(0)
-	if err != nil {
-		h.ChatErrorf(convID, "handleState: failed to start: %s", err)
-	}
+	doneCb := session.start(0)
 	h.sessions[convID] = session
 	base.GoWithRecover(h.DebugOutput, func() {
 		<-doneCb

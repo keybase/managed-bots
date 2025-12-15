@@ -2,6 +2,7 @@ package triviabot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -56,7 +57,11 @@ func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []TopUser, err error) {
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("TopUsers: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var user TopUser
 		if err := rows.Scan(&user.Username, &user.Points, &user.Correct, &user.Incorrect); err != nil {

@@ -1,41 +1,41 @@
 module github.com/keybase/managed-bots
 
-go 1.23
+go 1.24.0
 
-toolchain go1.23.4
+toolchain go1.25.5
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
-	github.com/bradleyfalzon/ghinstallation v1.1.0
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-github/v31 v31.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20250106203511-859265729a56
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20251212163122-450fd0812017
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/stathat/go v1.0.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.29.0
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.10.0
+	golang.org/x/oauth2 v0.34.0
+	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.14.0
 )
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache v0.1.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/google/go-github/v75 v75.0.0 // indirect
 )
 
 require (
 	cloud.google.com/go v0.38.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/didip/tollbooth/v7 v7.0.1
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/go-github/v28 v28.1.1 // indirect
-	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
@@ -44,10 +44,10 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.22.1 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect

@@ -15,7 +15,7 @@ import (
 var repoRegex = regexp.MustCompile(`^[a-zA-Z0-9_\.-]*$`)
 
 func getCommitMessages(event *gitlab.PushEvent) []string {
-	var commitMsgs = make([]string, 0)
+	commitMsgs := make([]string, 0, len(event.Commits))
 	for _, commit := range event.Commits {
 		commitMsgs = append(commitMsgs, commit.Message)
 	}

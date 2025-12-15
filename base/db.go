@@ -44,7 +44,7 @@ func NewBaseOAuthDB(db *sql.DB) *BaseOAuthDB {
 
 func (d *BaseOAuthDB) GetState(state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
-	row := d.DB.QueryRow(`SELECT identifier, conv_id, msg_id, is_complete
+	row := d.QueryRow(`SELECT identifier, conv_id, msg_id, is_complete
 		FROM oauth_state
 		WHERE state = ?`, state)
 	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.ConvID,
@@ -97,7 +97,7 @@ func NewOAuthDB(db *sql.DB) *OAuthDB {
 func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
 	var expiry int64
-	row := d.DB.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+	row := d.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType,

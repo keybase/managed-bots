@@ -10,7 +10,7 @@ import (
 
 	"github.com/keybase/managed-bots/base/git"
 
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 
 	"github.com/google/go-github/v31/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -28,8 +28,7 @@ type HTTPSrv struct {
 	secret  string
 }
 
-func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, handler *Handler,
-	oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
+func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, handler *Handler, oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport, secret string) *HTTPSrv {
 	h := &HTTPSrv{
 		kbc:     kbc,
 		db:      db,
@@ -45,7 +44,9 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "beep boop! :)")
+	if _, err := fmt.Fprintf(w, "beep boop! :)"); err != nil {
+		h.Debug("handleHealthCheck: failed to write response: %s", err)
+	}
 }
 
 func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {

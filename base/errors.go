@@ -1,11 +1,9 @@
 package base
 
 import (
-	"time"
-
-	"runtime/debug"
-
 	"os"
+	"runtime/debug"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )

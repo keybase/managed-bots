@@ -158,7 +158,9 @@ func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -190,7 +192,9 @@ func CreateMeeting(client *http.Client, userID string, request *CreateMeetingReq
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

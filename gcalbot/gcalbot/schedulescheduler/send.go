@@ -146,7 +146,6 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 				events = append(events, page.Items...)
 				return nil
 			})
-
 		if err != nil {
 			s.Debug("error getting events from API: %s", err)
 			continue

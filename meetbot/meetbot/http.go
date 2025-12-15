@@ -21,7 +21,10 @@ type HTTPSrv struct {
 }
 
 func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	db *base.OAuthDB, handler *Handler, oauthConfig *oauth2.Config) *HTTPSrv {
+	db *base.OAuthDB,
+	handler *Handler,
+	oauthConfig *oauth2.Config,
+) *HTTPSrv {
 	h := &HTTPSrv{
 		db:      db,
 		handler: handler,
@@ -35,7 +38,9 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 }
 
 func (h *HTTPSrv) healthCheckHandler(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "OK")
+	if _, err := fmt.Fprintf(w, "OK"); err != nil {
+		h.Debug("healthCheckHandler: failed to write response: %s", err)
+	}
 }
 
 func (h *HTTPSrv) homeHandler(w http.ResponseWriter, _ *http.Request) {

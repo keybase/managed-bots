@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
@@ -55,7 +56,7 @@ func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) err
 }
 
 func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT conv_id
 		FROM subscriptions
 		WHERE repo = ?
@@ -64,7 +65,11 @@ func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) 
 	if err != nil {
 		return res, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetSubscribedConvs: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -76,7 +81,7 @@ func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) 
 }
 
 func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
@@ -95,7 +100,7 @@ func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string) (exists 
 }
 
 func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
@@ -113,7 +118,7 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 }
 
 func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT repo
 		FROM subscriptions
 		WHERE conv_id = ?
@@ -122,7 +127,11 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("GetAllSubscriptionsForConvID: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var repo string
 		if err := rows.Scan(&repo); err != nil {
@@ -137,7 +146,7 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string,
 
 func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
-	row := d.DB.QueryRow(`SELECT access_token, token_type
+	row := d.QueryRow(`SELECT access_token, token_type
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType)

@@ -44,8 +44,10 @@ func NewBotServer(opts Options) *BotServer {
 	}
 }
 
-const back = "`"
-const backs = "```"
+const (
+	back  = "`"
+	backs = "```"
+)
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 	createExtended := fmt.Sprintf(`Create a new webhook for sending messages into the current conversation. You must supply a name as well to identify the webhook. To use a webhook URL, supply a %smsg%s URL parameter, or a JSON POST body with a field %smsg%s.
@@ -104,7 +106,11 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
 	}
-	defer sdb.Close()
+	defer func() {
+		if cerr := sdb.Close(); cerr != nil {
+			fmt.Printf("failed to close DB: %v\n", cerr)
+		}
+	}()
 	db := webhookbot.NewDB(sdb)
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)

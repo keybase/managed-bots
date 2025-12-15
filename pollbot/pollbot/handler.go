@@ -23,8 +23,14 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig,
-	httpSrv *HTTPSrv, db *DB, httpPrefix string) *Handler {
+func NewHandler(
+	stats *base.StatsRegistry,
+	kbc *kbchat.API,
+	debugConfig *base.ChatDebugOutputConfig,
+	httpSrv *HTTPSrv,
+	db *DB,
+	httpPrefix string,
+) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		stats:       stats.SetPrefix("Handler"),
@@ -41,8 +47,7 @@ func (h *Handler) generateVoteLink(id string, choice int) string {
 	return strings.ReplaceAll(link, "%", "%%")
 }
 
-func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string,
-	options []string) error {
+func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string, options []string) error {
 	id := base.RandHexString(8)
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", promptBody)
@@ -72,8 +77,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string,
 	return nil
 }
 
-func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string,
-	options []string) error {
+func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string, options []string) error {
 	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
 	for index, option := range options {
 		body += fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option)
@@ -130,8 +134,8 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr) error {
 
 func (h *Handler) handleLogin(convName, username string) {
 	// make sure we are in a conv with just the person
-	if !(convName == fmt.Sprintf("%s,%s", username, h.kbc.GetUsername()) ||
-		convName == fmt.Sprintf("%s,%s", h.kbc.GetUsername(), username)) {
+	if convName != fmt.Sprintf("%s,%s", username, h.kbc.GetUsername()) &&
+		convName != fmt.Sprintf("%s,%s", h.kbc.GetUsername(), username) {
 		return
 	}
 	token := h.httpSrv.LoginToken(username)

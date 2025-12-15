@@ -2,6 +2,7 @@ package macrobot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -45,7 +46,7 @@ func (d *DB) Create(name string, convID chat1.ConvIDStr, isConv bool, macroName,
 }
 
 func (d *DB) Get(name string, convID chat1.ConvIDStr, macroName string) (message string, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT macro_message
 		FROM macro
 		WHERE (channel_name = ? OR channel_name = ?) AND macro_name = ?
@@ -64,7 +65,7 @@ type Macro struct {
 }
 
 func (d *DB) List(name string, convID chat1.ConvIDStr) (list []Macro, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT macro_name, macro_message, is_conv
 		FROM macro
 		WHERE channel_name = ?
@@ -75,7 +76,11 @@ func (d *DB) List(name string, convID chat1.ConvIDStr) (list []Macro, err error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			fmt.Printf("List: failed to close rows: %v\n", cerr)
+		}
+	}()
 	for rows.Next() {
 		var macro Macro
 		if err := rows.Scan(&macro.Name, &macro.Message, &macro.IsConv); err != nil {

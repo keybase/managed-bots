@@ -26,8 +26,7 @@ type LogWatch struct {
 	peekCh       chan struct{}
 }
 
-func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer base.Emailer,
-	alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
+func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer base.Emailer, alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
 	return &LogWatch{
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
 		cli:         cli,

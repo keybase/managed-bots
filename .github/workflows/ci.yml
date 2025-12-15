@@ -1,4 +1,5 @@
 name: CI
+
 on:
   push:
     branches:
@@ -6,29 +7,69 @@ on:
   pull_request:
     branches:
       - master
+  schedule:
+    # Run daily at 2 AM UTC to check for new vulnerabilities
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    timeout-minutes: 15
     strategy:
       matrix:
-        go-version: [1.23.x]
+        go-version: [1.25.x, 1.24.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
-      - name: Go Lint Standard
-        uses: golangci/golangci-lint-action@v3
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.63
-          args: "--out-${NO_FUTURE}format colored-line-number --timeout=15m"
-      - run: go vet ./...
-      - run: go test ./...
-# Copied from .travis.yml but never migrated to github actions
-#    - language: node_js
-#      node_js: 10
-#      script:
-#        - cd jirabot
-#        - yarn
-#        - yarn ci
+          version: v2.7.2
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: ${{ matrix.go-version }}
+
+      - name: Test
+        run: go test -race ./...
+
+  jirabot:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jirabot
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 25.x
+          cache: yarn
+          cache-dependency-path: jirabot/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run jirabot CI
+        run: yarn ci

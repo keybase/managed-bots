@@ -8,8 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 
-	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/go-github/v31/github"
 
@@ -22,11 +23,14 @@ func main() {
 }
 
 func getAppKey(privateKeyPath string) ([]byte, error) {
-	keyFile, err := os.Open(privateKeyPath)
+	cleanPath := filepath.Clean(privateKeyPath)
+	keyFile, err := os.Open(cleanPath)
 	if err != nil {
 		return []byte{}, err
 	}
-	defer keyFile.Close()
+	defer func() {
+		_ = keyFile.Close()
+	}()
 
 	b, err := io.ReadAll(keyFile)
 	if err != nil {
@@ -63,7 +67,9 @@ func mainInner() int {
 		fmt.Printf("failed to connect to MySQL: %s", err)
 		return 1
 	}
-	defer sdb.Close()
+	defer func() {
+		_ = sdb.Close()
+	}()
 	db := githubbot.NewDB(sdb)
 
 	tr := http.DefaultTransport

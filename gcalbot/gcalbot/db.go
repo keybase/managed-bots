@@ -28,7 +28,7 @@ func NewDB(
 // OAuth state
 func (d *DB) GetState(state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT keybase_username, account_nickname, keybase_conv_id, is_complete
 		FROM oauth_state
 		WHERE state = ?
@@ -46,7 +46,7 @@ func (d *DB) GetState(state string) (*OAuthRequest, error) {
 }
 
 func (d *DB) PutState(state string, oauthState OAuthRequest) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			INSERT INTO oauth_state
 			(state, keybase_username, account_nickname, keybase_conv_id)
@@ -58,11 +58,10 @@ func (d *DB) PutState(state string, oauthState OAuthRequest) error {
 		`, state, oauthState.KeybaseUsername, oauthState.AccountNickname, oauthState.KeybaseConvID)
 		return err
 	})
-	return err
 }
 
 func (d *DB) CompleteState(state string) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			UPDATE oauth_state
 			SET is_complete = true
@@ -70,7 +69,6 @@ func (d *DB) CompleteState(state string) error {
 		`, state)
 		return err
 	})
-	return err
 }
 
 // Account
@@ -94,7 +92,7 @@ func (d *DB) InsertAccount(account Account) error {
 func (d *DB) GetAccount(keybaseUsername, accountNickname string) (account *Account, err error) {
 	account = &Account{}
 	var expiry int64
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT keybase_username, account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM account
 		WHERE keybase_username = ? AND account_nickname = ?
@@ -132,7 +130,7 @@ func (d *DB) DeleteAccount(keybaseUsername, accountNickname string) error {
 }
 
 func (d *DB) ExistsAccount(keybaseUsername string, accountNickname string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT EXISTS(SELECT * FROM account WHERE keybase_username = ? AND account_nickname = ?)
 	`, keybaseUsername, accountNickname)
 	err = row.Scan(&exists)
@@ -140,7 +138,7 @@ func (d *DB) ExistsAccount(keybaseUsername string, accountNickname string) (exis
 }
 
 func (d *DB) GetAccountListForUsername(keybaseUsername string) (accounts []*Account, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT keybase_username, account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM account
 		WHERE keybase_username = ?
@@ -149,7 +147,11 @@ func (d *DB) GetAccountListForUsername(keybaseUsername string) (accounts []*Acco
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			d.Errorf("GetAccountListForUsername: failed to close rows: %s", cerr)
+		}
+	}()
 	for rows.Next() {
 		var account Account
 		var expiry int64
@@ -189,7 +191,7 @@ func (d *DB) UpdateChannel(oldChannelID, newChannelID string, expiry time.Time) 
 }
 
 func (d *DB) UpdateChannelNextSyncToken(channelID, nextSyncToken string) error {
-	return d.DB.RunTxn(func(tx *sql.Tx) error {
+	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			UPDATE channel
 			SET next_sync_token = ?
@@ -202,7 +204,7 @@ func (d *DB) UpdateChannelNextSyncToken(channelID, nextSyncToken string) error {
 func (d *DB) GetChannel(account *Account, calendarID string) (channel *Channel, err error) {
 	channel = &Channel{}
 	var expiry int64
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token
 		FROM channel
 		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?
@@ -224,7 +226,7 @@ func (d *DB) GetChannelAndAccountByID(channelID string) (channel *Channel, accou
 	account = &Account{}
 	var channelExpiry int64
 	var tokenExpiry int64
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT
 		    channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(account.expiry))
@@ -248,7 +250,7 @@ func (d *DB) GetChannelAndAccountByID(channelID string) (channel *Channel, accou
 }
 
 func (d *DB) GetChannelListByAccount(account *Account) (channels []*Channel, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(expiry)), next_sync_token
 		FROM channel
 		WHERE keybase_username = ? AND account_nickname = ?
@@ -256,7 +258,9 @@ func (d *DB) GetChannelListByAccount(account *Account) (channels []*Channel, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var channel Channel
 		var expiry int64
@@ -272,7 +276,7 @@ func (d *DB) GetChannelListByAccount(account *Account) (channels []*Channel, err
 
 func (d *DB) GetExpiringChannelAndAccountList() (pairs []*ChannelAndAccount, err error) {
 	// query all channels that are expiring in less than a day
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT
 		    channel_id, calendar_id, resource_id, ROUND(UNIX_TIMESTAMP(channel.expiry)), next_sync_token,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(account.expiry))
@@ -283,7 +287,9 @@ func (d *DB) GetExpiringChannelAndAccountList() (pairs []*ChannelAndAccount, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	for rows.Next() {
 		var pair ChannelAndAccount
 		var channelExpiry int64
@@ -303,7 +309,7 @@ func (d *DB) GetExpiringChannelAndAccountList() (pairs []*ChannelAndAccount, err
 }
 
 func (d *DB) ExistsChannelByAccountAndCalendar(account *Account, calendarID string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT EXISTS(SELECT * FROM channel WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?)
 	`, account.KeybaseUsername, account.AccountNickname, calendarID)
 	err = row.Scan(&exists)
@@ -336,7 +342,7 @@ func (d *DB) InsertSubscription(account *Account, subscription Subscription) err
 
 func (d *DB) ExistsSubscription(account *Account, subscription Subscription) (exists bool, err error) {
 	minutesBefore := GetMinutesFromDuration(subscription.DurationBefore)
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT EXISTS(
 		    SELECT *
 		    FROM subscription
@@ -350,7 +356,7 @@ func (d *DB) ExistsSubscription(account *Account, subscription Subscription) (ex
 }
 
 func (d *DB) CountSubscriptionsByAccountAndCalender(account *Account, calendarID string) (count int, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT COUNT(*) FROM subscription WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ?
 	`, account.KeybaseUsername, account.AccountNickname, calendarID)
 	err = row.Scan(&count)
@@ -358,7 +364,7 @@ func (d *DB) CountSubscriptionsByAccountAndCalender(account *Account, calendarID
 }
 
 func (d *DB) GetReminderSubscriptionAndAccountPairs() (pairs []*SubscriptionAndAccount, err error) {
-	row, err := d.DB.Query(`
+	row, err := d.Query(`
 		SELECT
 		       calendar_id, keybase_conv_id, minutes_before, type, -- subscription
 		       account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry)) -- account
@@ -369,7 +375,11 @@ func (d *DB) GetReminderSubscriptionAndAccountPairs() (pairs []*SubscriptionAndA
 	if err != nil {
 		return nil, err
 	}
-	defer row.Close()
+	defer func() {
+		if cerr := row.Close(); cerr != nil {
+			d.Errorf("GetReminderSubscriptionAndAccountPairs: failed to close rows: %s", cerr)
+		}
+	}()
 	for row.Next() {
 		var pair SubscriptionAndAccount
 		var subscriptionMinutesBefore int
@@ -392,7 +402,7 @@ func (d *DB) GetReminderSubscriptionsByAccountAndCalendar(
 	calendarID string,
 	subscriptionType SubscriptionType,
 ) (subscriptions []*Subscription, err error) {
-	row, err := d.DB.Query(`
+	row, err := d.Query(`
 		SELECT calendar_id, keybase_conv_id, minutes_before, type
 		FROM subscription
 		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND type = ?
@@ -400,7 +410,11 @@ func (d *DB) GetReminderSubscriptionsByAccountAndCalendar(
 	if err != nil {
 		return nil, err
 	}
-	defer row.Close()
+	defer func() {
+		if cerr := row.Close(); cerr != nil {
+			d.Errorf("GetReminderSubscriptionsByAccountAndCalendar: failed to close rows: %s", cerr)
+		}
+	}()
 	for row.Next() {
 		var subscription Subscription
 		var minutesBefore int
@@ -415,7 +429,7 @@ func (d *DB) GetReminderSubscriptionsByAccountAndCalendar(
 }
 
 func (d *DB) GetSubscriptions(account *Account, calendarID string, keybaseConvID chat1.ConvIDStr) (subscriptions []*Subscription, err error) {
-	rows, err := d.DB.Query(`
+	rows, err := d.Query(`
 		SELECT calendar_id, keybase_conv_id, minutes_before, type
 		FROM subscription
 		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?
@@ -423,7 +437,11 @@ func (d *DB) GetSubscriptions(account *Account, calendarID string, keybaseConvID
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			d.Errorf("GetSubscriptions: failed to close rows: %s", cerr)
+		}
+	}()
 	for rows.Next() {
 		var subscription Subscription
 		var minutesBefore int
@@ -465,7 +483,7 @@ func (d *DB) InsertInvite(account *Account, invite Invite) error {
 }
 
 func (d *DB) ExistsInvite(account *Account, calendarID, eventID string) (exists bool, err error) {
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT EXISTS(
 			SELECT * FROM invite WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND event_id = ?
 		)
@@ -478,7 +496,7 @@ func (d *DB) GetInviteAndAccountByUserMessage(keybaseUsername string, messageID 
 	invite = &Invite{}
 	account = &Account{}
 	var expiry int64
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT
 			calendar_id, event_id, message_id,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
@@ -520,7 +538,7 @@ func (d *DB) InsertDailyScheduleSubscription(account *Account, subscription Dail
 }
 
 func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSendType) (subscriptions []*AggregatedDailyScheduleSubscription, err error) {
-	row, err := d.DB.Query(`
+	row, err := d.Query(`
 		SELECT
 			GROUP_CONCAT(calendar_id) as calendar_ids, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_time,
 			account.keybase_username, account.account_nickname, access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
@@ -532,7 +550,11 @@ func (d *DB) GetAggregatedDailyScheduleSubscription(scheduleToSend ScheduleToSen
 	if err != nil {
 		return nil, err
 	}
-	defer row.Close()
+	defer func() {
+		if cerr := row.Close(); cerr != nil {
+			d.Errorf("GetAggregatedDailyScheduleSubscription: failed to close rows: %s", cerr)
+		}
+	}()
 	for row.Next() {
 		var pair AggregatedDailyScheduleSubscription
 		var concatCalendarIDs string
@@ -570,7 +592,7 @@ func (d *DB) GetDailyScheduleSubscription(
 	subscription = &DailyScheduleSubscription{}
 	var timezone string
 	var notificationTime string
-	row := d.DB.QueryRow(`
+	row := d.QueryRow(`
 		SELECT calendar_id, keybase_conv_id, timezone, days_to_send, schedule_to_send, notification_time
 		FROM daily_schedule_subscription
 		WHERE keybase_username = ? AND account_nickname = ? AND calendar_id = ? AND keybase_conv_id = ?

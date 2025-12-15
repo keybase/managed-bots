@@ -10,8 +10,7 @@ type renderSection struct {
 	Chunks  []chunk
 }
 
-type htmlRenderer struct {
-}
+type htmlRenderer struct{}
 
 type htmlRenderRow struct {
 	Chunk chunk

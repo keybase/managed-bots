@@ -86,18 +86,18 @@ func (s *StathatBackend) Shutdown() error {
 func NewStatsBackend(btype StatsBackendType, config interface{}) (StatsBackend, error) {
 	switch btype {
 	case StathatStatsBackendType:
-		if config, ok := config.(StathatConfig); ok {
-			reporter := stathat.NewBatchReporter(stathat.DefaultReporter, 200*time.Millisecond)
-			return &StathatBackend{config: config, reporter: reporter}, nil
-		} else {
+		cfg, ok := config.(StathatConfig)
+		if !ok {
 			return nil, errors.New("invalid stathat config")
 		}
+		reporter := stathat.NewBatchReporter(stathat.DefaultReporter, 200*time.Millisecond)
+		return &StathatBackend{config: cfg, reporter: reporter}, nil
 	case DummyStatsBackendType:
-		if config, ok := config.(*ChatDebugOutputConfig); ok {
-			return NewDummyStatsBackend(config), nil
-		} else {
+		cfg, ok := config.(*ChatDebugOutputConfig)
+		if !ok {
 			return nil, errors.New("invalid DummyStatsBackend config")
 		}
+		return NewDummyStatsBackend(cfg), nil
 	default:
 		return nil, errors.New("unknown stats registry type")
 	}
@@ -115,11 +115,11 @@ func (r *StatsRegistry) makeFname(name string) string {
 
 func (r *StatsRegistry) SetPrefix(prefix string) *StatsRegistry {
 	prefix = r.prefix + prefix + " - "
-	return newStatsRegistryWithPrefix(r.DebugOutput.Config(), r.backend, prefix)
+	return newStatsRegistryWithPrefix(r.Config(), r.backend, prefix)
 }
 
 func (r *StatsRegistry) ResetPrefix() *StatsRegistry {
-	return NewStatsRegistryWithBackend(r.DebugOutput.Config(), r.backend)
+	return NewStatsRegistryWithBackend(r.Config(), r.backend)
 }
 
 func (r *StatsRegistry) Count(name string) {
