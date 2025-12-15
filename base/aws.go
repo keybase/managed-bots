@@ -1,15 +1,16 @@
 package base
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 )
 
-func GetSession(region string) (sess *session.Session, err error) {
-	if sess, err = session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	}); err != nil {
-		return nil, err
+func GetAWSConfig(ctx context.Context, region string) (aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	if err != nil {
+		return aws.Config{}, err
 	}
-	return sess, nil
+	return cfg, nil
 }
