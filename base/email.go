@@ -1,11 +1,12 @@
 package base
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ses"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ses"
+	"github.com/aws/aws-sdk-go-v2/service/ses/types"
 )
 
 type Emailer interface {
@@ -23,7 +24,7 @@ type SESEmailer struct {
 	*DebugOutput
 	sender string
 	region string
-	ses    *ses.SES
+	ses    *ses.Client
 }
 
 func NewSESEmailer(sender, region string, debugConfig *ChatDebugOutputConfig) *SESEmailer {
@@ -34,15 +35,15 @@ func NewSESEmailer(sender, region string, debugConfig *ChatDebugOutputConfig) *S
 	}
 }
 
-func (e *SESEmailer) getClient() *ses.SES {
-	var err error
+func (e *SESEmailer) getClient() *ses.Client {
 	if e.ses == nil {
 		e.Debug("SESEmailer: getting SES client: region: %s", e.region)
-		var auth *session.Session
-		if auth, err = GetSession(e.region); err != nil {
+		ctx := context.Background()
+		cfg, err := GetAWSConfig(ctx, e.region)
+		if err != nil {
 			panic(fmt.Sprintf("unable to authenticate to AWS SES: %s", err.Error()))
 		}
-		e.ses = ses.New(auth)
+		e.ses = ses.NewFromConfig(cfg)
 		e.Debug("SESEmailer: SES client created")
 	}
 	return e.ses
@@ -50,17 +51,18 @@ func (e *SESEmailer) getClient() *ses.SES {
 
 func (e *SESEmailer) Send(address, subject, message string) error {
 	cli := e.getClient()
-	_, err := cli.SendEmail(&ses.SendEmailInput{
+	ctx := context.Background()
+	_, err := cli.SendEmail(ctx, &ses.SendEmailInput{
 		Source: aws.String(e.sender),
-		Destination: &ses.Destination{
-			ToAddresses: aws.StringSlice([]string{address}),
+		Destination: &types.Destination{
+			ToAddresses: []string{address},
 		},
-		Message: &ses.Message{
-			Subject: &ses.Content{
+		Message: &types.Message{
+			Subject: &types.Content{
 				Data: aws.String(subject),
 			},
-			Body: &ses.Body{
-				Html: &ses.Content{
+			Body: &types.Body{
+				Html: &types.Content{
 					Data: aws.String(message),
 				},
 			},
