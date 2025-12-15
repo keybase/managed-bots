@@ -17,7 +17,7 @@ require (
 	github.com/stathat/go v1.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.29.0
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
+	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.14.0
 )
