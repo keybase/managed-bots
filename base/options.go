@@ -1,10 +1,16 @@
 package base
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 )
 
@@ -40,6 +46,7 @@ func NewOptions() *Options {
 }
 
 func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
+	var mysqlTLSCA string
 	fs.StringVar(&o.KeybaseLocation, "keybase", "keybase", "keybase command")
 	fs.StringVar(&o.Home, "home", "", "Home directory")
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
@@ -48,6 +55,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 		"Conversation name or ID to report errors to")
 	fs.StringVar(&o.DSN, "dsn", os.Getenv("BOT_DSN"), "Bot database DSN")
 	fs.StringVar(&o.MultiDSN, "multi-dsn", os.Getenv("BOT_MULTI_DSN"), "Bot multi coordination database DSN")
+	fs.StringVar(&mysqlTLSCA, "mysql-tls-ca", os.Getenv("BOT_MYSQL_TLS_CA"), "Bot MySQL TLS CA")
 	fs.StringVar(&o.StathatEZKey, "stathat-ezkey", os.Getenv("BOT_STATHAT_EZKEY"), "Bot stathat ezkey")
 	fs.BoolVar(&o.ReadSelf, "read-self", false, "Allow the bot to read it's own messages")
 
@@ -60,6 +68,40 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	if err := fs.Parse(argv[1:]); err != nil {
 		return err
 	}
+
+	// configure TLS CAs if specified
+	if mysqlTLSCA != "" {
+		if err := o.configureMySQLTLS(mysqlTLSCA); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *Options) addTLSToDSN(dsn string, tlsConfigName string) string {
+	if strings.Contains(dsn, "?") {
+		return dsn + "&tls=" + tlsConfigName
+	}
+	return dsn + "?tls=" + tlsConfigName
+}
+
+func (o *Options) configureMySQLTLS(mysqlTLSCA string) error {
+	rootCAs := x509.NewCertPool()
+	if !rootCAs.AppendCertsFromPEM([]byte(mysqlTLSCA)) {
+		return errors.New("unable to load MySQL TLS CAs")
+	}
+	tlsConfig := &tls.Config{
+		RootCAs:    rootCAs,
+		MinVersion: tls.VersionTLS12,
+	}
+	configName := "bot-mysql-tls"
+	if err := mysql.RegisterTLSConfig(configName, tlsConfig); err != nil {
+		return fmt.Errorf("error registering MySQL TLS config: %s", err)
+	}
+
+	o.DSN = o.addTLSToDSN(o.DSN, configName)
+	o.MultiDSN = o.addTLSToDSN(o.MultiDSN, configName)
+
 	return nil
 }
 
