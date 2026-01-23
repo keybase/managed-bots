@@ -8,11 +8,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const DefaultMaxOpenConns = 25
+
 type DB struct {
 	*sql.DB
 }
 
 func NewDB(db *sql.DB) *DB {
+	db.SetMaxOpenConns(DefaultMaxOpenConns)
 	return &DB{
 		DB: db,
 	}
