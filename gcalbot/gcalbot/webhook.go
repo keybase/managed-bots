@@ -428,7 +428,7 @@ func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel)
 		return err
 	}
 
-	err = r.db.UpdateChannel(channel.ChannelID, newChannelID, time.Unix(res.Expiration/1e3, 0))
+	err = r.db.UpdateChannel(channel.ChannelID, newChannelID, res.ResourceId, time.Unix(res.Expiration/1e3, 0))
 	if err != nil {
 		return err
 	}
