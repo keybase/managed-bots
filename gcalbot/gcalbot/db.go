@@ -179,13 +179,13 @@ func (d *DB) InsertChannel(account *Account, channel Channel) error {
 	})
 }
 
-func (d *DB) UpdateChannel(oldChannelID, newChannelID string, expiry time.Time) error {
+func (d *DB) UpdateChannel(oldChannelID, newChannelID string, resourceID string, expiry time.Time) error {
 	return d.RunTxn(func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 			UPDATE channel
-			SET channel_id = ?, expiry = ?
+			SET channel_id = ?, resource_id = ?, expiry = ?
 			WHERE channel_id = ?
-		`, newChannelID, expiry, oldChannelID)
+		`, newChannelID, resourceID, expiry, oldChannelID)
 		return err
 	})
 }
