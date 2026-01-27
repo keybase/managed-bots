@@ -39,6 +39,9 @@ type Options struct {
 	// Allow the bot to read it's own messages (default: false)
 	ReadSelf bool
 	AWSOpts  *AWSOptions
+
+	// Optional, used for debugging to identify the bot.
+	DebugTag string
 }
 
 func NewOptions() *Options {
@@ -58,6 +61,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&mysqlTLSCA, "mysql-tls-ca", os.Getenv("BOT_MYSQL_TLS_CA"), "Bot MySQL TLS CA")
 	fs.StringVar(&o.StathatEZKey, "stathat-ezkey", os.Getenv("BOT_STATHAT_EZKEY"), "Bot stathat ezkey")
 	fs.BoolVar(&o.ReadSelf, "read-self", false, "Allow the bot to read it's own messages")
+	fs.StringVar(&o.DebugTag, "debug-tag", os.Getenv("BOT_DEBUG_TAG"), "Bot debug tag")
 
 	awsOpts := &AWSOptions{}
 	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_AWS_REGION"), "AWS region for cloudwatch logs, optional")
@@ -109,5 +113,6 @@ func (o *Options) Command(args ...string) *exec.Cmd {
 	return kbchat.RunOptions{
 		KeybaseLocation: o.KeybaseLocation,
 		HomeDir:         o.Home,
+		DebugTag: o.DebugTag,
 	}.Command(args...)
 }

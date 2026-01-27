@@ -28,6 +28,7 @@ func NewBotServer(opts base.Options) *BotServer {
 		Server: base.NewServer("macrobot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
+			DebugTag:        opts.DebugTag,
 		}),
 		opts: opts,
 	}
