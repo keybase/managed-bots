@@ -39,6 +39,7 @@ func NewBotServer(opts Options) *BotServer {
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
 			NumPipes:        5,
+			DebugTag:        opts.DebugTag,
 		}),
 		opts: opts,
 	}

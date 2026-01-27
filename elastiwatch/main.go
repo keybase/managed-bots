@@ -45,6 +45,7 @@ func NewBotServer(opts Options) *BotServer {
 		Server: base.NewServer("elastiwatch", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
+			DebugTag:        opts.DebugTag,
 		}),
 		opts: opts,
 	}
