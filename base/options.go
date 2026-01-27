@@ -113,6 +113,6 @@ func (o *Options) Command(args ...string) *exec.Cmd {
 	return kbchat.RunOptions{
 		KeybaseLocation: o.KeybaseLocation,
 		HomeDir:         o.Home,
-		DebugTag: o.DebugTag,
+		DebugTag:        o.DebugTag,
 	}.Command(args...)
 }
