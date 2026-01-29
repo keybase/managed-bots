@@ -261,13 +261,11 @@ func GetOAuthClient(
 		if err != nil {
 			return nil, fmt.Errorf("unable to renew token: %s", err)
 		}
-		if newToken.AccessToken != token.AccessToken {
-			err = storage.PutToken(tokenIdentifier, newToken)
-			if err != nil {
-				return nil, fmt.Errorf("unable to update token: %s", err)
-			}
-			token = newToken
+		err = storage.PutToken(tokenIdentifier, newToken)
+		if err != nil {
+			return nil, fmt.Errorf("unable to update token: %s", err)
 		}
+		token = newToken
 	}
 
 	return config.Client(context.Background(), token), nil
