@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 )
@@ -131,7 +132,12 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	for index, calendarID := range subscription.CalendarIDs {
 		cal, err := srv.Calendars.Get(calendarID).Fields("summary").Do()
 		if err != nil {
-			s.Errorf("error getting calendar summary from API: %s", err)
+			if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == 404 {
+				// Calendar was deleted or user lost access; use ID as display name
+				s.Debug("calendar no longer accessible (404): %s", calendarID)
+			} else {
+				s.Errorf("error getting calendar summary from API: %s", err)
+			}
 			calendarSummaries[index] = calendarID // use the cal id if there is an error
 		} else {
 			calendarSummaries[index] = cal.Summary
