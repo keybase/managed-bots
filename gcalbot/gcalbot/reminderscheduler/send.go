@@ -1,13 +1,10 @@
 package reminderscheduler
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
-	"github.com/keybase/pipeliner"
 )
 
 func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
@@ -40,10 +37,6 @@ func (r *ReminderScheduler) sendReminderLoop(shutdownCh chan struct{}) error {
 
 func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 	timestamp := getReminderTimestamp(sendMinute, 0)
-	var sendTasks []struct {
-		convID  chat1.ConvIDStr
-		message string
-	}
 	r.minuteReminders.ForEachReminderMessageInMinute(timestamp, func(msg *ReminderMessage) {
 		for duration := range msg.MinuteReminders {
 			msgTimestamp := getReminderTimestamp(msg.StartTime, duration)
@@ -62,10 +55,7 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 					message = fmt.Sprintf("%s is starting in %s: %s",
 						eventSummary, gcalbot.MinutesBeforeString(minutesBefore), msg.MsgContent)
 				}
-				sendTasks = append(sendTasks, struct {
-					convID  chat1.ConvIDStr
-					message string
-				}{msg.KeybaseConvID, message})
+				r.ChatEcho(msg.KeybaseConvID, "%s", message)
 				delete(msg.MinuteReminders, duration)
 				r.stats.Count("sendReminders - reminder")
 			}
@@ -77,26 +67,6 @@ func (r *ReminderScheduler) sendReminders(sendMinute time.Time) {
 		}
 	})
 	r.minuteReminders.RemoveMinute(timestamp)
-
-	const sendWindow = 10
-	ctx := context.Background()
-	pipe := pipeliner.NewPipeliner(sendWindow)
-	worker := func(_ context.Context, i int) error { // nolint:unparam
-		t := sendTasks[i]
-		r.ChatEcho(t.convID, "%s", t.message)
-		return nil
-	}
-	for i := range sendTasks {
-		if err := pipe.WaitForRoom(ctx); err != nil {
-			break
-		}
-		go func() { pipe.CompleteOne(worker(ctx, i)) }()
-	}
-	_ = pipe.Flush(ctx)
-
 	sendDuration := time.Since(sendMinute)
-	if sendDuration.Seconds() > 15 {
-		r.Errorf("sending %d reminders took %s", len(sendTasks), sendDuration.String())
-	}
 	r.stats.Value("sendReminders - duration - seconds", sendDuration.Seconds())
 }
