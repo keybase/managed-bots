@@ -100,8 +100,6 @@ github.com/keybase/go-codec v0.0.0-20180928230036-164397562123 h1:yg56lYPqh9suJe
 github.com/keybase/go-codec v0.0.0-20180928230036-164397562123/go.mod h1:r/eVVWCngg6TsFV/3HuS9sWhDkAzGG8mXhiuYA+Z/20=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20260127182354-7367dd3315a3 h1:0uwBoNFUfi+vqQplGh2md1bak0WYelaoqkjn6hBSwJM=
 github.com/keybase/go-keybase-chat-bot v0.0.0-20260127182354-7367dd3315a3/go.mod h1:wl5lBoVNkepL8Hzs7jyqg3GS6U+by4yQeNr7oT0Evt0=
-github.com/keybase/pipeliner v0.0.0-20260107202117-7e0ff0869cf1 h1:aqymqcmuSOLTlGuWnfii7odizltdPaLi2hhDCpRwPqs=
-github.com/keybase/pipeliner v0.0.0-20260107202117-7e0ff0869cf1/go.mod h1:YT8b13LS9QDe45OyX1BFgXD0BRANHm0xauB+LNfV6WM=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
