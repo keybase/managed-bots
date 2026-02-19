@@ -524,7 +524,7 @@ var templates = template.Must(template.Must(template.Must(template.Must(template
 	},
 }).Parse(tmplConfig))
 
-func (h *HTTPSrv) servePage(w http.ResponseWriter, name string, data interface{}) {
+func (h *HTTPSrv) servePage(w http.ResponseWriter, name string, data any) {
 	var page bytes.Buffer
 	if err := templates.ExecuteTemplate(&page, name, data); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

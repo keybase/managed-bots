@@ -142,10 +142,10 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 		return nil
 	}
 
-	var res string
+	var res strings.Builder
 	for _, repo := range subscriptions {
-		res += fmt.Sprintf("- *%s*\n", repo)
+		res.WriteString(fmt.Sprintf("- *%s*\n", repo))
 	}
-	h.ChatEcho(msg.ConvID, "%s", res)
+	h.ChatEcho(msg.ConvID, "%s", res.String())
 	return nil
 }

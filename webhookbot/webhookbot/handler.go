@@ -96,11 +96,11 @@ func (h *Handler) handleList(_ string, msg chat1.MsgSummary) (err error) {
 		h.ChatEcho(convID, "No hooks in this conversation")
 		return nil
 	}
-	var body string
+	var body strings.Builder
 	for _, hook := range hooks {
-		body += fmt.Sprintf("%s, %s\n", hook.Name, h.formURL(hook.ID))
+		body.WriteString(fmt.Sprintf("%s, %s\n", hook.Name, h.formURL(hook.ID)))
 	}
-	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", body); err != nil {
+	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", body.String()); err != nil {
 		h.Debug("handleList: failed to send hook: %s", err)
 	}
 	h.ChatEcho(convID, "List sent to @%s", msg.Sender.Username)

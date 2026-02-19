@@ -67,20 +67,20 @@ func FormatEvent(
 		}
 	}
 
-	var conferenceData string
+	var conferenceData strings.Builder
 	if event.ConferenceData != nil {
 		for _, entryPoint := range event.ConferenceData.EntryPoints {
 			uri := strings.TrimPrefix(entryPoint.Uri, "https://")
 			switch entryPoint.EntryPointType {
 			case "video", "more":
-				conferenceData += fmt.Sprintf("\n> Join online: %s", uri)
+				conferenceData.WriteString(fmt.Sprintf("\n> Join online: %s", uri))
 			case "phone":
-				conferenceData += fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label)
+				conferenceData.WriteString(fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label))
 				if entryPoint.Pin != "" {
-					conferenceData += fmt.Sprintf(" PIN: %s", entryPoint.Pin)
+					conferenceData.WriteString(fmt.Sprintf(" PIN: %s", entryPoint.Pin))
 				}
 			case "sip":
-				conferenceData += fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label)
+				conferenceData.WriteString(fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label))
 			}
 		}
 	}
@@ -101,7 +101,7 @@ func FormatEvent(
 	url := strings.TrimPrefix(event.HtmlLink, "https://")
 
 	return fmt.Sprintf(message,
-		what, when, where, conferenceData, organizer, calendarSummary, description, url), nil
+		what, when, where, conferenceData.String(), organizer, calendarSummary, description, url), nil
 }
 
 func FormatEventSchedule(

@@ -134,7 +134,7 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event interface{}, repo string, client *github.Client) (message string, branch string) {
+func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, client *github.Client) (message string, branch string) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
 		h.Debug("invalid repo: %s", repo)

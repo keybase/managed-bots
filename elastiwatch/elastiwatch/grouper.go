@@ -126,10 +126,7 @@ func (t *treeifyGrouper) buildForest(trees []*tree) (forest []*tree) {
 		return trees
 	}
 	numParts := len(trees[0].words)
-	minDist := numParts
-	if minDist > t.maxGroups {
-		minDist = t.maxGroups
-	}
+	minDist := min(numParts, t.maxGroups)
 	for _, loneTree := range trees {
 		consumed := false
 		for _, forestTree := range forest {

@@ -199,9 +199,9 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 		return nil
 	}
 
-	var res string
+	var res strings.Builder
 	for repo, f := range features {
-		res += fmt.Sprintf("- *%s* (%s)\n", repo, &f)
+		res.WriteString(fmt.Sprintf("- *%s* (%s)\n", repo, &f))
 		if f.Commits {
 			branches, err := h.db.GetAllBranchesForRepo(msg.ConvID, repo)
 			if err != nil {
@@ -209,11 +209,11 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 			}
 
 			for _, branch := range branches {
-				res += fmt.Sprintf("   - %s\n", branch)
+				res.WriteString(fmt.Sprintf("   - %s\n", branch))
 			}
 		}
 	}
-	h.ChatEcho(msg.ConvID, "%s", res)
+	h.ChatEcho(msg.ConvID, "%s", res.String())
 	return nil
 }
 

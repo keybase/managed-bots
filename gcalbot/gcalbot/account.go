@@ -28,7 +28,7 @@ func (h *Handler) handleAccountsList(msg chat1.MsgSummary) error {
 	}
 
 	accountListMessage := "Here are your connected accounts:" + strings.Repeat("\n• %s", len(accounts))
-	accountInterfaces := make([]interface{}, len(accounts))
+	accountInterfaces := make([]any, len(accounts))
 	for index := range accounts {
 		accountInterfaces[index] = accounts[index].AccountNickname
 	}

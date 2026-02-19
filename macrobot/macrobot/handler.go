@@ -162,7 +162,7 @@ func (h *Handler) handleList(msg chat1.MsgSummary) error {
 		return nil
 	}
 
-	data := []interface{}{getChannelType(msg.Channel, true)}
+	data := []any{getChannelType(msg.Channel, true)}
 	hasConvs := false
 	for i, macro := range macroList {
 		// If we have a team and conv command defined with the same name we

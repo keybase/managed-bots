@@ -261,7 +261,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// get list of times in half hour increments
 		baseTime := time.Date(2006, time.January, 2, 0, 0, 0, 0, dsTimezone)
-		for i := 0; i < 48; i++ {
+		for i := range 48 {
 			var title string
 			minutes := i * 30
 			dateTime := baseTime.Add(time.Duration(minutes) * time.Minute)

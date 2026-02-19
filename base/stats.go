@@ -83,7 +83,7 @@ func (s *StathatBackend) Shutdown() error {
 	return nil
 }
 
-func NewStatsBackend(btype StatsBackendType, config interface{}) (StatsBackend, error) {
+func NewStatsBackend(btype StatsBackendType, config any) (StatsBackend, error) {
 	switch btype {
 	case StathatStatsBackendType:
 		cfg, ok := config.(StathatConfig)
