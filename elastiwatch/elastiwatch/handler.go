@@ -51,15 +51,15 @@ func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, _ string) error {
 	if err != nil {
 		return err
 	}
-	body := ""
+	var body strings.Builder
 	if len(deferrals) == 0 {
 		h.ChatEcho(convID, "No deferrals in use")
 		return nil
 	}
 	for _, d := range deferrals {
-		body += fmt.Sprintf("id: %d author: %s regex: %s (created: %v)\n", d.ID, d.Author, d.Regex, d.Ctime)
+		body.WriteString(fmt.Sprintf("id: %d author: %s regex: %s (created: %v)\n", d.ID, d.Author, d.Regex, d.Ctime))
 	}
-	h.ChatEcho(convID, "%s", body)
+	h.ChatEcho(convID, "%s", body.String())
 	return nil
 }
 

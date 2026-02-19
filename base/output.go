@@ -37,18 +37,18 @@ func (d *DebugOutput) Config() *ChatDebugOutputConfig {
 	return d.config
 }
 
-func (d *DebugOutput) Debug(format string, args ...interface{}) {
+func (d *DebugOutput) Debug(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Printf("%s: %s\n", d.name, msg)
 }
 
-func (d *DebugOutput) Errorf(msg string, args ...interface{}) {
+func (d *DebugOutput) Errorf(msg string, args ...any) {
 	d.Debug(msg, args...)
 	msg = fmt.Sprintf("```%s```", msg)
 	d.Report(msg, args...)
 }
 
-func (d *DebugOutput) Report(msg string, args ...interface{}) {
+func (d *DebugOutput) Report(msg string, args ...any) {
 	if d.config == nil {
 		d.Debug("Errorf: Unable to report error to chat, errReportConv, chat debug not configured")
 	} else if d.config.ErrReportConv == "" || d.config.KBC == nil {
@@ -61,27 +61,27 @@ func (d *DebugOutput) Report(msg string, args ...interface{}) {
 	}
 }
 
-func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...interface{}) {
+func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...any) {
 	d.Debug(msg, args...)
 	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsDeletedConvError(err) {
 		d.Errorf("ChatDebug: failed to send error message: %s", err)
 	}
 }
 
-func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...interface{}) {
+func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...any) {
 	d.Errorf(msg, args...)
 	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsDeletedConvError(err) {
 		d.Errorf("ChatErrorf: failed to send error message: %s", err)
 	}
 }
 
-func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...interface{}) {
+func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...any) {
 	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil && !IsDeletedConvError(err) {
 		d.Errorf("ChatEcho: failed to send echo message: %s", err)
 	}
 }
 
-func (d *DebugOutput) Trace(err *error, format string, args ...interface{}) func() {
+func (d *DebugOutput) Trace(err *error, format string, args ...any) func() {
 	msg := fmt.Sprintf(format, args...)
 	start := time.Now()
 	fmt.Printf("+ %s: %s\n", d.name, msg)

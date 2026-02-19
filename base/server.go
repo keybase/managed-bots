@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -259,12 +260,7 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.Subscripti
 }
 
 func (s *Server) allowHiddenCommand(msg chat1.MsgSummary) bool {
-	for _, username := range s.botAdmins {
-		if username == msg.Sender.Username {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.botAdmins, msg.Sender.Username)
 }
 
 func (s *Server) handleLogSend(msg chat1.MsgSummary) error {

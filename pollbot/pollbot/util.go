@@ -22,7 +22,7 @@ func formatTally(tally Tally, numChoices int) (res string) {
 	for _, t := range tally {
 		tallyMap[t.choice] = t
 	}
-	for i := 0; i < numChoices; i++ {
+	for i := range numChoices {
 		t, ok := tallyMap[i+1]
 		if !ok {
 			t.choice = i + 1

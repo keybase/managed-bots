@@ -41,7 +41,7 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 		return nil
 	}
 
-	data := []interface{}{accountNickname}
+	data := []any{accountNickname}
 	for _, calendarItem := range calendarList {
 		if calendarItem.SummaryOverride != "" {
 			data = append(data, calendarItem.SummaryOverride)

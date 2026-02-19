@@ -28,12 +28,12 @@ var DefaultBotAdmins = []string{
 	"mikem",
 }
 
-func MsgpackDecode(dst interface{}, src []byte) error {
+func MsgpackDecode(dst any, src []byte) error {
 	h := codecHandle()
 	return codec.NewDecoderBytes(src, h).Decode(dst)
 }
 
-func MsgpackEncode(src interface{}) ([]byte, error) {
+func MsgpackEncode(src any) ([]byte, error) {
 	h := codecHandle()
 	var ret []byte
 	err := codec.NewEncoderBytes(&ret, h).Encode(src)
@@ -279,7 +279,7 @@ func MakeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(ShortConvID(convID))+secret)))
 }
 
-func SendByConvNameOrID(kbc *kbchat.API, debugOutput *DebugOutput, name, msg string, args ...interface{}) (err error) {
+func SendByConvNameOrID(kbc *kbchat.API, debugOutput *DebugOutput, name, msg string, args ...any) (err error) {
 	if _, err = kbc.SendMessageByConvID(chat1.ConvIDStr(name), msg, args...); err == nil {
 		return nil
 	}

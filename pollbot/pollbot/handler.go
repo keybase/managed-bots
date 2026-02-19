@@ -58,12 +58,12 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string, o
 		return fmt.Errorf("failed to get ID of prompt message")
 	}
 	promptMsgID := *sendRes.Result.MessageID
-	var body string
+	var body strings.Builder
 	for index, option := range options {
-		body += fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
-			h.generateVoteLink(id, index+1))
+		body.WriteString(fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
+			h.generateVoteLink(id, index+1)))
 	}
-	h.ChatEcho(convID, "%s", body)
+	h.ChatEcho(convID, "%s", body.String())
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}
@@ -78,12 +78,13 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string, o
 }
 
 func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string, options []string) error {
-	body := fmt.Sprintf("Poll: *%s*\n\n", prompt)
+	var body strings.Builder
+	body.WriteString(fmt.Sprintf("Poll: *%s*\n\n", prompt))
 	for index, option := range options {
-		body += fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option)
+		body.WriteString(fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option))
 	}
-	body += "Tap a reaction below to register your vote!"
-	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", body)
+	body.WriteString("Tap a reaction below to register your vote!")
+	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", body.String())
 	if err != nil {
 		return fmt.Errorf("failed to send poll: %s", err)
 	}
