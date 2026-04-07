@@ -184,7 +184,6 @@ export default async (
 
   switch (webhookEvent) {
     case Jira.JiraSubscriptionEvents.IssueCreated:
-      context.stathat.postCount(`webhook IssueCreated`, 1)
       context.bot.chat.send(subscription.conversationId, {
         body: `${issue.reporter} reported a new _${issue.type}_ in ${issue.project}: *${issue.summary}*\n${issue.url}`,
       })
@@ -192,7 +191,6 @@ export default async (
     case Jira.JiraSubscriptionEvents.IssueUpdated:
       const projectUpdate = parseChangelogForProjectUpdate(payload.changelog)
       if (projectUpdate) {
-        context.stathat.postCount(`webhook ProjectUpdate`, 1)
         context.bot.chat.send(subscription.conversationId, {
           body: `A _${issue.type}_ was moved from ~_${projectUpdate.from}_~ to *${projectUpdate.to}*: ${issue.summary} | ${issue.url}`,
         })
@@ -212,7 +210,6 @@ export default async (
         })
         return undefined
       }
-      context.stathat.postCount(`webhook NonProjectIssueUpdate`, 1)
       context.bot.chat.send(subscription.conversationId, {
         body:
           `Updated: [${issue.type}] ${issue.summary} | ${issue.url}\n` +

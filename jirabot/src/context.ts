@@ -6,7 +6,6 @@ import * as BotConfig from './bot-config'
 import * as Jira from './jira'
 import Aliases from './aliases'
 import Configs from './configs'
-import StatHat from './stathat'
 import logger from './logger'
 
 const setTimeoutPromise = util.promisify(setTimeout)
@@ -37,7 +36,6 @@ export type Context = {
   comment: CommentContext
   configs: Configs
   getJiraFromTeamnameAndUsername: typeof Jira.getJiraFromTeamnameAndUsername
-  stathat: StatHat
 }
 
 const logSendAndExit = async (context: Context): Promise<void> => {
@@ -70,7 +68,6 @@ export const init = async (
     comment: new CommentContext(),
     configs: new Configs(bot, botConfig),
     getJiraFromTeamnameAndUsername: Jira.getJiraFromTeamnameAndUsername,
-    stathat: new StatHat(botConfig),
   }
   await context.bot.init(
     context.botConfig.keybase.username,
