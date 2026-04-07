@@ -127,7 +127,7 @@ func (s *BotServer) Go() (err error) {
 	var emailer base.Emailer
 	emailer = base.DummyEmailer{}
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
+	stats, err := base.NewStatsRegistry(debugConfig)
 	if err != nil {
 		s.Errorf("failed to initialize stats: %s", err)
 	}

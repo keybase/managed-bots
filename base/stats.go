@@ -2,9 +2,6 @@ package base
 
 import (
 	"errors"
-	"time"
-
-	stathat "github.com/stathat/go"
 )
 
 type StatsBackend interface {
@@ -17,8 +14,7 @@ type StatsBackend interface {
 type StatsBackendType int
 
 const (
-	StathatStatsBackendType StatsBackendType = iota
-	DummyStatsBackendType
+	DummyStatsBackendType StatsBackendType = iota
 )
 
 type DummyStatsBackend struct {
@@ -50,48 +46,8 @@ func (d *DummyStatsBackend) Shutdown() error { return nil }
 
 var _ StatsBackend = (*DummyStatsBackend)(nil)
 
-type StathatConfig struct {
-	ezkey           string
-	shutdownTimeout time.Duration
-}
-
-func NewStathatConfig(ezkey string, shutdownTimeout time.Duration) StathatConfig {
-	return StathatConfig{ezkey: ezkey, shutdownTimeout: shutdownTimeout}
-}
-
-type StathatBackend struct {
-	config   StathatConfig
-	reporter stathat.Reporter
-}
-
-var _ StatsBackend = (*StathatBackend)(nil)
-
-func (s *StathatBackend) Count(name string) error {
-	return s.reporter.PostEZCountOne(name, s.config.ezkey)
-}
-
-func (s *StathatBackend) CountMult(name string, count int) error {
-	return s.reporter.PostEZCount(name, s.config.ezkey, count)
-}
-
-func (s *StathatBackend) Value(name string, value float64) error {
-	return s.reporter.PostEZValue(name, s.config.ezkey, value)
-}
-
-func (s *StathatBackend) Shutdown() error {
-	s.reporter.WaitUntilFinished(s.config.shutdownTimeout)
-	return nil
-}
-
 func NewStatsBackend(btype StatsBackendType, config any) (StatsBackend, error) {
 	switch btype {
-	case StathatStatsBackendType:
-		cfg, ok := config.(StathatConfig)
-		if !ok {
-			return nil, errors.New("invalid stathat config")
-		}
-		reporter := stathat.NewBatchReporter(stathat.DefaultReporter, 200*time.Millisecond)
-		return &StathatBackend{config: cfg, reporter: reporter}, nil
 	case DummyStatsBackendType:
 		cfg, ok := config.(*ChatDebugOutputConfig)
 		if !ok {
@@ -164,19 +120,10 @@ func newStatsRegistryWithPrefix(debugConfig *ChatDebugOutputConfig, backend Stat
 	}
 }
 
-func NewStatsRegistry(debugConfig *ChatDebugOutputConfig, stathatEZKey string) (reg *StatsRegistry, err error) {
-	var backend StatsBackend
-	if stathatEZKey != "" {
-		config := NewStathatConfig(stathatEZKey, 10*time.Second)
-		backend, err = NewStatsBackend(StathatStatsBackendType, config)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		backend, err = NewStatsBackend(DummyStatsBackendType, debugConfig)
-		if err != nil {
-			return nil, err
-		}
+func NewStatsRegistry(debugConfig *ChatDebugOutputConfig) (reg *StatsRegistry, err error) {
+	backend, err := NewStatsBackend(DummyStatsBackendType, debugConfig)
+	if err != nil {
+		return nil, err
 	}
 	return NewStatsRegistryWithBackend(debugConfig, backend), nil
 }

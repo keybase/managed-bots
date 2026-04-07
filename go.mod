@@ -17,7 +17,6 @@ require (
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
 	github.com/keybase/go-keybase-chat-bot v0.0.0-20260127182354-7367dd3315a3
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
-	github.com/stathat/go v1.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.29.0
 	golang.org/x/oauth2 v0.34.0

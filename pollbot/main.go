@@ -112,7 +112,7 @@ func (s *BotServer) Go() (err error) {
 	db := pollbot.NewDB(sdb)
 
 	debugConfig := base.NewChatDebugOutputConfig(s.kbc, s.opts.ErrReportConv)
-	stats, err := base.NewStatsRegistry(debugConfig, s.opts.StathatEZKey)
+	stats, err := base.NewStatsRegistry(debugConfig)
 	if err != nil {
 		s.Debug("unable to create stats %v", err)
 		return err

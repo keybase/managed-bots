@@ -6,13 +6,6 @@ export type BotConfig = {
     username: string
     paperkey: string
   }
-  stathat?: {
-    ezkey: string
-    // Optional. Stat names are constructed by directly concatenating this
-    // prefix and individual stat names.
-    // Example: 'jirabot-prod - '.
-    prefix: string
-  }
   allowedTeams?: Array<string>
   // Optional. A list of keybase usernames that are allowed to use the `!jira
   // debug` command.
@@ -66,28 +59,6 @@ const checkBotConfig = (obj: any): null | BotConfig => {
       obj.allowedTeams
     )
     return null
-  }
-
-  if (obj.stathat) {
-    if (typeof obj.stathat !== 'object') {
-      logger.error('unexpect obj.stathat type', typeof obj.stathat)
-      return null
-    }
-    if (typeof obj.stathat.ezkey !== 'string') {
-      logger.error('unexpect obj.stathat.ezkey type', typeof obj.stathat.ezkey)
-      return null
-    }
-    if (!obj.stathat.ezkey) {
-      logger.error('empty obj.stathat.ezkey')
-      return null
-    }
-    if (!['string', 'undefined'].includes(typeof obj.stathat.prefix)) {
-      logger.error(
-        'unexpect obj.stathat.prefix type',
-        typeof obj.stathat.prefix
-      )
-      return null
-    }
   }
 
   if (obj.admins) {
