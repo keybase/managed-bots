@@ -1,7 +1,10 @@
 package base
 
 import (
+	"context"
 	"errors"
+
+	showtrends "github.com/keybase/showtrends-sdk/go"
 )
 
 type StatsBackend interface {
@@ -16,6 +19,37 @@ type StatsBackendType int
 const (
 	DummyStatsBackendType StatsBackendType = iota
 )
+
+type ShowtrendsBackend struct {
+	client *showtrends.Client
+}
+
+func NewShowtrendsBackend(addr string) *ShowtrendsBackend {
+	return &ShowtrendsBackend{
+		client: showtrends.NewClient(addr, "managed-bots", showtrends.DefaultBatchInterval),
+	}
+}
+
+func (b *ShowtrendsBackend) Count(name string) error {
+	b.client.CountOne(name)
+	return nil
+}
+
+func (b *ShowtrendsBackend) CountMult(name string, count int) error {
+	b.client.Count(name, float64(count))
+	return nil
+}
+
+func (b *ShowtrendsBackend) Value(name string, value float64) error {
+	b.client.Value(name, value)
+	return nil
+}
+
+func (b *ShowtrendsBackend) Shutdown() error {
+	return b.client.Close(context.Background())
+}
+
+var _ StatsBackend = (*ShowtrendsBackend)(nil)
 
 type DummyStatsBackend struct {
 	*DebugOutput
@@ -120,7 +154,10 @@ func newStatsRegistryWithPrefix(debugConfig *ChatDebugOutputConfig, backend Stat
 	}
 }
 
-func NewStatsRegistry(debugConfig *ChatDebugOutputConfig) (reg *StatsRegistry, err error) {
+func NewStatsRegistry(debugConfig *ChatDebugOutputConfig, showtrendsAddr string) (reg *StatsRegistry, err error) {
+	if showtrendsAddr != "" {
+		return NewStatsRegistryWithBackend(debugConfig, NewShowtrendsBackend(showtrendsAddr)), nil
+	}
 	backend, err := NewStatsBackend(DummyStatsBackendType, debugConfig)
 	if err != nil {
 		return nil, err

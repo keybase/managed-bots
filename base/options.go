@@ -41,6 +41,8 @@ type Options struct {
 
 	// Optional, used for debugging to identify the bot.
 	DebugTag string
+
+	ShowtrendsAddr string
 }
 
 func NewOptions() *Options {
@@ -60,6 +62,7 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&mysqlTLSCA, "mysql-tls-ca", os.Getenv("BOT_MYSQL_TLS_CA"), "Bot MySQL TLS CA")
 	fs.BoolVar(&o.ReadSelf, "read-self", false, "Allow the bot to read it's own messages")
 	fs.StringVar(&o.DebugTag, "debug-tag", os.Getenv("BOT_DEBUG_TAG"), "Bot debug tag")
+	fs.StringVar(&o.ShowtrendsAddr, "showtrends-addr", os.Getenv("BOT_SHOWTRENDS_ADDR"), "showtrends server address for stats")
 
 	awsOpts := &AWSOptions{}
 	fs.StringVar(&awsOpts.AWSRegion, "aws-region", os.Getenv("BOT_AWS_REGION"), "AWS region for cloudwatch logs, optional")
