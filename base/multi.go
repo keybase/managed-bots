@@ -1,6 +1,7 @@
 package base
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -58,20 +59,17 @@ func (m *multi) IsLeader() bool {
 }
 
 func (m *multi) heartbeat() {
+	ctx := context.Background()
 	// update ourselves first
-	err := m.db.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO heartbeats (id, name, mtime)
-			VALUES (?, ?, NOW(6)) ON DUPLICATE KEY UPDATE mtime=NOW(6)
-		`, m.id, m.name)
-		return err
-	})
-	if err != nil {
+	if _, err := m.db.ExecContext(ctx, `
+		INSERT INTO heartbeats (id, name, mtime)
+		VALUES (?, ?, NOW(6)) ON DUPLICATE KEY UPDATE mtime=NOW(6)
+	`, m.id, m.name); err != nil {
 		m.Errorf("failed to register heartbeat tx: %s", err)
 		return
 	}
 	// see if we are the leader
-	row := m.db.QueryRow(fmt.Sprintf(`
+	row := m.db.QueryRowContext(ctx, fmt.Sprintf(`
 			SELECT id FROM heartbeats
 			WHERE mtime > NOW(6) - INTERVAL %d SECOND AND name = ?
 			ORDER BY id DESC
@@ -101,13 +99,11 @@ func (m *multi) heartbeat() {
 }
 
 func (m *multi) deregister() {
-	err := m.db.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE from heartbeats
-			WHERE id = ? OR mtime < NOW() - INTERVAL 1 MINUTE
-		`, m.id)
-		return err
-	})
+	ctx := context.Background()
+	_, err := m.db.ExecContext(ctx, `
+		DELETE from heartbeats
+		WHERE id = ? OR mtime < NOW() - INTERVAL 1 MINUTE
+	`, m.id)
 	if err != nil {
 		m.Errorf("deregister: failed to execute : %s", err)
 	}

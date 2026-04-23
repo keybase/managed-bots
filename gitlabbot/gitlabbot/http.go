@@ -1,6 +1,7 @@
 package gitlabbot
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -116,8 +117,11 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 	repo = strings.ToLower(repo)
 	signature := r.Header.Get("X-Gitlab-Token")
+	// WithoutCancel: GitLab sends the webhook and may close the connection
+	// immediately; DB reads and Keybase message sends must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
 
-	convs, err := h.db.GetSubscribedConvs(repo)
+	convs, err := h.db.GetSubscribedConvs(ctx, repo)
 	if err != nil {
 		h.Errorf("Error getting subscriptions for repo: %s", err)
 		return

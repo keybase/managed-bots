@@ -41,16 +41,16 @@ func NewHandler(
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you set up with a Google Meet video call anytime, just send me `!meet`."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
-	return h.HandleCommand(msg)
+func (h *Handler) HandleAuth(ctx context.Context, msg chat1.MsgSummary, _ string) error {
+	return h.HandleCommand(ctx, msg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
@@ -58,20 +58,20 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	if strings.HasPrefix(cmd, "!meet") {
 		h.stats.Count("meet")
-		return h.meetHandler(msg)
+		return h.meetHandler(ctx, msg)
 	}
 	return nil
 }
 
-func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
+func (h *Handler) meetHandler(ctx context.Context, msg chat1.MsgSummary) error {
 	retry := func() error {
 		// retry auth after nuking stored credentials
-		if err := h.db.DeleteToken(base.IdentifierFromMsg(msg)); err != nil {
+		if err := h.db.DeleteToken(ctx, base.IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
-		return h.meetHandlerInner(msg)
+		return h.meetHandlerInner(ctx, msg)
 	}
-	err := h.meetHandlerInner(msg)
+	err := h.meetHandlerInner(ctx, msg)
 	switch err.(type) {
 	case nil, base.OAuthRequiredError:
 		return nil
@@ -88,9 +88,9 @@ func (h *Handler) meetHandler(msg chat1.MsgSummary) error {
 	}
 }
 
-func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
+func (h *Handler) meetHandlerInner(ctx context.Context, msg chat1.MsgSummary) error {
 	identifier := base.IdentifierFromMsg(msg)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
+	client, err := base.GetOAuthClient(ctx, identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
 			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
 			OAuthOfflineAccessType: true,
@@ -101,7 +101,7 @@ func (h *Handler) meetHandlerInner(msg chat1.MsgSummary) error {
 		h.Errorf("unable to get oauth client: %q", identifier)
 	}
 
-	srv, err := calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return err
 	}

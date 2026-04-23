@@ -93,7 +93,7 @@ func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 
 func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 	// get regexes
-	deferrals, err := l.db.List()
+	deferrals, err := l.db.List(context.Background())
 	if err != nil {
 		l.Errorf("failed to get filter list: %s", err)
 		return entries

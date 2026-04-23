@@ -8,7 +8,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
@@ -17,7 +17,7 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
 
-	account, err := h.db.GetAccount(keybaseUsername, accountNickname)
+	account, err := h.db.GetAccount(ctx, keybaseUsername, accountNickname)
 	if err != nil {
 		return err
 	} else if account == nil {
@@ -25,12 +25,12 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 		return nil
 	}
 
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
 
-	calendarList, err := getCalendarList(srv)
+	calendarList, err := getCalendarList(ctx, srv)
 	if err != nil {
 		return err
 	}
@@ -55,8 +55,8 @@ func (h *Handler) handleCalendarsList(msg chat1.MsgSummary, args []string) error
 	return nil
 }
 
-func getCalendarList(srv *calendar.Service) (list []*calendar.CalendarListEntry, err error) {
-	err = srv.CalendarList.List().Pages(context.Background(), func(page *calendar.CalendarList) error {
+func getCalendarList(ctx context.Context, srv *calendar.Service) (list []*calendar.CalendarListEntry, err error) {
+	err = srv.CalendarList.List().Pages(ctx, func(page *calendar.CalendarList) error {
 		list = append(list, page.Items...)
 		return nil
 	})

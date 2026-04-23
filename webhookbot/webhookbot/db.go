@@ -1,11 +1,11 @@
 package webhookbot
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -36,27 +36,22 @@ func (d *DB) makeID(name string, convID chat1.ConvIDStr) (string, error) {
 	return base.URLEncoder().EncodeToString(h.Sum(nil)[:20]), nil
 }
 
-func (d *DB) Create(name string, convID chat1.ConvIDStr) (string, error) {
+func (d *DB) Create(ctx context.Context, name string, convID chat1.ConvIDStr) (string, error) {
 	id, err := d.makeID(name, convID)
 	if err != nil {
 		return "", err
 	}
-	err = d.RunTxn(func(tx *sql.Tx) error {
-		if _, err := tx.Exec(`
-			INSERT INTO hooks
-			(id, name, conv_id)
-			VALUES
-			(?, ?, ?)
-		`, id, name, convID); err != nil {
-			return err
-		}
-		return nil
-	})
+	_, err = d.ExecContext(ctx, `
+		INSERT INTO hooks
+		(id, name, conv_id)
+		VALUES
+		(?, ?, ?)
+	`, id, name, convID)
 	return id, err
 }
 
-func (d *DB) GetHook(id string) (res Webhook, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetHook(ctx context.Context, id string) (res Webhook, err error) {
+	row := d.QueryRowContext(ctx, `
 		SELECT conv_id, name FROM hooks WHERE id = ?
 	`, id)
 	if err := row.Scan(&res.ConvID, &res.Name); err != nil {
@@ -71,18 +66,14 @@ type Webhook struct {
 	Name   string
 }
 
-func (d *DB) List(convID chat1.ConvIDStr) (res []Webhook, err error) {
-	rows, err := d.Query(`
+func (d *DB) List(ctx context.Context, convID chat1.ConvIDStr) (res []Webhook, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT id, name FROM hooks WHERE conv_id = ?
 	`, convID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("List: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var hook Webhook
 		hook.ConvID = convID
@@ -91,14 +82,10 @@ func (d *DB) List(convID chat1.ConvIDStr) (res []Webhook, err error) {
 		}
 		res = append(res, hook)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) Remove(name string, convID chat1.ConvIDStr) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM hooks WHERE conv_id = ? AND name = ?
-		`, convID, name)
-		return err
-	})
+func (d *DB) Remove(ctx context.Context, name string, convID chat1.ConvIDStr) error {
+	_, err := d.ExecContext(ctx, `DELETE FROM hooks WHERE conv_id = ? AND name = ?`, convID, name)
+	return err
 }

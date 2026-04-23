@@ -1,6 +1,7 @@
 package triviabot
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -44,7 +45,8 @@ func (h *Handler) handleStart(msg chat1.MsgSummary) {
 	base.GoWithRecover(h.DebugOutput, func() {
 		<-doneCb
 		h.ChatEcho(convID, "Session complete, here are the top players")
-		err := h.handleTop(convID)
+		// context.Background() because this goroutine outlives the original request context
+		err := h.handleTop(context.Background(), convID)
 		if err != nil {
 			h.ChatErrorf(msg.ConvID, "%s", err.Error())
 		}
@@ -65,8 +67,8 @@ func (h *Handler) handleStop(msg chat1.MsgSummary) {
 	h.ChatEcho(convID, "Session stopped")
 }
 
-func (h *Handler) handleTop(convID chat1.ConvIDStr) error {
-	users, err := h.db.TopUsers(convID)
+func (h *Handler) handleTop(ctx context.Context, convID chat1.ConvIDStr) error {
+	users, err := h.db.TopUsers(ctx, convID)
 	if err != nil {
 		return fmt.Errorf("handleTop: failed to get top users: %s", err)
 	}
@@ -82,9 +84,9 @@ func (h *Handler) handleTop(convID chat1.ConvIDStr) error {
 	return nil
 }
 
-func (h *Handler) handleReset(msg chat1.MsgSummary) error {
+func (h *Handler) handleReset(ctx context.Context, msg chat1.MsgSummary) error {
 	convID := msg.ConvID
-	if err := h.db.ResetConv(convID); err != nil {
+	if err := h.db.ResetConv(ctx, convID); err != nil {
 		return fmt.Errorf("handleReset: failed to reset: %s", err)
 	}
 	h.ChatEcho(convID, "Leaderboard reset")
@@ -106,12 +108,12 @@ func (h *Handler) handleAnswer(convID chat1.ConvIDStr, reaction chat1.MessageRea
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Are you up to the challenge? Try `!trivia begin` to find out."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
 		h.handleAnswer(msg.ConvID, *msg.Content.Reaction, msg.Sender.Username)
 		return nil
@@ -129,10 +131,10 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 		h.handleStop(msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
 		h.stats.Count("top")
-		return h.handleTop(msg.ConvID)
+		return h.handleTop(ctx, msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
 		h.stats.Count("reset")
-		return h.handleReset(msg)
+		return h.handleReset(ctx, msg)
 	}
 	return nil
 }

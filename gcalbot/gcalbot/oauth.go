@@ -30,8 +30,11 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	state := query.Get("state")
+	// WithoutCancel: the browser may close after the redirect; DB writes and
+	// Keybase messaging triggered by OAuth completion must finish regardless.
+	ctx := context.WithoutCancel(r.Context())
 
-	req, err := h.db.GetState(state)
+	req, err := h.db.GetState(ctx, state)
 	if err != nil {
 		err = fmt.Errorf("could not get state %q: %v", state, err)
 		return
@@ -58,7 +61,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		h.showOAuthError(w)
 		return
 	}
-	token, err := h.oauth.Exchange(context.TODO(), code)
+	token, err := h.oauth.Exchange(ctx, code)
 	if err != nil {
 		return
 	}
@@ -68,11 +71,11 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		AccountNickname: req.AccountNickname,
 		Token:           *token,
 	}
-	err = h.db.InsertAccount(account)
+	err = h.db.InsertAccount(ctx, account)
 	if err != nil {
 		return
 	}
-	if err = h.db.CompleteState(state); err != nil {
+	if err = h.db.CompleteState(ctx, state); err != nil {
 		return
 	}
 
@@ -84,7 +87,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	// if account was created in a 1on1 conv, create default subscription to invites & 5 minute reminder for primary calendar
 	if base.IsDirectPrivateMessage(h.kbc.GetUsername(), req.KeybaseUsername, conv.Channel) {
 		var srv *calendar.Service
-		srv, err = GetCalendarService(&account, h.oauth, h.db)
+		srv, err = GetCalendarService(ctx, &account, h.oauth, h.db)
 		if err != nil {
 			return
 		}
@@ -95,7 +98,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.handler.createSubscription(&account, Subscription{
+		err = h.handler.createSubscription(ctx, &account, Subscription{
 			CalendarID:    primaryCalendar.Id,
 			KeybaseConvID: req.KeybaseConvID,
 			Type:          SubscriptionTypeInvite,
@@ -103,7 +106,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		err = h.handler.createSubscription(&account, Subscription{
+		err = h.handler.createSubscription(ctx, &account, Subscription{
 			CalendarID:     primaryCalendar.Id,
 			KeybaseConvID:  req.KeybaseConvID,
 			DurationBefore: GetDurationFromMinutes(5),
@@ -134,13 +137,13 @@ func (h *HTTPSrv) showOAuthError(w http.ResponseWriter) {
 	}
 }
 
-func (h *Handler) requestOAuth(msg chat1.MsgSummary, accountNickname string) error {
+func (h *Handler) requestOAuth(ctx context.Context, msg chat1.MsgSummary, accountNickname string) error {
 	state, err := base.MakeRequestID()
 	if err != nil {
 		return err
 	}
 
-	err = h.db.PutState(state, OAuthRequest{
+	err = h.db.PutState(ctx, state, OAuthRequest{
 		KeybaseUsername: msg.Sender.Username,
 		AccountNickname: accountNickname,
 		KeybaseConvID:   msg.ConvID,

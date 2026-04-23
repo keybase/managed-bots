@@ -2,6 +2,7 @@ package pollbot
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -90,18 +91,21 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 	}
 	vstr := r.URL.Query().Get("")
 	vote := NewVoteFromEncoded(vstr)
-	if err := h.db.CastVote(username, vote); err != nil {
+	// WithoutCancel: the browser submits the vote and may close the connection;
+	// DB writes and poll result updates must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
+	if err := h.db.CastVote(ctx, username, vote); err != nil {
 		h.Errorf("failed to cast vote: %s", err)
 		h.showError(w)
 		return
 	}
-	convID, resultMsgID, numChoices, err := h.db.GetPollInfo(vote.ID)
+	convID, resultMsgID, numChoices, err := h.db.GetPollInfo(ctx, vote.ID)
 	if err != nil {
 		h.Errorf("failed to find poll result msg: %s", err)
 		h.showError(w)
 		return
 	}
-	tally, err := h.db.GetTally(vote.ID)
+	tally, err := h.db.GetTally(ctx, vote.ID)
 	if err != nil {
 		h.Errorf("failed to get tally: %s", err)
 		h.showError(w)

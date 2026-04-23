@@ -1,6 +1,7 @@
 package webhookbot
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -50,7 +51,7 @@ func (h *Handler) checkAllowed(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
+func (h *Handler) handleRemove(ctx context.Context, cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
@@ -68,16 +69,16 @@ func (h *Handler) handleRemove(cmd string, msg chat1.MsgSummary) (err error) {
 	}
 	h.stats.Count("remove")
 	name := toks[2]
-	if err := h.db.Remove(name, convID); err != nil {
+	if err := h.db.Remove(ctx, name, convID); err != nil {
 		return fmt.Errorf("handleRemove: failed to remove webhook: %s", err)
 	}
 	h.ChatEcho(convID, "Success!")
 	return nil
 }
 
-func (h *Handler) handleList(_ string, msg chat1.MsgSummary) (err error) {
+func (h *Handler) handleList(ctx context.Context, _ string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
-	hooks, err := h.db.List(convID)
+	hooks, err := h.db.List(ctx, convID)
 	if err != nil {
 		return fmt.Errorf("handleList: failed to list hook: %s", err)
 	}
@@ -107,7 +108,7 @@ func (h *Handler) handleList(_ string, msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
-func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
+func (h *Handler) handleCreate(ctx context.Context, cmd string, msg chat1.MsgSummary) (err error) {
 	convID := msg.ConvID
 	toks := strings.Split(cmd, " ")
 	if len(toks) != 3 {
@@ -126,7 +127,7 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 
 	h.stats.Count("create")
 	name := toks[2]
-	id, err := h.db.Create(name, convID)
+	id, err := h.db.Create(ctx, name, convID)
 	if err != nil {
 		return fmt.Errorf("handleCreate: failed to create webhook: %s", err)
 	}
@@ -137,23 +138,23 @@ func (h *Handler) handleCreate(cmd string, msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "I can create generic webhooks into Keybase! Try `!webhook create` to get started."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!webhook create"):
-		return h.handleCreate(cmd, msg)
+		return h.handleCreate(ctx, cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook list"):
-		return h.handleList(cmd, msg)
+		return h.handleList(ctx, cmd, msg)
 	case strings.HasPrefix(cmd, "!webhook remove"):
-		return h.handleRemove(cmd, msg)
+		return h.handleRemove(ctx, cmd, msg)
 	}
 	return nil
 }

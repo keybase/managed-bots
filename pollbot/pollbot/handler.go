@@ -1,6 +1,7 @@
 package pollbot
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/url"
@@ -47,7 +48,7 @@ func (h *Handler) generateVoteLink(id string, choice int) string {
 	return strings.ReplaceAll(link, "%", "%%")
 }
 
-func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string, options []string) error {
+func (h *Handler) generateAnonymousPoll(ctx context.Context, convID chat1.ConvIDStr, prompt string, options []string) error {
 	id := base.RandHexString(8)
 	promptBody := fmt.Sprintf("Anonymous Poll: *%s*\n\n", prompt)
 	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", promptBody)
@@ -71,7 +72,7 @@ func (h *Handler) generateAnonymousPoll(convID chat1.ConvIDStr, prompt string, o
 		return fmt.Errorf("failed to get ID of result message")
 	}
 	resultMsgID := *sendRes.Result.MessageID
-	if err := h.db.CreatePoll(id, convID, promptMsgID, resultMsgID, len(options)); err != nil {
+	if err := h.db.CreatePoll(ctx, id, convID, promptMsgID, resultMsgID, len(options)); err != nil {
 		return fmt.Errorf("failed to create poll: %s", err)
 	}
 	return nil
@@ -100,7 +101,7 @@ func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string, options []
 	return nil
 }
 
-func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr) error {
+func (h *Handler) handlePoll(ctx context.Context, cmd string, convID chat1.ConvIDStr) error {
 	cmd = strings.ReplaceAll(cmd, "‘", "'")
 	cmd = strings.ReplaceAll(cmd, "’", "'")
 	cmd = strings.ReplaceAll(cmd, "“", "\"")
@@ -128,7 +129,7 @@ func (h *Handler) handlePoll(cmd string, convID chat1.ConvIDStr) error {
 	h.stats.Count("handlePoll")
 	if anonymous {
 		h.stats.Count("handlePoll - anonymous")
-		return h.generateAnonymousPoll(convID, prompt, args[1:])
+		return h.generateAnonymousPoll(ctx, convID, prompt, args[1:])
 	}
 	return h.generatePoll(convID, prompt, args[1:])
 }
@@ -151,19 +152,19 @@ To login your web browser in order to vote in anonymous polls, please follow the
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Find out the answers to the hardest questions. Try `!poll 'Should we move the office to a beach?' Yes No`"
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!poll"):
-		return h.handlePoll(cmd, msg.ConvID)
+		return h.handlePoll(ctx, cmd, msg.ConvID)
 	case strings.ToLower(cmd) == "login":
 		h.handleLogin(msg.Channel.Name, msg.Sender.Username)
 	}

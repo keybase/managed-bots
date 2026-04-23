@@ -19,7 +19,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 	}()
 
 	eventSync := func(syncMinute time.Time) {
-		pairs, err := r.db.GetReminderSubscriptionAndAccountPairs()
+		pairs, err := r.db.GetReminderSubscriptionAndAccountPairs(context.Background())
 		r.stats.ValueInt("eventSyncLoop - subscriptions - count", len(pairs))
 		if err != nil {
 			r.Errorf("error getting reminder subscriptions to sync: %s", err)
@@ -47,7 +47,7 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 }
 
 func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *gcalbot.Subscription) {
-	srv, err := gcalbot.GetCalendarService(account, r.oauth, r.db)
+	srv, err := gcalbot.GetCalendarService(context.Background(), account, r.oauth, r.db)
 	switch err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:
@@ -124,7 +124,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 		}
 	})
 
-	srv, err := gcalbot.GetCalendarService(account, r.oauth, r.db)
+	srv, err := gcalbot.GetCalendarService(context.Background(), account, r.oauth, r.db)
 	switch err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:

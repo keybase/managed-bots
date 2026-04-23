@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -79,7 +80,7 @@ func mainInner() int {
 		return 1
 	}
 
-	subs, err := db.GetAllSubscriptions()
+	subs, err := db.GetAllSubscriptions(context.Background())
 	if err != nil {
 		fmt.Printf("failed to get all subscriptions: %s", err)
 		return 1
@@ -96,7 +97,7 @@ func mainInner() int {
 			continue
 		}
 
-		err = db.WatchBranch(subscription.ConvID, subscription.Repo, defaultBranch)
+		err = db.WatchBranch(context.Background(), subscription.ConvID, subscription.Repo, defaultBranch)
 		if err != nil {
 			fmt.Printf("Error watching branch: %s", err)
 			return 1

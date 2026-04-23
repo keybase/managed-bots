@@ -1,8 +1,8 @@
 package elastiwatch
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/keybase/managed-bots/base"
@@ -18,13 +18,11 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) Create(regex, author string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO deferrals (regex, author, ctime) VALUES (?, ?, NOW())
-		`, regex, author)
-		return err
-	})
+func (d *DB) Create(ctx context.Context, regex, author string) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO deferrals (regex, author, ctime) VALUES (?, ?, NOW())
+	`, regex, author)
+	return err
 }
 
 type Deferral struct {
@@ -34,18 +32,14 @@ type Deferral struct {
 	Ctime  time.Time
 }
 
-func (d *DB) List() (res []Deferral, err error) {
-	rows, err := d.Query(`
+func (d *DB) List(ctx context.Context) (res []Deferral, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT id, regex, author, ctime FROM deferrals
 	`)
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("elastiwatch: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var def Deferral
 		if err := rows.Scan(&def.ID, &def.Regex, &def.Author, &def.Ctime); err != nil {
@@ -53,14 +47,10 @@ func (d *DB) List() (res []Deferral, err error) {
 		}
 		res = append(res, def)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) Remove(id int) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM deferrals WHERE id = ?
-		`, id)
-		return err
-	})
+func (d *DB) Remove(ctx context.Context, id int) error {
+	_, err := d.ExecContext(ctx, `DELETE FROM deferrals WHERE id = ?`, id)
+	return err
 }

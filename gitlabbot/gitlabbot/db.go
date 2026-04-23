@@ -1,8 +1,8 @@
 package gitlabbot
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
@@ -22,41 +22,35 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, oauthIdentifier string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO subscriptions
-			(conv_id, repo, oauth_identifier)
-			VALUES (?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-			oauth_identifier=VALUES(oauth_identifier)
-		`, convID, repo, oauthIdentifier)
-		return err
-	})
+func (d *DB) CreateSubscription(ctx context.Context, convID chat1.ConvIDStr, repo string, oauthIdentifier string) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO subscriptions
+		(conv_id, repo, oauth_identifier)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+		oauth_identifier=VALUES(oauth_identifier)
+	`, convID, repo, oauthIdentifier)
+	return err
 }
 
-func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ?)
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteSubscription(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM subscriptions
+		WHERE (conv_id = ? AND repo = ?)
+	`, convID, repo)
+	return err
 }
 
-func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM subscriptions
-			WHERE (conv_id = ? AND repo = ?)
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteSubscriptionsForRepo(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM subscriptions
+		WHERE (conv_id = ? AND repo = ?)
+	`, convID, repo)
+	return err
 }
 
-func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) {
-	rows, err := d.Query(`
+func (d *DB) GetSubscribedConvs(ctx context.Context, repo string) (res []chat1.ConvIDStr, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT conv_id
 		FROM subscriptions
 		WHERE repo = ?
@@ -65,11 +59,7 @@ func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) 
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("GetSubscribedConvs: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -77,11 +67,11 @@ func (d *DB) GetSubscribedConvs(repo string) (res []chat1.ConvIDStr, err error) 
 		}
 		res = append(res, convID)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetSubscriptionExists(ctx context.Context, convID chat1.ConvIDStr, repo string) (exists bool, err error) {
+	row := d.QueryRowContext(ctx, `
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
@@ -99,8 +89,8 @@ func (d *DB) GetSubscriptionExists(convID chat1.ConvIDStr, repo string) (exists 
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetSubscriptionForRepoExists(ctx context.Context, convID chat1.ConvIDStr, repo string) (exists bool, err error) {
+	row := d.QueryRowContext(ctx, `
 	SELECT 1
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
@@ -117,8 +107,8 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
-func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string, err error) {
-	rows, err := d.Query(`
+func (d *DB) GetAllSubscriptionsForConvID(ctx context.Context, convID chat1.ConvIDStr) (res []string, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT repo
 		FROM subscriptions
 		WHERE conv_id = ?
@@ -127,11 +117,7 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string,
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("GetAllSubscriptionsForConvID: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var repo string
 		if err := rows.Scan(&repo); err != nil {
@@ -139,14 +125,14 @@ func (d *DB) GetAllSubscriptionsForConvID(convID chat1.ConvIDStr) (res []string,
 		}
 		res = append(res, repo)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
 // OAuth2 token methods
 
-func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
+func (d *DB) GetToken(ctx context.Context, identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
-	row := d.QueryRow(`SELECT access_token, token_type
+	row := d.QueryRowContext(ctx, `SELECT access_token, token_type
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType)
@@ -160,24 +146,18 @@ func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	}
 }
 
-func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO oauth
+func (d *DB) PutToken(ctx context.Context, identifier string, token *oauth2.Token) error {
+	_, err := d.ExecContext(ctx, `INSERT INTO oauth
 		(identifier, access_token, token_type, ctime, mtime)
 		VALUES (?, ?, ?, NOW(), NOW())
 		ON DUPLICATE KEY UPDATE
 		access_token=VALUES(access_token),
 		mtime=VALUES(mtime)
 	`, identifier, token.AccessToken, token.TokenType)
-		return err
-	})
 	return err
 }
 
-func (d *DB) DeleteToken(identifier string) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec("DELETE FROM oauth WHERE identifier = ?", identifier)
-		return err
-	})
+func (d *DB) DeleteToken(ctx context.Context, identifier string) error {
+	_, err := d.ExecContext(ctx, "DELETE FROM oauth WHERE identifier = ?", identifier)
 	return err
 }

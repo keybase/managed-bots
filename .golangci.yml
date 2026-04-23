@@ -29,6 +29,14 @@ linters:
     - bodyclose # Checks HTTP response body closed
 
   settings:
+    errcheck:
+      # defer rows.Close() / stmt.Close() etc. are idiomatic and safe to ignore.
+      exclude-functions:
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Tx).Close
+
     gocritic:
       disabled-checks:
         - ifElseChain

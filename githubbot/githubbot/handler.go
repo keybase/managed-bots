@@ -42,7 +42,7 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := fmt.Sprintf(
 		"Hi! I can notify you whenever something happens on a GitHub repository. To get started, install the Keybase integration on your repository, then send `!github subscribe <owner/repo>`\n\ngithub.com/apps/%s/installations/new",
 		h.appName,
@@ -50,11 +50,11 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
-	return h.HandleCommand(msg)
+func (h *Handler) HandleAuth(ctx context.Context, msg chat1.MsgSummary, _ string) error {
+	return h.HandleCommand(ctx, msg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
@@ -68,27 +68,27 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	if strings.HasPrefix(cmd, "!github mentions") {
 		// handle user preferences without needing oauth
 		h.stats.Count("mentions")
-		return h.handleMentionPref(cmd, msg)
+		return h.handleMentionPref(ctx, cmd, msg)
 	}
 
 	client := github.NewClient(&http.Client{Transport: h.atr})
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
 		h.stats.Count("subscribe")
-		return h.handleSubscribe(cmd, msg, true, client)
+		return h.handleSubscribe(ctx, cmd, msg, true, client)
 	case strings.HasPrefix(cmd, "!github unsubscribe"):
 		h.stats.Count("unsubscribe")
-		return h.handleSubscribe(cmd, msg, false, client)
+		return h.handleSubscribe(ctx, cmd, msg, false, client)
 	case strings.HasPrefix(cmd, "!github list"):
 		h.stats.Count("list")
-		return h.handleListSubscriptions(msg)
+		return h.handleListSubscriptions(ctx, msg)
 	default:
 		h.Debug("ignoring unknown command %q", cmd)
 	}
 	return nil
 }
 
-func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool, client *github.Client) (err error) {
+func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.MsgSummary, create bool, client *github.Client) (err error) {
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
@@ -118,14 +118,14 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 
 	repo := args[0]
 	// Check if command is subscribing to a branch
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
 	if len(args) == 2 {
 		if !alreadyExists {
 			if create {
-				if created, err := h.handleNewSubscription(repo, msg, client); err != nil {
+				if created, err := h.handleNewSubscription(ctx, repo, msg, client); err != nil {
 					if _, ok := err.(base.OAuthRequiredError); ok {
 						return nil
 					}
@@ -140,9 +140,9 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		}
 		switch args[1] {
 		case "issues", "pulls", "statuses", "commits", "releases":
-			return h.handleSubscribeToFeature(repo, args[1], msg, create)
+			return h.handleSubscribeToFeature(ctx, repo, args[1], msg, create)
 		default:
-			return h.handleSubscribeToBranch(repo, args[1], msg, create)
+			return h.handleSubscribeToBranch(ctx, repo, args[1], msg, create)
 		}
 	}
 
@@ -151,7 +151,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 			h.ChatEcho(msg.ConvID, "You're already receiving notifications for `%s` here!", repo)
 			return nil
 		}
-		created, err := h.handleNewSubscription(repo, msg, client)
+		created, err := h.handleNewSubscription(ctx, repo, msg, client)
 		if err != nil {
 			if _, ok := err.(base.OAuthRequiredError); ok {
 				return nil
@@ -170,17 +170,17 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 		return nil
 	}
 
-	err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, repo)
+	err = h.db.DeleteSubscriptionsForRepo(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error deleting subscriptions: %s", err)
 	}
 
-	err = h.db.DeleteBranchesForRepo(msg.ConvID, repo)
+	err = h.db.DeleteBranchesForRepo(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error deleting branches: %s", err)
 	}
 
-	err = h.db.DeleteFeaturesForRepo(msg.ConvID, repo)
+	err = h.db.DeleteFeaturesForRepo(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error deleting features: %s", err)
 	}
@@ -188,8 +188,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool,
 	return nil
 }
 
-func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
-	features, err := h.db.GetFeaturesForAllRepos(msg.ConvID)
+func (h *Handler) handleListSubscriptions(ctx context.Context, msg chat1.MsgSummary) (err error) {
+	features, err := h.db.GetFeaturesForAllRepos(ctx, msg.ConvID)
 	if err != nil {
 		return fmt.Errorf("Error getting current features: %s", err)
 	}
@@ -203,7 +203,7 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 	for repo, f := range features {
 		res.WriteString(fmt.Sprintf("- *%s* (%s)\n", repo, &f))
 		if f.Commits {
-			branches, err := h.db.GetAllBranchesForRepo(msg.ConvID, repo)
+			branches, err := h.db.GetAllBranchesForRepo(ctx, msg.ConvID, repo)
 			if err != nil {
 				return fmt.Errorf("error getting branches for repo: %s", err)
 			}
@@ -217,7 +217,7 @@ func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
 	return nil
 }
 
-func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, client *github.Client) (created bool, err error) {
+func (h *Handler) handleNewSubscription(ctx context.Context, repo string, msg chat1.MsgSummary, client *github.Client) (created bool, err error) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
 		h.ChatEcho(msg.ConvID, "`%s` doesn't look like a repository to me! Try sending `!github subscribe <owner/repo>`", repo)
@@ -235,7 +235,7 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 	}
 
 	// check that user has authorization
-	tc, err := base.GetOAuthClient(msg.Sender.Username, msg, h.kbc, h.oauthConfig, h.db,
+	tc, err := base.GetOAuthClient(ctx, msg.Sender.Username, msg, h.kbc, h.oauthConfig, h.db,
 		base.GetOAuthOpts{
 			AuthMessageTemplate: "Authorize me by clicking this link:\n%s",
 		})
@@ -268,20 +268,20 @@ func (h *Handler) handleNewSubscription(repo string, msg chat1.MsgSummary, clien
 		return false, fmt.Errorf("error getting default branch: %s", err)
 	}
 
-	err = h.db.WatchBranch(msg.ConvID, repo, defaultBranch)
+	err = h.db.WatchBranch(ctx, msg.ConvID, repo, defaultBranch)
 	if err != nil {
 		return false, fmt.Errorf("error watching branch: %s", err)
 	}
 
-	err = h.db.CreateSubscription(msg.ConvID, repo, repoInstallation.GetID())
+	err = h.db.CreateSubscription(ctx, msg.ConvID, repo, repoInstallation.GetID())
 	if err != nil {
 		return false, fmt.Errorf("error creating subscription: %s", err)
 	}
 	return true, nil
 }
 
-func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSummary, enable bool) (err error) {
-	exists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
+func (h *Handler) handleSubscribeToFeature(ctx context.Context, repo, feature string, msg chat1.MsgSummary, enable bool) (err error) {
+	exists, err := h.db.GetSubscriptionForRepoExists(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error getting subscription: %s", err)
 	} else if !exists {
@@ -293,7 +293,7 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		return nil
 	}
 
-	currentFeatures, err := h.db.GetFeatures(msg.ConvID, repo)
+	currentFeatures, err := h.db.GetFeatures(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("Error getting current features: %s", err)
 	}
@@ -317,7 +317,7 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 		return fmt.Errorf("Error subscribing to feature: %s is not a valid feature", feature)
 	}
 
-	err = h.db.SetFeatures(msg.ConvID, repo, currentFeatures)
+	err = h.db.SetFeatures(ctx, msg.ConvID, repo, currentFeatures)
 	if err != nil {
 		return fmt.Errorf("Error setting features: %s", err)
 	}
@@ -329,8 +329,8 @@ func (h *Handler) handleSubscribeToFeature(repo, feature string, msg chat1.MsgSu
 	return nil
 }
 
-func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSummary, create bool) (err error) {
-	exists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
+func (h *Handler) handleSubscribeToBranch(ctx context.Context, repo, branch string, msg chat1.MsgSummary, create bool) (err error) {
+	exists, err := h.db.GetSubscriptionForRepoExists(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error getting subscription: %s", err)
 	} else if !exists {
@@ -343,7 +343,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 	}
 
 	if create {
-		err = h.db.WatchBranch(msg.ConvID, repo, branch)
+		err = h.db.WatchBranch(ctx, msg.ConvID, repo, branch)
 		if err != nil {
 			return fmt.Errorf("error creating branch subscription: %s", err)
 		}
@@ -351,7 +351,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 		h.ChatEcho(msg.ConvID, "Now subscribed to notifications for `%s/%s`.", repo, branch)
 		return nil
 	}
-	err = h.db.UnwatchBranch(msg.ConvID, repo, branch)
+	err = h.db.UnwatchBranch(ctx, msg.ConvID, repo, branch)
 	if err != nil {
 		return fmt.Errorf("error deleting branch subscription: %s", err)
 	}
@@ -361,7 +361,7 @@ func (h *Handler) handleSubscribeToBranch(repo, branch string, msg chat1.MsgSumm
 }
 
 // user preferences
-func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error) {
+func (h *Handler) handleMentionPref(ctx context.Context, cmd string, msg chat1.MsgSummary) (err error) {
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
@@ -376,7 +376,7 @@ func (h *Handler) handleMentionPref(cmd string, msg chat1.MsgSummary) (err error
 	}
 
 	allowMentions := args[0] == "enable"
-	err = h.db.SetUserPreferences(msg.Sender.Username, msg.ConvID, &UserPreferences{Mention: allowMentions})
+	err = h.db.SetUserPreferences(ctx, msg.Sender.Username, msg.ConvID, &UserPreferences{Mention: allowMentions})
 	if err != nil {
 		return fmt.Errorf("error setting user preference: %s", err)
 	}
