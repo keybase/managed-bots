@@ -1,8 +1,8 @@
 package pollbot
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -25,20 +25,18 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) CreatePoll(id string, convID chat1.ConvIDStr, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO polls
-			(id, conv_id, msg_id, result_msg_id, choices)
-			VALUES
-			(?, ?, ?, ?, ?)
-		`, id, convID, msgID, resultMsgID, numChoices)
-		return err
-	})
+func (d *DB) CreatePoll(ctx context.Context, id string, convID chat1.ConvIDStr, msgID chat1.MessageID, resultMsgID chat1.MessageID, numChoices int) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO polls
+		(id, conv_id, msg_id, result_msg_id, choices)
+		VALUES
+		(?, ?, ?, ?, ?)
+	`, id, convID, msgID, resultMsgID, numChoices)
+	return err
 }
 
-func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.MessageID, numChoices int, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetPollInfo(ctx context.Context, id string) (convID chat1.ConvIDStr, resultMsgID chat1.MessageID, numChoices int, err error) {
+	row := d.QueryRowContext(ctx, `
 		SELECT conv_id, result_msg_id, choices
 		FROM polls
 		WHERE id = ?
@@ -49,8 +47,8 @@ func (d *DB) GetPollInfo(id string) (convID chat1.ConvIDStr, resultMsgID chat1.M
 	return convID, resultMsgID, numChoices, nil
 }
 
-func (d *DB) GetTally(id string) (res Tally, err error) {
-	rows, err := d.Query(`
+func (d *DB) GetTally(ctx context.Context, id string) (res Tally, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT choice, count(*)
 		FROM votes
 		WHERE id = ?
@@ -59,11 +57,7 @@ func (d *DB) GetTally(id string) (res Tally, err error) {
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("GetTally: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var tres TallyResult
 		if err := rows.Scan(&tres.choice, &tres.votes); err != nil {
@@ -71,17 +65,15 @@ func (d *DB) GetTally(id string) (res Tally, err error) {
 		}
 		res = append(res, tres)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) CastVote(username string, vote Vote) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			REPLACE INTO votes
-			(id, username, choice)
-			VALUES
-			(?, ?, ?)
-		`, vote.ID, username, vote.Choice)
-		return err
-	})
+func (d *DB) CastVote(ctx context.Context, username string, vote Vote) error {
+	_, err := d.ExecContext(ctx, `
+		REPLACE INTO votes
+		(id, username, choice)
+		VALUES
+		(?, ?, ?)
+	`, vote.ID, username, vote.Choice)
+	return err
 }

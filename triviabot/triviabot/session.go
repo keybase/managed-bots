@@ -1,6 +1,7 @@
 package triviabot
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,7 +145,7 @@ var errForceAPI = errors.New("API token fetch requested")
 
 func (s *session) getToken(forceAPI bool) (token string, err error) {
 	if !forceAPI {
-		token, err = s.db.GetAPIToken(s.convID)
+		token, err = s.db.GetAPIToken(context.Background(), s.convID)
 	} else {
 		err = errForceAPI
 	}
@@ -154,7 +155,7 @@ func (s *session) getToken(forceAPI bool) (token string, err error) {
 			s.ChatErrorf(s.convID, "getToken: failed to get token from API: %s", err)
 			return "", err
 		}
-		if err := s.db.SetAPIToken(s.convID, token); err != nil {
+		if err := s.db.SetAPIToken(context.Background(), s.convID, token); err != nil {
 			s.Errorf("getToken: failed to set token in DB: %s", err)
 		}
 	} else {
@@ -318,7 +319,7 @@ func (s *session) waitForCorrectAnswer() {
 					continue
 				}
 				isCorrect, pointAdjust := s.getAnswerPoints(answer, *s.curQuestion)
-				if err := s.db.RecordAnswer(s.convID, answer.username, pointAdjust, isCorrect); err != nil {
+				if err := s.db.RecordAnswer(context.Background(), s.convID, answer.username, pointAdjust, isCorrect); err != nil {
 					s.Errorf("waitForCorrectAnswer: failed to record answer: %s", err)
 				}
 				s.regDupe(answer.username)

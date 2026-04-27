@@ -1,7 +1,9 @@
 package base
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,8 +20,8 @@ import (
 )
 
 type Handler interface {
-	HandleCommand(chat1.MsgSummary) error
-	HandleNewConv(chat1.ConvSummary) error
+	HandleCommand(context.Context, chat1.MsgSummary) error
+	HandleNewConv(context.Context, chat1.ConvSummary) error
 }
 
 type Shutdowner interface {
@@ -160,9 +162,18 @@ func (s *Server) Listen(handler Handler) (err error) {
 	s.Lock()
 	shutdownCh := s.shutdownCh
 	s.Unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		select {
+		case <-shutdownCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	eg := &errgroup.Group{}
-	s.GoWithRecover(eg, func() error { return s.listenForMsgs(shutdownCh, sub, handler) })
-	s.GoWithRecover(eg, func() error { return s.listenForConvs(shutdownCh, sub, handler) })
+	s.GoWithRecover(eg, func() error { return s.listenForMsgs(ctx, shutdownCh, sub, handler) })
+	s.GoWithRecover(eg, func() error { return s.listenForConvs(ctx, shutdownCh, sub, handler) })
 	s.GoWithRecover(eg, func() error { return s.multi.Heartbeat(shutdownCh) })
 	if err := eg.Wait(); err != nil {
 		s.Debug("wait error: %s", err)
@@ -171,7 +182,7 @@ func (s *Server) Listen(handler Handler) (err error) {
 	return nil
 }
 
-func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) (err error) {
+func (s *Server) listenForMsgs(ctx context.Context, shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) (err error) {
 	for {
 		select {
 		case <-shutdownCh:
@@ -224,16 +235,19 @@ func (s *Server) listenForMsgs(shutdownCh chan struct{}, sub *kbchat.Subscriptio
 			}
 		}
 
-		err = handler.HandleCommand(msg)
-		switch err := err.(type) {
-		case nil, OAuthRequiredError:
+		err = handler.HandleCommand(ctx, msg)
+		switch {
+		case err == nil:
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			s.Debug("listenForMsgs: suppressing shutdown context error: %v", err)
+		case errors.As(err, new(OAuthRequiredError)):
 		default:
 			s.ChatErrorf(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
 		}
 	}
 }
 
-func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) error {
+func (s *Server) listenForConvs(ctx context.Context, shutdownCh chan struct{}, sub *kbchat.Subscription, handler Handler) error {
 	for {
 		select {
 		case <-shutdownCh:
@@ -253,7 +267,11 @@ func (s *Server) listenForConvs(shutdownCh chan struct{}, sub *kbchat.Subscripti
 			continue
 		}
 
-		if err := handler.HandleNewConv(c.Conversation); err != nil {
+		if err := handler.HandleNewConv(ctx, c.Conversation); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				s.Debug("listenForConvs: suppressing shutdown context error: %v", err)
+				continue
+			}
 			s.Errorf("listenForConvs: unable to HandleNewConv: %v", err)
 		}
 	}

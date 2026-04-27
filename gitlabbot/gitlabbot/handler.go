@@ -1,6 +1,7 @@
 package gitlabbot
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -39,16 +40,16 @@ func NewHandler(
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Hi! I can notify you whenever something happens on a GitLab repository. To get started, set up a repository by sending `!gitlab subscribe <owner/repo>`"
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, _ string) error {
-	return h.HandleCommand(msg)
+func (h *Handler) HandleAuth(ctx context.Context, msg chat1.MsgSummary, _ string) error {
+	return h.HandleCommand(ctx, msg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
@@ -61,18 +62,18 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	switch {
 	case strings.HasPrefix(cmd, "!gitlab subscribe"):
 		h.stats.Count("subscribe")
-		return h.handleSubscribe(cmd, msg, true)
+		return h.handleSubscribe(ctx, cmd, msg, true)
 	case strings.HasPrefix(cmd, "!gitlab unsubscribe"):
 		h.stats.Count("unsubscribe")
-		return h.handleSubscribe(cmd, msg, false)
+		return h.handleSubscribe(ctx, cmd, msg, false)
 	case strings.HasPrefix(cmd, "!gitlab list"):
 		h.stats.Count("list")
-		return h.handleListSubscriptions(msg)
+		return h.handleListSubscriptions(ctx, msg)
 	}
 	return nil
 }
 
-func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool) (err error) {
+func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.MsgSummary, create bool) (err error) {
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
@@ -93,14 +94,14 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 		return nil
 	}
 
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(msg.ConvID, repo)
+	alreadyExists, err := h.db.GetSubscriptionForRepoExists(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
 
 	if create {
 		if !alreadyExists {
-			err = h.db.CreateSubscription(msg.ConvID, repo, base.IdentifierFromMsg(msg))
+			err = h.db.CreateSubscription(ctx, msg.ConvID, repo, base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
 			}
@@ -119,7 +120,7 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	}
 
 	if alreadyExists {
-		err = h.db.DeleteSubscriptionsForRepo(msg.ConvID, repo)
+		err = h.db.DeleteSubscriptionsForRepo(ctx, msg.ConvID, repo)
 		if err != nil {
 			return fmt.Errorf("error deleting subscriptions: %s", err)
 		}
@@ -131,8 +132,8 @@ func (h *Handler) handleSubscribe(cmd string, msg chat1.MsgSummary, create bool)
 	return nil
 }
 
-func (h *Handler) handleListSubscriptions(msg chat1.MsgSummary) (err error) {
-	subscriptions, err := h.db.GetAllSubscriptionsForConvID(msg.ConvID)
+func (h *Handler) handleListSubscriptions(ctx context.Context, msg chat1.MsgSummary) (err error) {
+	subscriptions, err := h.db.GetAllSubscriptionsForConvID(ctx, msg.ConvID)
 	if err != nil {
 		return fmt.Errorf("error getting current repos: %s", err)
 	}

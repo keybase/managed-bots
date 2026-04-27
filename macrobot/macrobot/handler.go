@@ -1,6 +1,7 @@
 package macrobot
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -40,14 +41,14 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(ctx context.Context, conv chat1.ConvSummary) error {
 	h.Lock()
 	defer h.Unlock()
 
 	// When we're put into a team conv, tell the team about the
 	// `create-for-channel` option.
 	if _, ok := h.newConvCache[conv.Channel.Name]; !ok && conv.Channel.MembersType == "team" {
-		if err := h.doPrivateAdvertisement(conv.Channel, conv.Id); err != nil {
+		if err := h.doPrivateAdvertisement(ctx, conv.Channel, conv.Id); err != nil {
 			h.Errorf("unable to advertise on new conv: %v", err)
 		}
 		h.newConvCache[conv.Channel.Name] = struct{}{}
@@ -63,7 +64,7 @@ func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
@@ -84,21 +85,21 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 
 	switch {
 	case strings.HasPrefix(cmd, "!macro create "):
-		return h.handleCreate(msg, false, tokens[2:])
+		return h.handleCreate(ctx, msg, false, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro create-for-channel"):
-		return h.handleCreate(msg, true, tokens[2:])
+		return h.handleCreate(ctx, msg, true, tokens[2:])
 	case strings.HasPrefix(cmd, "!macro list"):
-		return h.handleList(msg)
+		return h.handleList(ctx, msg)
 	case strings.HasPrefix(cmd, "!macro remove"):
-		return h.handleRemove(msg, tokens[2:])
+		return h.handleRemove(ctx, msg, tokens[2:])
 	default:
-		return h.handleRun(msg, tokens)
+		return h.handleRun(ctx, msg, tokens)
 	}
 }
 
-func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleRun(ctx context.Context, msg chat1.MsgSummary, args []string) error {
 	macroName := strings.TrimPrefix(args[0], "!")
-	macroMessage, err := h.db.Get(msg.Channel.Name, msg.ConvID, macroName)
+	macroMessage, err := h.db.Get(ctx, msg.Channel.Name, msg.ConvID, macroName)
 	switch err {
 	case nil:
 	case sql.ErrNoRows:
@@ -111,7 +112,7 @@ func (h *Handler) handleRun(msg chat1.MsgSummary, args []string) error {
 	return nil
 }
 
-func (h *Handler) handleCreate(msg chat1.MsgSummary, forceConv bool, args []string) error {
+func (h *Handler) handleCreate(ctx context.Context, msg chat1.MsgSummary, forceConv bool, args []string) error {
 	if len(args) != 2 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments. Expected two: <name> <message>")
 		return nil
@@ -137,12 +138,12 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, forceConv bool, args []stri
 	// non-team conversations always get a conv type advertisement. Teams have
 	// the option of registering a per team or per channel macro.
 	isConv := msg.Channel.MembersType != "team" || forceConv
-	created, err := h.db.Create(msg.Channel.Name, msg.ConvID, isConv, macroName, macroMessage)
+	created, err := h.db.Create(ctx, msg.Channel.Name, msg.ConvID, isConv, macroName, macroMessage)
 	if err != nil {
 		return err
 	}
 
-	if err = h.doPrivateAdvertisement(msg.Channel, msg.ConvID); err != nil {
+	if err = h.doPrivateAdvertisement(ctx, msg.Channel, msg.ConvID); err != nil {
 		return err
 	}
 	if created {
@@ -153,8 +154,8 @@ func (h *Handler) handleCreate(msg chat1.MsgSummary, forceConv bool, args []stri
 	return nil
 }
 
-func (h *Handler) handleList(msg chat1.MsgSummary) error {
-	macroList, err := h.db.List(msg.Channel.Name, msg.ConvID)
+func (h *Handler) handleList(ctx context.Context, msg chat1.MsgSummary) error {
+	macroList, err := h.db.List(ctx, msg.Channel.Name, msg.ConvID)
 	if err != nil {
 		return err
 	} else if len(macroList) == 0 {
@@ -187,7 +188,7 @@ func (h *Handler) handleList(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleRemove(ctx context.Context, msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments. Expected one: <name>")
 		return nil
@@ -202,12 +203,12 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 	}
 
 	macroName := args[0]
-	removed, err := h.db.Remove(msg.Channel.Name, msg.ConvID, macroName)
+	removed, err := h.db.Remove(ctx, msg.Channel.Name, msg.ConvID, macroName)
 	if err != nil {
 		return err
 	}
 
-	if err = h.doPrivateAdvertisement(msg.Channel, msg.ConvID); err != nil {
+	if err = h.doPrivateAdvertisement(ctx, msg.Channel, msg.ConvID); err != nil {
 		return err
 	}
 
@@ -219,8 +220,8 @@ func (h *Handler) handleRemove(msg chat1.MsgSummary, args []string) error {
 	return nil
 }
 
-func (h *Handler) doPrivateAdvertisement(channel chat1.ChatChannel, convID chat1.ConvIDStr) error {
-	macroList, err := h.db.List(channel.Name, convID)
+func (h *Handler) doPrivateAdvertisement(ctx context.Context, channel chat1.ChatChannel, convID chat1.ConvIDStr) error {
+	macroList, err := h.db.List(ctx, channel.Name, convID)
 	if err != nil {
 		return err
 	}

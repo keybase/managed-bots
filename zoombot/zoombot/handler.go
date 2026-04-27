@@ -34,31 +34,31 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you set up with a Zoom instant meeting anytime, just send me `!zoom`."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleAuth(msg chat1.MsgSummary, identifier string) error {
-	token, err := h.db.GetToken(identifier)
+func (h *Handler) HandleAuth(ctx context.Context, msg chat1.MsgSummary, identifier string) error {
+	token, err := h.db.GetToken(ctx, identifier)
 	if err != nil {
 		return fmt.Errorf("error getting token: %s", err)
 	}
-	client := h.config.Client(context.Background(), token)
+	client := h.config.Client(ctx, token)
 
 	user, err := GetUser(client, currentUserID)
 	if err != nil {
 		return err
 	}
 
-	err = h.db.CreateUser(user.ID, user.AccountID, identifier)
+	err = h.db.CreateUser(ctx, user.ID, user.AccountID, identifier)
 	if err != nil {
 		return fmt.Errorf("error creating user entry: %s", err)
 	}
-	return h.HandleCommand(msg)
+	return h.HandleCommand(ctx, msg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
@@ -66,21 +66,21 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	if strings.HasPrefix(cmd, "!zoom") {
 		h.stats.Count("zoom")
-		return h.zoomHandler(msg, 0)
+		return h.zoomHandler(ctx, msg, 0)
 	}
 	return nil
 }
 
-func (h *Handler) zoomHandler(msg chat1.MsgSummary, attempts int) error {
+func (h *Handler) zoomHandler(ctx context.Context, msg chat1.MsgSummary, attempts int) error {
 	retry := func() error {
 		// retry auth after nuking stored credentials
-		if err := h.db.DeleteToken(IdentifierFromMsg(msg)); err != nil {
+		if err := h.db.DeleteToken(ctx, IdentifierFromMsg(msg)); err != nil {
 			return err
 		}
 		attempts++
-		return h.zoomHandlerInner(msg, attempts)
+		return h.zoomHandlerInner(ctx, msg, attempts)
 	}
-	err := h.zoomHandlerInner(msg, attempts)
+	err := h.zoomHandlerInner(ctx, msg, attempts)
 	switch err := err.(type) {
 	case nil, base.OAuthRequiredError:
 		return nil
@@ -100,9 +100,9 @@ func (h *Handler) zoomHandler(msg chat1.MsgSummary, attempts int) error {
 	}
 }
 
-func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
+func (h *Handler) zoomHandlerInner(ctx context.Context, msg chat1.MsgSummary, attempts int) error {
 	identifier := IdentifierFromMsg(msg)
-	client, err := base.GetOAuthClient(identifier, msg, h.kbc, h.config, h.db,
+	client, err := base.GetOAuthClient(ctx, identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
 			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
 			OAuthOfflineAccessType: true,
@@ -127,7 +127,7 @@ func (h *Handler) zoomHandlerInner(msg chat1.MsgSummary, attempts int) error {
 				attempts++
 				h.Debug("zoomHandlerInner: retrying attempt #%d: %v", attempts, err)
 				time.Sleep(500 * time.Millisecond)
-				err := h.zoomHandler(msg, attempts)
+				err := h.zoomHandler(ctx, msg, attempts)
 				switch err := err.(type) {
 				case nil, base.OAuthRequiredError:
 				default:

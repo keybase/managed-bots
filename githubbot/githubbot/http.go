@@ -91,14 +91,17 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	convs, err := h.db.GetConvIDsFromRepoInstallation(repo, installationID)
+	// WithoutCancel: GitHub sends the webhook and may close the connection
+	// immediately; DB reads and Keybase message sends must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
+	convs, err := h.db.GetConvIDsFromRepoInstallation(ctx, repo, installationID)
 	if err != nil {
 		h.Errorf("Error getting subscriptions for repo: %s", err)
 		return
 	}
 
 	for _, convID := range convs {
-		features, err := h.db.GetFeatures(convID, repo)
+		features, err := h.db.GetFeatures(ctx, convID, repo)
 		if err != nil {
 			h.Errorf("Error getting features for repo and convID: %s", err)
 			return
@@ -110,7 +113,7 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		message, branch := h.formatMessage(convID, event, repo, client)
+		message, branch := h.formatMessage(ctx, convID, event, repo, client)
 		if message == "" {
 			// if we don't have a message to send, bail
 			continue
@@ -118,7 +121,7 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 
 		if branch != "" {
 			// if the event has a branch associated with it, check if we're subscribed to that branch
-			subscriptionExists, err := h.db.GetSubscriptionForBranchExists(convID, repo, branch)
+			subscriptionExists, err := h.db.GetSubscriptionForBranchExists(ctx, convID, repo, branch)
 			if err != nil {
 				h.Errorf("could not get subscription: %s\n", err)
 				return
@@ -134,7 +137,7 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, client *github.Client) (message string, branch string) {
+func (h *HTTPSrv) formatMessage(ctx context.Context, convID chat1.ConvIDStr, event any, repo string, client *github.Client) (message string, branch string) {
 	parsedRepo := strings.Split(repo, "/")
 	if len(parsedRepo) != 2 {
 		h.Debug("invalid repo: %s", repo)
@@ -142,7 +145,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, 
 	}
 	switch event := event.(type) {
 	case *github.IssuesEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
+		author := getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
 		return git.FormatIssueMsg(
 			*event.Action,
 			author.String(),
@@ -152,7 +155,7 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, 
 			event.GetIssue().GetHTMLURL(),
 		), ""
 	case *github.ReleaseEvent:
-		author := getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
+		author := getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, event.GetSender().GetLogin(), convID)
 		return git.FormatReleaseMsg(
 			*event.Action,
 			author.String(),
@@ -165,9 +168,9 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, 
 	case *github.PullRequestEvent:
 		var author username
 		if event.GetPullRequest().GetMerged() {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin(), convID)
+			author = getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetMergedBy().GetLogin(), convID)
 		} else {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetUser().GetLogin(), convID)
+			author = getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, event.GetPullRequest().GetUser().GetLogin(), convID)
 		}
 
 		action := *event.Action
@@ -222,20 +225,20 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, 
 		}
 
 		// fetch the pull request object so we can get the right author
-		pr, _, err := client.PullRequests.Get(context.TODO(), parsedRepo[0], parsedRepo[1], runPR.GetNumber())
+		pr, _, err := client.PullRequests.Get(ctx, parsedRepo[0], parsedRepo[1], runPR.GetNumber())
 		if err != nil {
 			if !strings.Contains(err.Error(), "401 Bad credentials") {
 				h.Errorf("Error getting pull request object: %s", err)
 			}
 			return formatCheckRunMessage(event, ""), branch
 		}
-		author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, pr.GetUser().GetLogin(), convID)
+		author = getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, pr.GetUser().GetLogin(), convID)
 		return formatCheckRunMessage(event, author.String()), branch
 
 	case *github.StatusEvent:
 		var author username
 		pullRequests, _, err := client.PullRequests.ListPullRequestsWithCommit(
-			context.TODO(),
+			ctx,
 			event.GetRepo().GetOwner().GetLogin(),
 			event.GetRepo().GetName(),
 			event.GetSHA(),
@@ -259,11 +262,11 @@ func (h *HTTPSrv) formatMessage(convID chat1.ConvIDStr, event any, repo string, 
 		}
 
 		if runPR != nil {
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, runPR.GetUser().GetLogin(), convID)
+			author = getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, runPR.GetUser().GetLogin(), convID)
 		} else if len(event.Branches) >= 1 {
 			// this is a branch test, not associated with a PR
 			branch = event.Branches[0].GetName()
-			author = getPossibleKBUser(h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin(), convID)
+			author = getPossibleKBUser(ctx, h.kbc, h.db, h.DebugOutput, event.GetCommit().GetAuthor().GetLogin(), convID)
 		} else {
 			h.Debug("status event had no pull requests or branches")
 			return "", ""

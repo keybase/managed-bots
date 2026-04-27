@@ -22,13 +22,13 @@ func (e OAuthRequiredError) Error() string {
 }
 
 type OAuthStorage interface {
-	GetToken(identifier string) (*oauth2.Token, error)
-	PutToken(identifier string, token *oauth2.Token) error
-	DeleteToken(identifier string) error
+	GetToken(ctx context.Context, identifier string) (*oauth2.Token, error)
+	PutToken(ctx context.Context, identifier string, token *oauth2.Token) error
+	DeleteToken(ctx context.Context, identifier string) error
 
-	GetState(state string) (*OAuthRequest, error)
-	PutState(state string, req *OAuthRequest) error
-	CompleteState(state string) error
+	GetState(ctx context.Context, state string) (*OAuthRequest, error)
+	PutState(ctx context.Context, state string, req *OAuthRequest) error
+	CompleteState(ctx context.Context, state string) error
 }
 
 type OAuthHTTPSrv struct {
@@ -36,7 +36,7 @@ type OAuthHTTPSrv struct {
 	kbc         *kbchat.API
 	oauth       *oauth2.Config
 	storage     OAuthStorage
-	callback    func(msg chat1.MsgSummary, identifier string) error
+	callback    func(ctx context.Context, msg chat1.MsgSummary, identifier string) error
 	htmlTitle   string
 	htmlLogoB64 string
 	htmlLogoSrc string
@@ -48,7 +48,7 @@ func NewOAuthHTTPSrv(
 	debugConfig *ChatDebugOutputConfig,
 	oauth *oauth2.Config,
 	storage OAuthStorage,
-	callback func(msg chat1.MsgSummary, identifier string) error,
+	callback func(ctx context.Context, msg chat1.MsgSummary, identifier string) error,
 	htmlTitle string,
 	htmlLogoB64 string,
 	urlPrefix string,
@@ -100,8 +100,11 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
 	state := query.Get("state")
+	// WithoutCancel: the browser may close after the redirect; DB writes and the
+	// HandleAuth callback (which sends Keybase messages) must finish regardless.
+	ctx := context.WithoutCancel(r.Context())
 
-	req, err := o.storage.GetState(state)
+	req, err := o.storage.GetState(ctx, state)
 	if err != nil {
 		err = fmt.Errorf("could not get state %q: %v", state, err)
 		return
@@ -128,15 +131,15 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		o.showOAuthError(w)
 		return
 	}
-	token, err := o.oauth.Exchange(context.TODO(), code)
+	token, err := o.oauth.Exchange(ctx, code)
 	if err != nil {
 		return
 	}
 
-	if err = o.storage.PutToken(req.TokenIdentifier, token); err != nil {
+	if err = o.storage.PutToken(ctx, req.TokenIdentifier, token); err != nil {
 		return
 	}
-	if err = o.storage.CompleteState(state); err != nil {
+	if err = o.storage.CompleteState(ctx, state); err != nil {
 		return
 	}
 	callbackMsg, err := o.getCallbackMsg(*req)
@@ -144,7 +147,7 @@ func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = o.callback(callbackMsg, req.TokenIdentifier); err != nil {
+	if err = o.callback(ctx, callbackMsg, req.TokenIdentifier); err != nil {
 		return
 	}
 
@@ -189,6 +192,7 @@ type GetOAuthOpts struct {
 }
 
 func GetOAuthClient(
+	ctx context.Context,
 	tokenIdentifier string,
 	callbackMsg chat1.MsgSummary,
 	kbc *kbchat.API,
@@ -196,7 +200,7 @@ func GetOAuthClient(
 	storage OAuthStorage,
 	opts GetOAuthOpts,
 ) (*http.Client, error) {
-	token, err := storage.GetToken(tokenIdentifier)
+	token, err := storage.GetToken(ctx, tokenIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +220,7 @@ func GetOAuthClient(
 		if err != nil {
 			return nil, err
 		}
-		if err := storage.PutState(state, &OAuthRequest{
+		if err := storage.PutState(ctx, state, &OAuthRequest{
 			TokenIdentifier: tokenIdentifier,
 			ConvID:          callbackMsg.ConvID,
 			MsgID:           callbackMsg.Id,
@@ -257,16 +261,16 @@ func GetOAuthClient(
 	}
 	// renew token
 	if token.Expiry.Before(time.Now()) {
-		newToken, err := config.TokenSource(context.Background(), token).Token()
+		newToken, err := config.TokenSource(ctx, token).Token()
 		if err != nil {
 			return nil, fmt.Errorf("unable to renew token: %s", err)
 		}
-		err = storage.PutToken(tokenIdentifier, newToken)
+		err = storage.PutToken(ctx, tokenIdentifier, newToken)
 		if err != nil {
 			return nil, fmt.Errorf("unable to update token: %s", err)
 		}
 		token = newToken
 	}
 
-	return config.Client(context.Background(), token), nil
+	return config.Client(ctx, token), nil
 }

@@ -1,8 +1,8 @@
 package triviabot
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -18,25 +18,21 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) RecordAnswer(convID chat1.ConvIDStr, username string, pointAdjust int, isCorrect bool) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		correct := 0
-		incorrect := 0
-		if isCorrect {
-			correct = 1
-		} else {
-			incorrect = 1
-		}
-		if _, err := tx.Exec(`
-			INSERT INTO leaderboard (conv_id, username, points, correct, incorrect)
-			VALUES (?, ?, ?, ?, ?) 
-			ON DUPLICATE KEY UPDATE points=points+VALUES(points),correct=correct+VALUES(correct), 
-								    incorrect=incorrect+VALUES(incorrect)
-		`, base.ShortConvID(convID), username, pointAdjust, correct, incorrect); err != nil {
-			return err
-		}
-		return nil
-	})
+func (d *DB) RecordAnswer(ctx context.Context, convID chat1.ConvIDStr, username string, pointAdjust int, isCorrect bool) error {
+	correct := 0
+	incorrect := 0
+	if isCorrect {
+		correct = 1
+	} else {
+		incorrect = 1
+	}
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO leaderboard (conv_id, username, points, correct, incorrect)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE points=points+VALUES(points),correct=correct+VALUES(correct),
+							    incorrect=incorrect+VALUES(incorrect)
+	`, base.ShortConvID(convID), username, pointAdjust, correct, incorrect)
+	return err
 }
 
 type TopUser struct {
@@ -46,8 +42,8 @@ type TopUser struct {
 	Incorrect int
 }
 
-func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []TopUser, err error) {
-	rows, err := d.Query(`
+func (d *DB) TopUsers(ctx context.Context, convID chat1.ConvIDStr) (res []TopUser, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT username, points, correct, incorrect
 		FROM leaderboard
 		WHERE conv_id = ?
@@ -57,11 +53,7 @@ func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []TopUser, err error) {
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("TopUsers: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var user TopUser
 		if err := rows.Scan(&user.Username, &user.Points, &user.Correct, &user.Incorrect); err != nil {
@@ -69,22 +61,16 @@ func (d *DB) TopUsers(convID chat1.ConvIDStr) (res []TopUser, err error) {
 		}
 		res = append(res, user)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) ResetConv(convID chat1.ConvIDStr) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		if _, err := tx.Exec(`
-			DELETE FROM leaderboard WHERE conv_id  = ?
-		`, base.ShortConvID(convID)); err != nil {
-			return err
-		}
-		return nil
-	})
+func (d *DB) ResetConv(ctx context.Context, convID chat1.ConvIDStr) error {
+	_, err := d.ExecContext(ctx, `DELETE FROM leaderboard WHERE conv_id = ?`, base.ShortConvID(convID))
+	return err
 }
 
-func (d *DB) GetAPIToken(convID chat1.ConvIDStr) (res string, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetAPIToken(ctx context.Context, convID chat1.ConvIDStr) (res string, err error) {
+	row := d.QueryRowContext(ctx, `
 		SELECT token FROM tokens where conv_id = ?
 	`, base.ShortConvID(convID))
 	if err := row.Scan(&res); err != nil {
@@ -93,13 +79,7 @@ func (d *DB) GetAPIToken(convID chat1.ConvIDStr) (res string, err error) {
 	return res, nil
 }
 
-func (d *DB) SetAPIToken(convID chat1.ConvIDStr, token string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		if _, err := tx.Exec(`
-			REPLACE INTO tokens (conv_id, token) VALUES (?, ?)
-		`, base.ShortConvID(convID), token); err != nil {
-			return err
-		}
-		return nil
-	})
+func (d *DB) SetAPIToken(ctx context.Context, convID chat1.ConvIDStr, token string) error {
+	_, err := d.ExecContext(ctx, `REPLACE INTO tokens (conv_id, token) VALUES (?, ?)`, base.ShortConvID(convID), token)
+	return err
 }

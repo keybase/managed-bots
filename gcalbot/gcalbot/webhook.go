@@ -28,10 +28,13 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		// sync header, safe to ignore
 		return
 	}
+	// WithoutCancel: Google sends the webhook and may close the connection
+	// immediately; DB writes and reminder scheduling must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
 
 	channelID := r.Header.Get("X-Goog-Channel-ID")
 	resourceID := r.Header.Get("X-Goog-Resource-ID")
-	channel, account, err := h.db.GetChannelAndAccountByID(channelID)
+	channel, account, err := h.db.GetChannelAndAccountByID(ctx, channelID)
 	if err != nil {
 		return
 	} else if channel == nil {
@@ -47,17 +50,17 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	}
 
 	reminderSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
-		account, channel.CalendarID, SubscriptionTypeReminder)
+		ctx, account, channel.CalendarID, SubscriptionTypeReminder)
 	if err != nil {
 		return
 	}
 	inviteSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
-		account, channel.CalendarID, SubscriptionTypeInvite)
+		ctx, account, channel.CalendarID, SubscriptionTypeInvite)
 	if err != nil {
 		return
 	}
 
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	switch err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:
@@ -94,7 +97,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		var exists bool
-		exists, err = h.db.ExistsInvite(account, channel.CalendarID, event.Id)
+		exists, err = h.db.ExistsInvite(ctx, account, channel.CalendarID, event.Id)
 		if err != nil {
 			return
 		}
@@ -102,7 +105,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 			// user was recently invited to the event
 			for range inviteSubscriptions {
 				// TODO(marcel): use subscription convid
-				err = h.handler.sendEventInvite(account, channel, event)
+				err = h.handler.sendEventInvite(ctx, account, channel, event)
 				if err != nil {
 					return
 				}
@@ -117,7 +120,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		err = srv.Events.
 			List(channel.CalendarID).
 			SyncToken(syncToken).
-			Pages(context.Background(), func(page *calendar.Events) error {
+			Pages(ctx, func(page *calendar.Events) error {
 				if page.NextPageToken == "" {
 					// set the sync token when the page token is empty
 					nextSyncToken = page.NextSyncToken
@@ -190,7 +193,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
+	err = h.db.UpdateChannelNextSyncToken(ctx, channelID, nextSyncToken)
 	if err != nil {
 		return
 	}
@@ -202,19 +205,19 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) createSubscription(
-	account *Account, subscription Subscription,
+	ctx context.Context, account *Account, subscription Subscription,
 ) error {
-	exists, err := h.db.ExistsSubscription(account, subscription)
+	exists, err := h.db.ExistsSubscription(ctx, account, subscription)
 	if err != nil || exists {
 		// if no error, subscription exists, short circuit
 		return err
 	}
 
-	if err := h.createEventChannel(account, subscription.CalendarID); err != nil {
+	if err := h.createEventChannel(ctx, account, subscription.CalendarID); err != nil {
 		return err
 	}
 
-	if err := h.db.InsertSubscription(account, subscription); err != nil {
+	if err := h.db.InsertSubscription(ctx, account, subscription); err != nil {
 		return err
 	}
 
@@ -224,9 +227,9 @@ func (h *Handler) createSubscription(
 }
 
 func (h *Handler) removeSubscription(
-	account *Account, subscription Subscription,
+	ctx context.Context, account *Account, subscription Subscription,
 ) error {
-	err := h.db.DeleteSubscription(account, subscription)
+	err := h.db.DeleteSubscription(ctx, account, subscription)
 	if err != nil {
 		// if no error, subscription doesn't exist, short circuit
 		return err
@@ -234,20 +237,20 @@ func (h *Handler) removeSubscription(
 
 	h.reminderScheduler.RemoveSubscription(account, subscription)
 
-	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalender(account, subscription.CalendarID)
+	subscriptionCount, err := h.db.CountSubscriptionsByAccountAndCalender(ctx, account, subscription.CalendarID)
 	if err != nil {
 		return err
 	}
 
 	if subscriptionCount == 0 {
 		// if there are no more subscriptions for this account + calendar, remove the channel
-		channel, err := h.db.GetChannel(account, subscription.CalendarID)
+		channel, err := h.db.GetChannel(ctx, account, subscription.CalendarID)
 		if err != nil {
 			return err
 		}
 
 		if channel != nil {
-			srv, err := GetCalendarService(account, h.oauth, h.db)
+			srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 			if err != nil {
 				return err
 			}
@@ -266,7 +269,7 @@ func (h *Handler) removeSubscription(
 				return err
 			}
 
-			err = h.db.DeleteChannelByChannelID(channel.ChannelID)
+			err = h.db.DeleteChannelByChannelID(ctx, channel.ChannelID)
 			if err != nil {
 				return err
 			}
@@ -276,12 +279,12 @@ func (h *Handler) removeSubscription(
 	return nil
 }
 
-func (h *Handler) createEventChannel(account *Account, calendarID string) error {
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) error {
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
-	exists, err := h.db.ExistsChannelByAccountAndCalendar(account, calendarID)
+	exists, err := h.db.ExistsChannelByAccountAndCalendar(ctx, account, calendarID)
 	if err != nil || exists {
 		// if err is nil but the channel exists, return
 		return err
@@ -303,7 +306,7 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 		return err
 	}
 
-	err = h.db.InsertChannel(account, Channel{
+	err = h.db.InsertChannel(ctx, account, Channel{
 		ChannelID:  channelID,
 		CalendarID: calendarID,
 		ResourceID: res.ResourceId,
@@ -315,6 +318,7 @@ func (h *Handler) createEventChannel(account *Account, calendarID string) error 
 
 	// pre-fill db with invites so we don't send old invites
 	// there could be a race since this process can take up to a few seconds
+	// context.Background() because syncAllInvites is a background goroutine that outlives the request
 	go h.syncAllInvites(account, srv, channelID, calendarID)
 
 	return nil
@@ -381,7 +385,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 		case <-shutdownCh:
 			return
 		case renewMinute := <-ticker.C:
-			pairs, err := r.db.GetExpiringChannelAndAccountList()
+			pairs, err := r.db.GetExpiringChannelAndAccountList(context.Background())
 			if err != nil {
 				r.Errorf("error getting expiring pairs: %s", err)
 			}
@@ -403,7 +407,7 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 
 func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) error {
 	r.stats.Count("renewChannel")
-	srv, err := GetCalendarService(account, r.config, r.db)
+	srv, err := GetCalendarService(context.Background(), account, r.config, r.db)
 	switch err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:
@@ -428,7 +432,7 @@ func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel)
 		return err
 	}
 
-	err = r.db.UpdateChannel(channel.ChannelID, newChannelID, res.ResourceId, time.Unix(res.Expiration/1e3, 0))
+	err = r.db.UpdateChannel(context.Background(), channel.ChannelID, newChannelID, res.ResourceId, time.Unix(res.Expiration/1e3, 0))
 	if err != nil {
 		return err
 	}

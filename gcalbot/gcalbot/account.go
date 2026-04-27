@@ -15,9 +15,9 @@ import (
 	"google.golang.org/api/option"
 )
 
-func (h *Handler) handleAccountsList(msg chat1.MsgSummary) error {
+func (h *Handler) handleAccountsList(ctx context.Context, msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
-	accounts, err := h.db.GetAccountListForUsername(username)
+	accounts, err := h.db.GetAccountListForUsername(ctx, username)
 	if err != nil {
 		return fmt.Errorf("error fetching accounts from database %q", err)
 	}
@@ -37,7 +37,7 @@ func (h *Handler) handleAccountsList(msg chat1.MsgSummary) error {
 	return nil
 }
 
-func (h *Handler) handleAccountsConnect(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleAccountsConnect(ctx context.Context, msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
@@ -46,7 +46,7 @@ func (h *Handler) handleAccountsConnect(msg chat1.MsgSummary, args []string) err
 	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
 
-	exists, err := h.db.ExistsAccount(keybaseUsername, accountNickname)
+	exists, err := h.db.ExistsAccount(ctx, keybaseUsername, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
 	} else if exists {
@@ -54,10 +54,10 @@ func (h *Handler) handleAccountsConnect(msg chat1.MsgSummary, args []string) err
 		return nil
 	}
 
-	return h.requestOAuth(msg, accountNickname)
+	return h.requestOAuth(ctx, msg, accountNickname)
 }
 
-func (h *Handler) handleAccountsDisconnect(msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleAccountsDisconnect(ctx context.Context, msg chat1.MsgSummary, args []string) error {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
@@ -66,7 +66,7 @@ func (h *Handler) handleAccountsDisconnect(msg chat1.MsgSummary, args []string) 
 	keybaseUsername := msg.Sender.Username
 	accountNickname := args[0]
 
-	exists, err := h.db.ExistsAccount(keybaseUsername, accountNickname)
+	exists, err := h.db.ExistsAccount(ctx, keybaseUsername, accountNickname)
 	if err != nil {
 		return fmt.Errorf("error checking for account: %s", err)
 	} else if !exists {
@@ -74,7 +74,7 @@ func (h *Handler) handleAccountsDisconnect(msg chat1.MsgSummary, args []string) 
 		return nil
 	}
 
-	err = h.deleteAccount(keybaseUsername, accountNickname)
+	err = h.deleteAccount(ctx, keybaseUsername, accountNickname)
 	if err != nil {
 		return err
 	}
@@ -83,18 +83,18 @@ func (h *Handler) handleAccountsDisconnect(msg chat1.MsgSummary, args []string) 
 	return nil
 }
 
-func (h *Handler) deleteAccount(keybaseUsername, accountNickname string) error {
-	account, err := h.db.GetAccount(keybaseUsername, accountNickname)
+func (h *Handler) deleteAccount(ctx context.Context, keybaseUsername, accountNickname string) error {
+	account, err := h.db.GetAccount(ctx, keybaseUsername, accountNickname)
 	if err != nil || account == nil {
 		return fmt.Errorf("error getting account: %s", err)
 	}
 
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
 
-	channels, err := h.db.GetChannelListByAccount(account)
+	channels, err := h.db.GetChannelListByAccount(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -118,25 +118,25 @@ func (h *Handler) deleteAccount(keybaseUsername, accountNickname string) error {
 	}
 
 	// cascading delete of account, oauth, subscriptions, channels and invites
-	err = h.db.DeleteAccount(keybaseUsername, accountNickname)
+	err = h.db.DeleteAccount(ctx, keybaseUsername, accountNickname)
 
 	return err
 }
 
-func GetCalendarService(account *Account, config *oauth2.Config, db *DB) (srv *calendar.Service, err error) {
+func GetCalendarService(ctx context.Context, account *Account, config *oauth2.Config, db *DB) (srv *calendar.Service, err error) {
 	if account.Token.Expiry.Before(time.Now()) {
-		newToken, err := config.TokenSource(context.Background(), &account.Token).Token()
+		newToken, err := config.TokenSource(ctx, &account.Token).Token()
 		if err != nil {
 			return nil, err
 		}
 		if newToken.AccessToken != account.Token.AccessToken {
 			account.Token = *newToken
-			err = db.InsertAccount(*account)
+			err = db.InsertAccount(ctx, *account)
 			if err != nil {
 				return nil, fmt.Errorf("unable to update account token: %s", err)
 			}
 		}
 	}
-	client := config.Client(context.Background(), &account.Token)
-	return calendar.NewService(context.Background(), option.WithHTTPClient(client))
+	client := config.Client(ctx, &account.Token)
+	return calendar.NewService(ctx, option.WithHTTPClient(client))
 }

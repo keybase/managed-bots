@@ -1,10 +1,14 @@
 package base
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/oauth2"
 )
 
@@ -21,18 +25,46 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) RunTxn(fn func(tx *sql.Tx) error) error {
-	tx, err := d.Begin()
+func (d *DB) RunTxnContext(ctx context.Context, fn func(tx *sql.Tx) error) error {
+	tx, err := d.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	if err := fn(tx); err != nil {
-		if rerr := tx.Rollback(); rerr != nil {
+		if rerr := tx.Rollback(); rerr != nil && !errors.Is(rerr, sql.ErrTxDone) {
 			fmt.Printf("unable to rollback: %v", rerr)
 		}
+		return normalizeCtxErr(ctx, err)
+	}
+	return normalizeCommitErr(ctx, tx.Commit())
+}
+
+// normalizeCommitErr recovers the true cause of a failed Commit. When the
+// context is cancelled, the driver rolls back the transaction and marks it
+// done, so tx.Commit() returns sql.ErrTxDone instead of context.Canceled.
+// Returning ctx.Err() lets callers distinguish a client abort from a real DB error.
+func normalizeCommitErr(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, sql.ErrTxDone) {
+		return ctxErr
+	}
+	return err
+}
+
+// normalizeCtxErr maps opaque driver errors (ErrBadConn, ErrInvalidConn) back
+// to ctx.Err() when the context is already done. This lets callers distinguish
+// a client abort from a real storage failure without checking at every call site.
+func normalizeCtxErr(ctx context.Context, err error) error {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return tx.Commit()
+	if ctxErr := ctx.Err(); ctxErr != nil &&
+		(errors.Is(err, driver.ErrBadConn) || errors.Is(err, mysql.ErrInvalidConn)) {
+		return ctxErr
+	}
+	return err
 }
 
 type BaseOAuthDB struct { //nolint
@@ -45,9 +77,9 @@ func NewBaseOAuthDB(db *sql.DB) *BaseOAuthDB {
 	}
 }
 
-func (d *BaseOAuthDB) GetState(state string) (*OAuthRequest, error) {
+func (d *BaseOAuthDB) GetState(ctx context.Context, state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
-	row := d.QueryRow(`SELECT identifier, conv_id, msg_id, is_complete
+	row := d.QueryRowContext(ctx, `SELECT identifier, conv_id, msg_id, is_complete
 		FROM oauth_state
 		WHERE state = ?`, state)
 	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.ConvID,
@@ -62,9 +94,8 @@ func (d *BaseOAuthDB) GetState(state string) (*OAuthRequest, error) {
 	}
 }
 
-func (d *BaseOAuthDB) PutState(state string, oauthState *OAuthRequest) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO oauth_state
+func (d *BaseOAuthDB) PutState(ctx context.Context, state string, oauthState *OAuthRequest) error {
+	_, err := d.ExecContext(ctx, `INSERT INTO oauth_state
 		(state, identifier, conv_id, msg_id)
 		VALUES (?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
@@ -72,18 +103,13 @@ func (d *BaseOAuthDB) PutState(state string, oauthState *OAuthRequest) error {
 		conv_id=VALUES(conv_id),
 		msg_id=VALUES(msg_id)
 	`, state, oauthState.TokenIdentifier, oauthState.ConvID, oauthState.MsgID)
-		return err
-	})
 	return err
 }
 
-func (d *BaseOAuthDB) CompleteState(state string) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`UPDATE oauth_state
+func (d *BaseOAuthDB) CompleteState(ctx context.Context, state string) error {
+	_, err := d.ExecContext(ctx, `UPDATE oauth_state
 		SET is_complete=true
 		WHERE state = ?`, state)
-		return err
-	})
 	return err
 }
 
@@ -97,10 +123,10 @@ func NewOAuthDB(db *sql.DB) *OAuthDB {
 	}
 }
 
-func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
+func (d *OAuthDB) GetToken(ctx context.Context, identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
 	var expiry int64
-	row := d.QueryRow(`SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
+	row := d.QueryRowContext(ctx, `SELECT access_token, token_type, refresh_token, ROUND(UNIX_TIMESTAMP(expiry))
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType,
@@ -116,9 +142,8 @@ func (d *OAuthDB) GetToken(identifier string) (*oauth2.Token, error) {
 	}
 }
 
-func (d *OAuthDB) PutToken(identifier string, token *oauth2.Token) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO oauth
+func (d *OAuthDB) PutToken(ctx context.Context, identifier string, token *oauth2.Token) error {
+	_, err := d.ExecContext(ctx, `INSERT INTO oauth
 		(identifier, access_token, token_type, refresh_token, expiry, ctime, mtime)
 		VALUES (?, ?, ?, ?, ?, NOW(), NOW())
 		ON DUPLICATE KEY UPDATE
@@ -127,16 +152,10 @@ func (d *OAuthDB) PutToken(identifier string, token *oauth2.Token) error {
 		expiry=VALUES(expiry),
 		mtime=VALUES(mtime)
 	`, identifier, token.AccessToken, token.TokenType, token.RefreshToken, token.Expiry)
-		return err
-	})
 	return err
 }
 
-func (d *OAuthDB) DeleteToken(identifier string) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`DELETE FROM oauth
-	WHERE identifier = ?`, identifier)
-		return err
-	})
+func (d *OAuthDB) DeleteToken(ctx context.Context, identifier string) error {
+	_, err := d.ExecContext(ctx, `DELETE FROM oauth WHERE identifier = ?`, identifier)
 	return err
 }

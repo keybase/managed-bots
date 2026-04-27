@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"encoding/base64"
 	"fmt"
@@ -156,7 +157,11 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		dsTime = GetDurationFromMinutes(dsTimeMinutes)
 	}
 
-	accounts, err := h.db.GetAccountListForUsername(keybaseUsername)
+	// WithoutCancel: the browser submits the config form and may close the
+	// connection before DB writes complete; work must finish regardless.
+	ctx := context.WithoutCancel(r.Context())
+
+	accounts, err := h.db.GetAccountListForUsername(ctx, keybaseUsername)
 	if err != nil {
 		return
 	}
@@ -197,7 +202,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srv, err := GetCalendarService(selectedAccount, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, selectedAccount, h.oauth, h.db)
 	if err != nil {
 		return
 	}
@@ -225,7 +230,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	page.CalendarID = calendarID
 
 	var subscriptions []*Subscription
-	subscriptions, err = h.db.GetSubscriptions(selectedAccount, calendarID, keybaseConvID)
+	subscriptions, err = h.db.GetSubscriptions(ctx, selectedAccount, calendarID, keybaseConvID)
 	if err != nil {
 		return
 	}
@@ -238,7 +243,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	dsSubscription, dsSubExists, err := h.db.GetDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
+	dsSubscription, dsSubExists, err := h.db.GetDailyScheduleSubscription(ctx, selectedAccount, calendarID, keybaseConvID)
 	if err != nil {
 		return
 	}
@@ -319,7 +324,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
 			// this update must open a new webhook channel, do that now and if it errors, fail early
-			err = h.handler.createEventChannel(selectedAccount, calendarID)
+			err = h.handler.createEventChannel(ctx, selectedAccount, calendarID)
 			switch typedErr := err.(type) {
 			case nil:
 			case *googleapi.Error:
@@ -336,7 +341,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if dsEnabled {
-			err = h.db.InsertDailyScheduleSubscription(selectedAccount, DailyScheduleSubscription{
+			err = h.db.InsertDailyScheduleSubscription(ctx, selectedAccount, DailyScheduleSubscription{
 				CalendarID:       calendarID,
 				KeybaseConvID:    keybaseConvID,
 				Timezone:         dsTimezone,
@@ -353,7 +358,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			page.DSTime = strconv.Itoa(GetMinutesFromDuration(dsTime))
 		} else if !dsEnabled && dsSubExists {
 			page.DSEnabled = false
-			err = h.db.DeleteDailyScheduleSubscription(selectedAccount, calendarID, keybaseConvID)
+			err = h.db.DeleteDailyScheduleSubscription(ctx, selectedAccount, calendarID, keybaseConvID)
 			if err != nil {
 				return
 			}
@@ -371,14 +376,14 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 			if page.Invite && !invite {
 				// remove invite subscription
 				h.Stats.Count("config - update - invite - remove")
-				err = h.handler.removeSubscription(selectedAccount, inviteSubscription)
+				err = h.handler.removeSubscription(ctx, selectedAccount, inviteSubscription)
 				if err != nil {
 					return
 				}
 			} else if !page.Invite && invite {
 				// create invite subscription
 				h.Stats.Count("config - update - invite - create")
-				if err = h.handler.createSubscription(selectedAccount, inviteSubscription); err != nil {
+				if err = h.handler.createSubscription(ctx, selectedAccount, inviteSubscription); err != nil {
 					return
 				}
 			}
@@ -396,7 +401,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			err = h.handler.removeSubscription(selectedAccount, Subscription{
+			err = h.handler.removeSubscription(ctx, selectedAccount, Subscription{
 				CalendarID:     calendarID,
 				KeybaseConvID:  keybaseConvID,
 				DurationBefore: GetDurationFromMinutes(oldMinutesBefore),
@@ -415,7 +420,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			err = h.handler.createSubscription(selectedAccount, Subscription{
+			err = h.handler.createSubscription(ctx, selectedAccount, Subscription{
 				CalendarID:     calendarID,
 				KeybaseConvID:  keybaseConvID,
 				DurationBefore: GetDurationFromMinutes(newMinutesBefore),

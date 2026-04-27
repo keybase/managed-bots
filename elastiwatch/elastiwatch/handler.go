@@ -1,6 +1,7 @@
 package elastiwatch
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -31,7 +32,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSr
 	}
 }
 
-func (h *Handler) handleDefer(convID chat1.ConvIDStr, author, cmd string) error {
+func (h *Handler) handleDefer(ctx context.Context, convID chat1.ConvIDStr, author, cmd string) error {
 	toks := strings.Split(cmd, " ")
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "must specify a regular expression")
@@ -39,15 +40,15 @@ func (h *Handler) handleDefer(convID chat1.ConvIDStr, author, cmd string) error 
 	}
 	regex := strings.Join(toks[2:], " ")
 	h.ChatEcho(convID, "adding deferral: %s", regex)
-	if err := h.db.Create(regex, author); err != nil {
+	if err := h.db.Create(ctx, regex, author); err != nil {
 		return err
 	}
 	h.ChatEcho(convID, "Success!")
 	return nil
 }
 
-func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, _ string) error {
-	deferrals, err := h.db.List()
+func (h *Handler) handleDeferrals(ctx context.Context, convID chat1.ConvIDStr, _ string) error {
+	deferrals, err := h.db.List(ctx)
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (h *Handler) handleDeferrals(convID chat1.ConvIDStr, _ string) error {
 	return nil
 }
 
-func (h *Handler) handleUndefer(convID chat1.ConvIDStr, cmd string) error {
+func (h *Handler) handleUndefer(ctx context.Context, convID chat1.ConvIDStr, cmd string) error {
 	toks := strings.Split(cmd, " ")
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "must specify an ID")
@@ -75,7 +76,7 @@ func (h *Handler) handleUndefer(convID chat1.ConvIDStr, cmd string) error {
 		return nil
 	}
 	h.ChatEcho(convID, "removing deferral: %d", id)
-	if err := h.db.Remove(int(id)); err != nil {
+	if err := h.db.Remove(ctx, int(id)); err != nil {
 		return err
 	}
 	h.ChatEcho(convID, "Success!")
@@ -87,24 +88,24 @@ func (h *Handler) handleDump() error {
 	return nil
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Text == nil {
 		return nil
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!elastiwatch defer"):
-		return h.handleDefer(msg.ConvID, msg.Sender.Username, cmd)
+		return h.handleDefer(ctx, msg.ConvID, msg.Sender.Username, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch list-defers"):
-		return h.handleDeferrals(msg.ConvID, cmd)
+		return h.handleDeferrals(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch undefer"):
-		return h.handleUndefer(msg.ConvID, cmd)
+		return h.handleUndefer(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch dump"):
 		return h.handleDump()
 	}
 	return nil
 }
 
-func (h *Handler) HandleNewConv(chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(context.Context, chat1.ConvSummary) error {
 	return nil
 }

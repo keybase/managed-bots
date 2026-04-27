@@ -50,13 +50,13 @@ func (s *ScheduleScheduler) sendDailySchedulesForMinute(sendMinute time.Time, sh
 
 	var subscriptions []*gcalbot.AggregatedDailyScheduleSubscription
 
-	todaySubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendToday)
+	todaySubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(context.Background(), gcalbot.ScheduleToSendToday)
 	if err != nil {
 		s.Errorf("error getting daily schedule subscriptions to sync: %s", err)
 	}
 	subscriptions = todaySubscriptions
 
-	tomorrowSubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(gcalbot.ScheduleToSendTomorrow)
+	tomorrowSubscriptions, err := s.db.GetAggregatedDailyScheduleSubscription(context.Background(), gcalbot.ScheduleToSendTomorrow)
 	if err != nil {
 		s.Errorf("error getting daily schedule subscriptions to sync: %s", err)
 	}
@@ -101,7 +101,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	s.stats.Count("SendDailyScheduleMessage")
 	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
 
-	srv, err := gcalbot.GetCalendarService(&subscription.Account, s.oauth, s.db)
+	srv, err := gcalbot.GetCalendarService(context.Background(), &subscription.Account, s.oauth, s.db)
 	switch err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:

@@ -2,6 +2,7 @@ package webhookbot
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,7 +95,11 @@ func (h *HTTPSrv) safeWriteToFile(hookName, content string) (string, error) {
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	hook, err := h.db.GetHook(id)
+	// WithoutCancel: the caller may close the connection immediately after
+	// sending the webhook payload; DB reads and Keybase message sends must
+	// complete regardless.
+	ctx := context.WithoutCancel(r.Context())
+	hook, err := h.db.GetHook(ctx, id)
 	if err != nil {
 		h.Stats.Count("handle - not found")
 		h.Debug("handleHook: failed to find hook for ID: %s", id)

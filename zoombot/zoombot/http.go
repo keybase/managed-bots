@@ -2,6 +2,7 @@ package zoombot
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -111,7 +112,10 @@ func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.db.DeleteUserAndToken(deauthorizationRequest.Payload.UserID, deauthorizationRequest.Payload.AccountID)
+	// WithoutCancel: Zoom sends the deauthorization webhook and may close the
+	// connection immediately; the token deletion must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
+	err = h.db.DeleteUserAndToken(ctx, deauthorizationRequest.Payload.UserID, deauthorizationRequest.Payload.AccountID)
 	if err != nil {
 		h.Errorf("zoomDeauthorize: unable to delete user: %s", err)
 		http.Error(w, "unable to delete user", http.StatusBadRequest)

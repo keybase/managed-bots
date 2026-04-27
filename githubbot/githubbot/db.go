@@ -1,8 +1,8 @@
 package githubbot
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -22,74 +22,62 @@ func NewDB(db *sql.DB) *DB {
 
 // webhook subscription methods
 
-func (d *DB) CreateSubscription(convID chat1.ConvIDStr, repo string, installationID int64) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO subscriptions
-			(conv_id, repo, installation_id)
-			VALUES
-			(?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-			installation_id=VALUES(installation_id)
-		`, convID, repo, installationID)
-		return err
-	})
+func (d *DB) CreateSubscription(ctx context.Context, convID chat1.ConvIDStr, repo string, installationID int64) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO subscriptions
+		(conv_id, repo, installation_id)
+		VALUES
+		(?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+		installation_id=VALUES(installation_id)
+	`, convID, repo, installationID)
+	return err
 }
 
-func (d *DB) DeleteSubscription(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM subscriptions
-			WHERE conv_id = ? AND repo = ?
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteSubscription(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM subscriptions
+		WHERE conv_id = ? AND repo = ?
+	`, convID, repo)
+	return err
 }
 
-func (d *DB) WatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT IGNORE INTO branches
-			(conv_id, repo, branch)
-			VALUES
-			(?, ?, ?)
-		`, convID, repo, branch)
-		return err
-	})
+func (d *DB) WatchBranch(ctx context.Context, convID chat1.ConvIDStr, repo string, branch string) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT IGNORE INTO branches
+		(conv_id, repo, branch)
+		VALUES
+		(?, ?, ?)
+	`, convID, repo, branch)
+	return err
 }
 
-func (d *DB) UnwatchBranch(convID chat1.ConvIDStr, repo string, branch string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM branches
-			WHERE conv_id = ? AND repo = ? AND branch = ?
-		`, convID, repo, branch)
-		return err
-	})
+func (d *DB) UnwatchBranch(ctx context.Context, convID chat1.ConvIDStr, repo string, branch string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM branches
+		WHERE conv_id = ? AND repo = ? AND branch = ?
+	`, convID, repo, branch)
+	return err
 }
 
-func (d *DB) DeleteSubscriptionsForRepo(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM subscriptions
-			WHERE conv_id = ? AND repo = ?
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteSubscriptionsForRepo(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM subscriptions
+		WHERE conv_id = ? AND repo = ?
+	`, convID, repo)
+	return err
 }
 
-func (d *DB) DeleteBranchesForRepo(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM subscriptions
-			WHERE conv_id = ? AND repo = ?
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteBranchesForRepo(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM branches
+		WHERE conv_id = ? AND repo = ?
+	`, convID, repo)
+	return err
 }
 
-func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (res []chat1.ConvIDStr, err error) {
-	rows, err := d.Query(`
+func (d *DB) GetConvIDsFromRepoInstallation(ctx context.Context, repo string, installationID int64) (res []chat1.ConvIDStr, err error) {
+	rows, err := d.QueryContext(ctx, `
 		SELECT conv_id
 		FROM subscriptions
 		WHERE repo = ? AND installation_id = ?
@@ -98,11 +86,7 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		if cerr := rows.Close(); cerr != nil {
-			fmt.Printf("GetConvIDsFromRepoInstallation: failed to close rows: %v\n", cerr)
-		}
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var convID chat1.ConvIDStr
 		if err := rows.Scan(&convID); err != nil {
@@ -110,11 +94,11 @@ func (d *DB) GetConvIDsFromRepoInstallation(repo string, installationID int64) (
 		}
 		res = append(res, convID)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetSubscriptionForBranchExists(ctx context.Context, convID chat1.ConvIDStr, repo string, branch string) (exists bool, err error) {
+	row := d.QueryRowContext(ctx, `
 	SELECT 1
 	FROM branches
 	WHERE conv_id = ? AND repo = ? AND branch = ?
@@ -132,8 +116,8 @@ func (d *DB) GetSubscriptionForBranchExists(convID chat1.ConvIDStr, repo string,
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (exists bool, err error) {
-	row := d.QueryRow(`
+func (d *DB) GetSubscriptionForRepoExists(ctx context.Context, convID chat1.ConvIDStr, repo string) (exists bool, err error) {
+	row := d.QueryRowContext(ctx, `
 	SELECT 1
 	FROM subscriptions
 	WHERE conv_id = ? AND repo = ?
@@ -150,17 +134,15 @@ func (d *DB) GetSubscriptionForRepoExists(convID chat1.ConvIDStr, repo string) (
 	}
 }
 
-func (d *DB) GetAllBranchesForRepo(convID chat1.ConvIDStr, repo string) ([]string, error) {
-	rows, err := d.Query(`SELECT branch
+func (d *DB) GetAllBranchesForRepo(ctx context.Context, convID chat1.ConvIDStr, repo string) ([]string, error) {
+	rows, err := d.QueryContext(ctx, `SELECT branch
 		FROM branches
 		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	if err != nil {
 		return nil, err
 	}
 	res := []string{}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var branch string
 		if err := rows.Scan(&branch); err != nil {
@@ -168,7 +150,7 @@ func (d *DB) GetAllBranchesForRepo(convID chat1.ConvIDStr, repo string) ([]strin
 		}
 		res = append(res, branch)
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
 // subscription preferences
@@ -209,26 +191,24 @@ func (f *Features) String() string {
 	return strings.Join(res, ", ")
 }
 
-func (d *DB) SetFeatures(convID chat1.ConvIDStr, repo string, features *Features) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			INSERT INTO features
-			(conv_id, repo, issues, pull_requests, commits, statuses, releases)
-			VALUES
-			(?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-			issues=VALUES(issues),
-			pull_requests=VALUES(pull_requests),
-			commits=VALUES(commits),
-			statuses=VALUES(statuses),
-			releases=VALUES(releases)
-		`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses, features.Releases)
-		return err
-	})
+func (d *DB) SetFeatures(ctx context.Context, convID chat1.ConvIDStr, repo string, features *Features) error {
+	_, err := d.ExecContext(ctx, `
+		INSERT INTO features
+		(conv_id, repo, issues, pull_requests, commits, statuses, releases)
+		VALUES
+		(?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+		issues=VALUES(issues),
+		pull_requests=VALUES(pull_requests),
+		commits=VALUES(commits),
+		statuses=VALUES(statuses),
+		releases=VALUES(releases)
+	`, convID, repo, features.Issues, features.PullRequests, features.Commits, features.Statuses, features.Releases)
+	return err
 }
 
-func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error) {
-	row := d.QueryRow(`SELECT issues, pull_requests, commits, statuses, releases
+func (d *DB) GetFeatures(ctx context.Context, convID chat1.ConvIDStr, repo string) (*Features, error) {
+	row := d.QueryRowContext(ctx, `SELECT issues, pull_requests, commits, statuses, releases
 		FROM features
 		WHERE conv_id = ? AND repo = ?`, convID, repo)
 	features := &Features{}
@@ -243,8 +223,8 @@ func (d *DB) GetFeatures(convID chat1.ConvIDStr, repo string) (*Features, error)
 	}
 }
 
-func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features, error) {
-	rows, err := d.Query(`SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
+func (d *DB) GetFeaturesForAllRepos(ctx context.Context, convID chat1.ConvIDStr) (map[string]Features, error) {
+	rows, err := d.QueryContext(ctx, `SELECT repo, COALESCE(issues, true), COALESCE(pull_requests, true),
 		COALESCE(commits, true), COALESCE(statuses, true), COALESCE(releases, true)
 		FROM subscriptions
 		LEFT JOIN features USING(conv_id, repo)
@@ -253,9 +233,7 @@ func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features
 		return nil, err
 	}
 	res := make(map[string]Features)
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var repo string
 		var features Features
@@ -264,24 +242,22 @@ func (d *DB) GetFeaturesForAllRepos(convID chat1.ConvIDStr) (map[string]Features
 		}
 		res[repo] = features
 	}
-	return res, nil
+	return res, rows.Err()
 }
 
-func (d *DB) DeleteFeaturesForRepo(convID chat1.ConvIDStr, repo string) error {
-	return d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
-			DELETE FROM features
-			WHERE conv_id = ? AND repo = ?
-		`, convID, repo)
-		return err
-	})
+func (d *DB) DeleteFeaturesForRepo(ctx context.Context, convID chat1.ConvIDStr, repo string) error {
+	_, err := d.ExecContext(ctx, `
+		DELETE FROM features
+		WHERE conv_id = ? AND repo = ?
+	`, convID, repo)
+	return err
 }
 
 // OAuth2 token methods
 
-func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
+func (d *DB) GetToken(ctx context.Context, identifier string) (*oauth2.Token, error) {
 	var token oauth2.Token
-	row := d.QueryRow(`SELECT access_token, token_type
+	row := d.QueryRowContext(ctx, `SELECT access_token, token_type
 		FROM oauth
 		WHERE identifier = ?`, identifier)
 	err := row.Scan(&token.AccessToken, &token.TokenType)
@@ -295,25 +271,19 @@ func (d *DB) GetToken(identifier string) (*oauth2.Token, error) {
 	}
 }
 
-func (d *DB) PutToken(identifier string, token *oauth2.Token) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO oauth
+func (d *DB) PutToken(ctx context.Context, identifier string, token *oauth2.Token) error {
+	_, err := d.ExecContext(ctx, `INSERT INTO oauth
 		(identifier, access_token, token_type, ctime, mtime)
 		VALUES (?, ?, ?, NOW(), NOW())
 		ON DUPLICATE KEY UPDATE
 		access_token=VALUES(access_token),
 		mtime=VALUES(mtime)
 	`, identifier, token.AccessToken, token.TokenType)
-		return err
-	})
 	return err
 }
 
-func (d *DB) DeleteToken(identifier string) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec("DELETE FROM oauth WHERE identifier = ?", identifier)
-		return err
-	})
+func (d *DB) DeleteToken(ctx context.Context, identifier string) error {
+	_, err := d.ExecContext(ctx, "DELETE FROM oauth WHERE identifier = ?", identifier)
 	return err
 }
 
@@ -323,8 +293,8 @@ type UserPreferences struct {
 	Mention bool
 }
 
-func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserPreferences, error) {
-	row := d.QueryRow(`SELECT mention
+func (d *DB) GetUserPreferences(ctx context.Context, username string, convID chat1.ConvIDStr) (*UserPreferences, error) {
+	row := d.QueryRowContext(ctx, `SELECT mention
 		FROM user_prefs
 		WHERE username = ? AND conv_id = ?`, username, convID)
 	prefs := &UserPreferences{}
@@ -342,16 +312,13 @@ func (d *DB) GetUserPreferences(username string, convID chat1.ConvIDStr) (*UserP
 	}
 }
 
-func (d *DB) SetUserPreferences(username string, convID chat1.ConvIDStr, prefs *UserPreferences) error {
-	err := d.RunTxn(func(tx *sql.Tx) error {
-		_, err := tx.Exec(`INSERT INTO user_prefs
+func (d *DB) SetUserPreferences(ctx context.Context, username string, convID chat1.ConvIDStr, prefs *UserPreferences) error {
+	_, err := d.ExecContext(ctx, `INSERT INTO user_prefs
 		(username, conv_id, mention)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		mention=VALUES(mention)
 	`, username, convID, prefs.Mention)
-		return err
-	})
 	return err
 }
 
@@ -362,17 +329,15 @@ type DBSubscription struct {
 	InstallationID int64
 }
 
-func (d *DB) GetAllSubscriptions() (res []DBSubscription, err error) {
-	rows, err := d.Query(`
+func (d *DB) GetAllSubscriptions(ctx context.Context) (res []DBSubscription, err error) {
+	rows, err := d.QueryContext(ctx, `
 	SELECT conv_id, repo, installation_id
 	FROM subscriptions
 `)
 	if err != nil {
 		return res, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 	for rows.Next() {
 		var subscription DBSubscription
 		if err := rows.Scan(&subscription.ConvID, &subscription.Repo, &subscription.InstallationID); err != nil {
@@ -380,5 +345,5 @@ func (d *DB) GetAllSubscriptions() (res []DBSubscription, err error) {
 		}
 		res = append(res, subscription)
 	}
-	return res, nil
+	return res, rows.Err()
 }

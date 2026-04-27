@@ -28,7 +28,7 @@ const (
 	ResponseStatusAccepted    ResponseStatus = "accepted"
 )
 
-func (h *Handler) sendEventInvite(account *Account, channel *Channel, event *calendar.Event) error {
+func (h *Handler) sendEventInvite(ctx context.Context, account *Account, channel *Channel, event *calendar.Event) error {
 	h.stats.Count("sendEventInvite")
 
 	message := `You've been invited to %s: %s
@@ -41,7 +41,7 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ Awaiting your response. *Are you going?*`
 		return err
 	}
 
-	err = h.db.InsertInvite(account, Invite{
+	err = h.db.InsertInvite(ctx, account, Invite{
 		CalendarID: invitedCalendar.Id,
 		EventID:    event.Id,
 		MessageID:  *sendRes.Result.MessageID,
@@ -87,7 +87,7 @@ Awaiting your response. *Are you going?*`
 	return nil
 }
 
-func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, reaction InviteReaction) error {
+func (h *Handler) updateEventResponseStatus(ctx context.Context, invite *Invite, account *Account, reaction InviteReaction) error {
 	h.stats.Count("updateEventResponseStatus")
 
 	var responseStatus ResponseStatus
@@ -107,7 +107,7 @@ func (h *Handler) updateEventResponseStatus(invite *Invite, account *Account, re
 		return nil
 	}
 
-	srv, err := GetCalendarService(account, h.oauth, h.db)
+	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
 		return err
 	}
@@ -176,6 +176,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 
 	var nextSyncToken string
 	var events []*calendar.Event
+	// context.Background() because syncAllInvites is a background goroutine that outlives the request context
 	err := srv.Events.List(calendarID).
 		Pages(context.Background(), func(page *calendar.Events) error {
 			if page.NextPageToken == "" {
@@ -235,7 +236,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 		for _, attendee := range event.Attendees {
 			responseStatus := ResponseStatus(attendee.ResponseStatus)
 			if attendee.Self && !attendee.Organizer && responseStatus == ResponseStatusNeedsAction {
-				err = h.db.InsertInvite(account, Invite{
+				err = h.db.InsertInvite(context.Background(), account, Invite{
 					CalendarID: calendarID,
 					EventID:    event.Id,
 				})
@@ -247,7 +248,7 @@ func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channe
 		}
 	}
 
-	err = h.db.UpdateChannelNextSyncToken(channelID, nextSyncToken)
+	err = h.db.UpdateChannelNextSyncToken(context.Background(), channelID, nextSyncToken)
 	if err != nil {
 		h.Errorf("unable to update sync token: %v", err)
 		return

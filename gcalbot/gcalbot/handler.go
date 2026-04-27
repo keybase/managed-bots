@@ -1,6 +1,7 @@
 package gcalbot
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -53,14 +54,14 @@ func NewHandler(
 	}
 }
 
-func (h *Handler) HandleNewConv(conv chat1.ConvSummary) error {
+func (h *Handler) HandleNewConv(_ context.Context, conv chat1.ConvSummary) error {
 	welcomeMsg := "Hello! I can get you set up with Google Calendar anytime, just send me `!gcal accounts connect <account nickname>`."
 	return base.HandleNewTeam(h.stats, h.DebugOutput, h.kbc, conv, welcomeMsg)
 }
 
-func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
+func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error {
 	if msg.Content.Reaction != nil && msg.Sender.Username != h.kbc.GetUsername() {
-		return h.handleReaction(msg)
+		return h.handleReaction(ctx, msg)
 	}
 
 	if msg.Content.Text == nil {
@@ -84,17 +85,17 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	switch {
 	case strings.HasPrefix(cmd, "!gcal accounts list"):
 		h.stats.Count("accounts list")
-		return h.handleAccountsList(msg)
+		return h.handleAccountsList(ctx, msg)
 	case strings.HasPrefix(cmd, "!gcal accounts connect"):
 		h.stats.Count("accounts connect")
-		return h.handleAccountsConnect(msg, tokens[3:])
+		return h.handleAccountsConnect(ctx, msg, tokens[3:])
 	case strings.HasPrefix(cmd, "!gcal accounts disconnect"):
 		h.stats.Count("accounts disconnect")
-		return h.handleAccountsDisconnect(msg, tokens[3:])
+		return h.handleAccountsDisconnect(ctx, msg, tokens[3:])
 
 	case strings.HasPrefix(cmd, "!gcal calendars list"):
 		h.stats.Count("calendars list")
-		return h.handleCalendarsList(msg, tokens[3:])
+		return h.handleCalendarsList(ctx, msg, tokens[3:])
 
 	case strings.HasPrefix(cmd, "!gcal configure"):
 		h.stats.Count("configure")
@@ -106,16 +107,16 @@ func (h *Handler) HandleCommand(msg chat1.MsgSummary) error {
 	}
 }
 
-func (h *Handler) handleReaction(msg chat1.MsgSummary) error {
+func (h *Handler) handleReaction(ctx context.Context, msg chat1.MsgSummary) error {
 	username := msg.Sender.Username
 	messageID := msg.Content.Reaction.MessageID
 	reaction := msg.Content.Reaction.Body
 
-	invite, account, err := h.db.GetInviteAndAccountByUserMessage(username, messageID)
+	invite, account, err := h.db.GetInviteAndAccountByUserMessage(ctx, username, messageID)
 	if err != nil {
 		return err
 	} else if invite != nil && account != nil {
-		err = h.updateEventResponseStatus(invite, account, InviteReaction(reaction))
+		err = h.updateEventResponseStatus(ctx, invite, account, InviteReaction(reaction))
 		if err != nil {
 			return fmt.Errorf("error updating event response status: %s", err)
 		}
