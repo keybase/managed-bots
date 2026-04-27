@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -235,8 +236,11 @@ func (s *Server) listenForMsgs(ctx context.Context, shutdownCh chan struct{}, su
 		}
 
 		err = handler.HandleCommand(ctx, msg)
-		switch err := err.(type) {
-		case nil, OAuthRequiredError:
+		switch {
+		case err == nil:
+		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			s.Debug("listenForMsgs: suppressing shutdown context error: %v", err)
+		case errors.As(err, new(OAuthRequiredError)):
 		default:
 			s.ChatErrorf(msg.ConvID, "listenForMsgs: unable to HandleCommand: %v", err)
 		}
@@ -264,6 +268,10 @@ func (s *Server) listenForConvs(ctx context.Context, shutdownCh chan struct{}, s
 		}
 
 		if err := handler.HandleNewConv(ctx, c.Conversation); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				s.Debug("listenForConvs: suppressing shutdown context error: %v", err)
+				continue
+			}
 			s.Errorf("listenForConvs: unable to HandleNewConv: %v", err)
 		}
 	}

@@ -3,10 +3,12 @@ package base
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/oauth2"
 )
 
@@ -29,10 +31,10 @@ func (d *DB) RunTxnContext(ctx context.Context, fn func(tx *sql.Tx) error) error
 		return err
 	}
 	if err := fn(tx); err != nil {
-		if rerr := tx.Rollback(); rerr != nil {
+		if rerr := tx.Rollback(); rerr != nil && !errors.Is(rerr, sql.ErrTxDone) {
 			fmt.Printf("unable to rollback: %v", rerr)
 		}
-		return err
+		return normalizeCtxErr(ctx, err)
 	}
 	return normalizeCommitErr(ctx, tx.Commit())
 }
@@ -46,6 +48,20 @@ func normalizeCommitErr(ctx context.Context, err error) error {
 		return nil
 	}
 	if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, sql.ErrTxDone) {
+		return ctxErr
+	}
+	return err
+}
+
+// normalizeCtxErr maps opaque driver errors (ErrBadConn, ErrInvalidConn) back
+// to ctx.Err() when the context is already done. This lets callers distinguish
+// a client abort from a real storage failure without checking at every call site.
+func normalizeCtxErr(ctx context.Context, err error) error {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil &&
+		(errors.Is(err, driver.ErrBadConn) || errors.Is(err, mysql.ErrInvalidConn)) {
 		return ctxErr
 	}
 	return err
