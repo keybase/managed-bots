@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -77,7 +78,7 @@ func (m *multi) heartbeat() {
 		`, m.timeoutSeconds), m.name)
 	var id string
 	if err := row.Scan(&id); err != nil {
-		if err != sql.ErrNoRows {
+		if !errors.Is(err, sql.ErrNoRows) {
 			m.Errorf("failed to scan id: %s", err)
 			return
 		}

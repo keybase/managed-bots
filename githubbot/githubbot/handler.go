@@ -2,6 +2,7 @@ package githubbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -126,7 +127,7 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		if !alreadyExists {
 			if create {
 				if created, err := h.handleNewSubscription(ctx, repo, msg, client); err != nil {
-					if _, ok := err.(base.OAuthRequiredError); ok {
+					if errors.As(err, new(base.OAuthRequiredError)) {
 						return nil
 					}
 					return err
@@ -153,7 +154,7 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		}
 		created, err := h.handleNewSubscription(ctx, repo, msg, client)
 		if err != nil {
-			if _, ok := err.(base.OAuthRequiredError); ok {
+			if errors.As(err, new(base.OAuthRequiredError)) {
 				return nil
 			}
 			return err

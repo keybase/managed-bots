@@ -50,12 +50,14 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	}
 
 	reminderSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
-		ctx, account, channel.CalendarID, SubscriptionTypeReminder)
+		ctx, account, channel.CalendarID, SubscriptionTypeReminder,
+	)
 	if err != nil {
 		return
 	}
 	inviteSubscriptions, err := h.db.GetReminderSubscriptionsByAccountAndCalendar(
-		ctx, account, channel.CalendarID, SubscriptionTypeInvite)
+		ctx, account, channel.CalendarID, SubscriptionTypeInvite,
+	)
 	if err != nil {
 		return
 	}

@@ -2,6 +2,7 @@ package schedulescheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -132,7 +133,8 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	for index, calendarID := range subscription.CalendarIDs {
 		cal, err := srv.Calendars.Get(calendarID).Fields("summary").Do()
 		if err != nil {
-			if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == 404 {
+			var gerr *googleapi.Error
+			if errors.As(err, &gerr) && gerr.Code == 404 {
 				// Calendar was deleted or user lost access; use ID as display name
 				s.Debug("calendar no longer accessible (404): %s", calendarID)
 			} else {
