@@ -196,7 +196,7 @@ func (s *session) getNextQuestion() error {
 		return nil
 	}
 	if err := getQuestion(token); err != nil {
-		if err == errTokenExpired {
+		if errors.Is(err, errTokenExpired) {
 			s.Debug("getNextQuestion: token expired, trying again")
 			if token, err = s.getToken(true); err != nil {
 				s.Errorf("getNextQuestion: failed to get token: %s", err)

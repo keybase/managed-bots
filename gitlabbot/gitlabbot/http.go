@@ -105,7 +105,8 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 			branch,
 			len(event.Commits),
 			commitMsgs,
-			lastCommitDiffURL)
+			lastCommitDiffURL,
+		)
 		repo = event.Project.PathWithNamespace
 	case *gitlab.PipelineEvent:
 		repo = event.Project.PathWithNamespace

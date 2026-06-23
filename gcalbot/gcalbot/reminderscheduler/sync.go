@@ -222,7 +222,8 @@ func (r *ReminderScheduler) AddSubscription(account *gcalbot.Account, subscripti
 		account.KeybaseUsername, account.AccountNickname, subscription.CalendarID, subscription.KeybaseConvID,
 		func(msg *ReminderMessage, _ func()) {
 			r.minuteReminders.AddReminderMessageToMinute(subscription.DurationBefore, msg)
-		})
+		},
+	)
 
 	// do a background sync when a new subscription is added
 	go r.syncEvents(account, &subscription)
@@ -241,5 +242,6 @@ func (r *ReminderScheduler) RemoveSubscription(account *gcalbot.Account, subscri
 				r.eventReminders.RemoveReminderMessageFromEvent(msg)
 				removeReminderMessageFromSubscription()
 			}
-		})
+		},
+	)
 }

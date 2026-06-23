@@ -202,7 +202,8 @@ func (h *HTTPSrv) formatMessage(ctx context.Context, convID chat1.ConvIDStr, eve
 			branch,
 			len(event.Commits),
 			commitMsgs,
-			event.GetCompare()), branch
+			event.GetCompare(),
+		), branch
 
 	case *github.CheckRunEvent:
 		var author username
