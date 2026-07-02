@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"golang.org/x/sync/errgroup"
@@ -39,7 +40,7 @@ type Server struct {
 	awsOpts      *AWSOptions
 	kbc          *kbchat.API
 	botAdmins    []string
-	multiDBDSN   string
+	multiDBDSN   *mysql.Config
 	multi        *multi
 	readSelf     bool
 
@@ -47,7 +48,7 @@ type Server struct {
 }
 
 func NewServer(
-	name, announcement string, awsOpts *AWSOptions, multiDBDSN string, readSelf bool,
+	name, announcement string, awsOpts *AWSOptions, multiDBDSN *mysql.Config, readSelf bool,
 	runOptions kbchat.RunOptions,
 ) *Server {
 	return &Server{
@@ -124,8 +125,8 @@ func (s *Server) Start(errReportConv string) (kbc *kbchat.API, err error) {
 	}
 	debugConfig := NewChatDebugOutputConfig(s.kbc, errReportConv)
 	s.DebugOutput = NewDebugOutput("Server", debugConfig)
-	if s.multiDBDSN != "" {
-		db, err := sql.Open("mysql", s.multiDBDSN)
+	if s.multiDBDSN != nil {
+		db, err := sql.Open("mysql", s.multiDBDSN.FormatDSN())
 		if err != nil {
 			s.Errorf("failed to connect to Multi MySQL: %s", err)
 			return nil, err

@@ -133,7 +133,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 
-	sdb, err := sql.Open("mysql", s.opts.DSN)
+	sdb, err := sql.Open("mysql", s.opts.DSN.FormatDSN())
 	if err != nil {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
@@ -184,7 +184,7 @@ func mainInner() int {
 	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}
-	if len(opts.DSN) == 0 {
+	if opts.DSN == nil {
 		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}

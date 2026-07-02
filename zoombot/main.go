@@ -130,7 +130,7 @@ func (s *BotServer) Go() (err error) {
 		// https://devforum.zoom.us/t/invalid-scope-errors/52654/14
 	}
 
-	sdb, err := sql.Open("mysql", s.opts.DSN)
+	sdb, err := sql.Open("mysql", s.opts.DSN.FormatDSN())
 	if err != nil {
 		s.Errorf("failed to connect to MySQL: %s", err)
 		return err
@@ -180,7 +180,7 @@ func mainInner() int {
 		fmt.Printf("Unable to parse options: %v\n", err)
 		return 3
 	}
-	if len(opts.DSN) == 0 {
+	if opts.DSN == nil {
 		fmt.Printf("must specify a database DSN\n")
 		return 3
 	}
