@@ -123,28 +123,16 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
-	case strings.HasPrefix(cmd, "!trivia begin"),
-		strings.HasPrefix(cmd, "!trivia end"),
-		strings.HasPrefix(cmd, "!trivia reset"):
-		isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
-		if err != nil {
-			return fmt.Errorf("error getting role status: %s", err)
-		}
-		if !isAllowed {
-			h.ChatEcho(msg.ConvID, "You must be at least a writer to manage trivia!")
-			return nil
-		}
-		switch {
-		case strings.HasPrefix(cmd, "!trivia begin"):
-			h.stats.Count("start")
-			h.handleStart(msg)
-		case strings.HasPrefix(cmd, "!trivia end"):
-			h.stats.Count("stop")
-			h.handleStop(msg)
-		case strings.HasPrefix(cmd, "!trivia reset"):
-			h.stats.Count("reset")
-			return h.handleReset(ctx, msg)
-		}
+	// Trivia commands are open to all channel members, including readers.
+	case strings.HasPrefix(cmd, "!trivia begin"):
+		h.stats.Count("start")
+		h.handleStart(msg)
+	case strings.HasPrefix(cmd, "!trivia end"):
+		h.stats.Count("stop")
+		h.handleStop(msg)
+	case strings.HasPrefix(cmd, "!trivia reset"):
+		h.stats.Count("reset")
+		return h.handleReset(ctx, msg)
 	case strings.HasPrefix(cmd, "!trivia top"):
 		h.stats.Count("top")
 		return h.handleTop(ctx, msg.ConvID)
