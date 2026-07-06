@@ -6,6 +6,22 @@ import * as JiraOauth from './jira-oauth'
 import * as Utils from './utils'
 import * as Jira from './jira'
 
+const isPrivateHost = (hostname: string): boolean => {
+  if (hostname === 'localhost' || hostname === '::1') return true
+  const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/)
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])]
+    if (a === 10) return true
+    if (a === 172 && b >= 16 && b <= 31) return true
+    if (a === 192 && b === 168) return true
+    if (a === 127) return true
+    if (a === 169 && b === 254) return true
+    if (a === 0) return true
+  }
+  if (/\.(local|internal|corp|lan|intranet)$/.test(hostname)) return true
+  return false
+}
+
 const makeNewTeamChannelConfig = async (
   context: Context,
   messageContext: Message.MessageContext,
@@ -244,8 +260,43 @@ const handleTeamConfig = async (
     return Errors.makeResult(undefined)
   }
   switch (parsedMessage.toSet.name) {
-    case 'jiraHost':
-      // TODO check admin
+    case 'jiraHost': {
+      const teamDetails = await context.bot.team.listTeamMemberships({
+        team: parsedMessage.context.teamName,
+      })
+      const isAdmin = [
+        ...(teamDetails.members.owners || []),
+        ...(teamDetails.members.admins || []),
+      ].some(m => m.username === parsedMessage.context.senderUsername)
+      if (!isAdmin) {
+        replyChat(
+          context,
+          parsedMessage,
+          'You must be a team admin to configure the Jira server.'
+        )
+        return Errors.makeError(undefined)
+      }
+
+      const rawHost = parsedMessage.toSet.value.replace(/\/+$/, '')
+      let parsedURL: URL
+      try {
+        parsedURL = new URL(
+          rawHost.startsWith('http') ? rawHost : `https://${rawHost}`
+        )
+      } catch {
+        replyChat(context, parsedMessage, `Invalid jiraHost: ${rawHost}`)
+        return Errors.makeError(undefined)
+      }
+      const hostname = parsedURL.hostname
+      if (isPrivateHost(hostname)) {
+        replyChat(
+          context,
+          parsedMessage,
+          `jiraHost must be a public hostname, not an internal address.`
+        )
+        return Errors.makeError(undefined)
+      }
+
       const detailsRet = await JiraOauth.generateNewJiraLinkDetails()
       if (detailsRet.type === Errors.ReturnType.Error) {
         Errors.reportErrorAndReplyChat(
@@ -258,7 +309,7 @@ const handleTeamConfig = async (
       const details = detailsRet.result
 
       const newConfig = {
-        jiraHost: parsedMessage.toSet.value.replace(/\/+$/, ''),
+        jiraHost: rawHost,
         jiraAuth: {
           consumerKey: details.consumerKey,
           publicKey: details.publicKey,
@@ -287,6 +338,7 @@ const handleTeamConfig = async (
         jiraConfigToMessageBody(context, newConfig)
       )
       return Errors.makeResult(undefined)
+    }
     default:
       Errors.reportErrorAndReplyChat(context, parsedMessage.context, {
         type: Errors.ErrorType.UnknownParam,

@@ -88,6 +88,15 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		return nil
 	}
 
+	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
+	if err != nil {
+		return fmt.Errorf("error getting role status: %s", err)
+	}
+	if !isAllowed {
+		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+		return nil
+	}
+
 	hostedURL, repo, err := parseRepoInput(args[0])
 	if err != nil {
 		h.ChatEcho(msg.ConvID, "Invalid repo: %q, expected `<owner/repo>` or `https://domain.com/owner/repo`", repo)
