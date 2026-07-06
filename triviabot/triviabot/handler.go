@@ -123,18 +123,19 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	}
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
+	// Trivia commands are open to all channel members, including readers.
 	case strings.HasPrefix(cmd, "!trivia begin"):
 		h.stats.Count("start")
 		h.handleStart(msg)
 	case strings.HasPrefix(cmd, "!trivia end"):
 		h.stats.Count("stop")
 		h.handleStop(msg)
-	case strings.HasPrefix(cmd, "!trivia top"):
-		h.stats.Count("top")
-		return h.handleTop(ctx, msg.ConvID)
 	case strings.HasPrefix(cmd, "!trivia reset"):
 		h.stats.Count("reset")
 		return h.handleReset(ctx, msg)
+	case strings.HasPrefix(cmd, "!trivia top"):
+		h.stats.Count("top")
+		return h.handleTop(ctx, msg.ConvID)
 	}
 	return nil
 }

@@ -160,5 +160,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 }
 
 func (h *Handler) LoginToken(username string) string {
-	return hex.EncodeToString(hmac.New(sha256.New, []byte(h.tokenSecret)).Sum([]byte(username)))
+	mac := hmac.New(sha256.New, []byte(h.tokenSecret))
+	mac.Write([]byte(username))
+	return hex.EncodeToString(mac.Sum(nil))
 }
