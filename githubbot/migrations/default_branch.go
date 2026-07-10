@@ -13,7 +13,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/go-github/v75/github"
+	"github.com/google/go-github/v89/github"
 
 	"github.com/keybase/managed-bots/githubbot/githubbot"
 )
@@ -89,7 +89,11 @@ func mainInner() int {
 	fmt.Printf("Found %d subscriptions to migrate\n", len(subs))
 	for i, subscription := range subs {
 		itr := ghinstallation.NewFromAppsTransport(atr, subscription.InstallationID)
-		client := github.NewClient(&http.Client{Transport: itr})
+		client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: itr}))
+		if err != nil {
+			fmt.Printf("Error creating github client for subscription %d/%d: %s\n", i, len(subs), err)
+			continue
+		}
 
 		defaultBranch, err := githubbot.GetDefaultBranch(subscription.Repo, client)
 		if err != nil {

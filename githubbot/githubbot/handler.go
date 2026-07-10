@@ -9,7 +9,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 
-	"github.com/google/go-github/v75/github"
+	"github.com/google/go-github/v89/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -72,7 +72,10 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 		return h.handleMentionPref(ctx, cmd, msg)
 	}
 
-	client := github.NewClient(&http.Client{Transport: h.atr})
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: h.atr}))
+	if err != nil {
+		return fmt.Errorf("error creating github client: %s", err)
+	}
 	switch {
 	case strings.HasPrefix(cmd, "!github subscribe"):
 		h.stats.Count("subscribe")
@@ -202,7 +205,7 @@ func (h *Handler) handleListSubscriptions(ctx context.Context, msg chat1.MsgSumm
 
 	var res strings.Builder
 	for repo, f := range features {
-		res.WriteString(fmt.Sprintf("- *%s* (%s)\n", repo, &f))
+		fmt.Fprintf(&res, "- *%s* (%s)\n", repo, &f)
 		if f.Commits {
 			branches, err := h.db.GetAllBranchesForRepo(ctx, msg.ConvID, repo)
 			if err != nil {
@@ -210,7 +213,7 @@ func (h *Handler) handleListSubscriptions(ctx context.Context, msg chat1.MsgSumm
 			}
 
 			for _, branch := range branches {
-				res.WriteString(fmt.Sprintf("   - %s\n", branch))
+				fmt.Fprintf(&res, "   - %s\n", branch)
 			}
 		}
 	}
@@ -224,7 +227,7 @@ func (h *Handler) handleNewSubscription(ctx context.Context, repo string, msg ch
 		h.ChatEcho(msg.ConvID, "`%s` doesn't look like a repository to me! Try sending `!github subscribe <owner/repo>`", repo)
 		return false, nil
 	}
-	repoInstallation, res, err := client.Apps.FindRepositoryInstallation(context.TODO(), parsedRepo[0], parsedRepo[1])
+	repoInstallation, res, err := client.Apps.GetRepositoryInstallation(context.TODO(), parsedRepo[0], parsedRepo[1])
 	if err != nil {
 		switch res.StatusCode {
 		case http.StatusNotFound:
@@ -243,7 +246,10 @@ func (h *Handler) handleNewSubscription(ctx context.Context, repo string, msg ch
 	if err != nil || tc == nil {
 		return false, err
 	}
-	userClient := github.NewClient(tc)
+	userClient, err := github.NewClient(github.WithHTTPClient(tc))
+	if err != nil {
+		return false, fmt.Errorf("error creating github client: %s", err)
+	}
 	installations, _, err := userClient.Apps.ListUserInstallations(context.TODO(), nil)
 	if err != nil {
 		return false, fmt.Errorf("Error getting installations for current user: %s", err)

@@ -12,7 +12,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 
-	"github.com/google/go-github/v75/github"
+	"github.com/google/go-github/v89/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
@@ -85,7 +85,11 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 	}
 
 	itr := ghinstallation.NewFromAppsTransport(h.atr, installationID)
-	client := github.NewClient(&http.Client{Transport: itr})
+	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: itr}))
+	if err != nil {
+		h.Errorf("error creating github client: %s", err)
+		return
+	}
 
 	if repo == "" {
 		return
@@ -189,7 +193,9 @@ func (h *HTTPSrv) formatMessage(ctx context.Context, convID chat1.ConvIDStr, eve
 			event.GetRepo().GetName(),
 		), ""
 	case *github.PushEvent:
-		if len(event.Commits) == 0 {
+		// event.Commits is deprecated for the Events API polling endpoint, but webhook
+		// payloads still include it. See: https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
+		if len(event.Commits) == 0 { //nolint:staticcheck
 			break
 		}
 
@@ -200,7 +206,7 @@ func (h *HTTPSrv) formatMessage(ctx context.Context, convID chat1.ConvIDStr, eve
 			event.GetSender().GetLogin(),
 			event.GetRepo().GetName(),
 			branch,
-			len(event.Commits),
+			len(event.Commits), //nolint:staticcheck
 			commitMsgs,
 			event.GetCompare(),
 		), branch

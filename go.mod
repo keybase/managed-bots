@@ -1,6 +1,6 @@
 module github.com/keybase/managed-bots
 
-go 1.24.0
+go 1.25.0
 
 toolchain go1.25.5
 
@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ses v1.34.17
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/google/go-github/v75 v75.0.0
+	github.com/google/go-github/v89 v89.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
@@ -42,6 +42,7 @@ require (
 	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/go-pkgz/expirable-cache v0.1.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/google/go-github/v75 v75.0.0 // indirect
 )
 
 require (
@@ -50,7 +51,7 @@ require (
 	github.com/didip/tollbooth/v7 v7.0.1
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
