@@ -12,7 +12,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 
-	"github.com/google/go-github/v31/github"
+	"github.com/google/go-github/v75/github"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"golang.org/x/oauth2"
@@ -243,11 +243,7 @@ func (h *HTTPSrv) formatMessage(ctx context.Context, convID chat1.ConvIDStr, eve
 			event.GetRepo().GetOwner().GetLogin(),
 			event.GetRepo().GetName(),
 			event.GetSHA(),
-			&github.PullRequestListOptions{
-				State:     "open",
-				Sort:      "updated",
-				Direction: "desc",
-			},
+			nil,
 		)
 		if err != nil && !strings.Contains(err.Error(), "401 Bad credentials") {
 			h.Errorf("error getting pull requests from commit: %s", err)

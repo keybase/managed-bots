@@ -7,11 +7,11 @@ toolchain go1.25.5
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.5
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.62.2
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.79.0
 	github.com/aws/aws-sdk-go-v2/service/ses v1.34.17
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/google/go-github/v31 v31.0.0
+	github.com/google/go-github/v75 v75.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
@@ -42,7 +42,6 @@ require (
 	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/go-pkgz/expirable-cache v0.1.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/google/go-github/v75 v75.0.0 // indirect
 )
 
 require (
@@ -59,7 +58,6 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.22.1 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
