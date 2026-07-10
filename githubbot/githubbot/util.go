@@ -12,12 +12,14 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 
-	"github.com/google/go-github/v31/github"
+	"github.com/google/go-github/v89/github"
 )
 
 func getCommitMessages(event *github.PushEvent) []string {
 	commitMsgs := make([]string, 0)
-	for _, commit := range event.Commits {
+	// event.Commits is deprecated for the Events API polling endpoint, but webhook
+	// payloads still include it. See: https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
+	for _, commit := range event.Commits { //nolint:staticcheck
 		commitMsgs = append(commitMsgs, commit.GetMessage())
 	}
 	return commitMsgs
