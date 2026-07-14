@@ -3,7 +3,6 @@ package gcalbot
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -485,42 +484,44 @@ func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
 
 func (h *HTTPSrv) authUser(w http.ResponseWriter, r *http.Request) (keybaseUsername string, keybaseConvID chat1.ConvIDStr, ok bool) {
 	h.Stats.Count("authUser")
-	keybaseUsername = r.Form.Get("username")
-	token := r.Form.Get("token")
-	keybaseConvID = chat1.ConvIDStr(r.Form.Get("conv_id"))
+	urlUsername := r.Form.Get("username")
+	urlToken := r.Form.Get("token")
+	urlConvID := r.Form.Get("conv_id")
 
-	if keybaseConvID == "" {
-		return "", "", false
-	}
-
-	if keybaseUsername == "" || token == "" {
+	var token string
+	if urlUsername != "" || urlToken != "" {
+		if urlUsername == "" || urlToken == "" || urlConvID == "" {
+			h.Debug("incomplete URL auth params")
+			return "", "", false
+		}
+		keybaseUsername, token, keybaseConvID = urlUsername, urlToken, chat1.ConvIDStr(urlConvID)
+	} else {
 		cookie, err := r.Cookie("auth")
-		if err != nil {
-			h.Debug("error getting cookie: %s", err)
+		if err != nil || cookie == nil {
+			h.Debug("no auth cookie: %s", err)
 			return "", "", false
 		}
-		if cookie == nil {
+		toks := strings.SplitN(cookie.Value, ":", 3)
+		if len(toks) != 3 {
+			h.Debug("malformed auth cookie: %v", cookie.Value)
 			return "", "", false
 		}
-		auth := cookie.Value
-		toks := strings.Split(auth, ":")
-		if len(toks) != 2 {
-			h.Debug("malformed auth cookie: %v", auth)
-			return "", "", false
-		}
-		keybaseUsername = toks[0]
-		token = toks[1]
+		keybaseUsername, keybaseConvID, token = toks[0], chat1.ConvIDStr(toks[1]), toks[2]
 	}
 
-	realToken := h.handler.LoginToken(keybaseUsername)
-	if !hmac.Equal([]byte(realToken), []byte(token)) {
+	if !base.VerifyLoginToken(h.handler.tokenSecret, keybaseUsername+":"+string(keybaseConvID), token) {
 		h.Debug("invalid auth token")
 		return "", "", false
 	}
+	// Re-mint a fresh token so the cookie's Expires and embedded timestamp stay in sync.
+	freshToken := base.MakeLoginToken(h.handler.tokenSecret, keybaseUsername+":"+string(keybaseConvID))
 	http.SetCookie(w, &http.Cookie{
-		Name:    "auth",
-		Value:   fmt.Sprintf("%s:%s", keybaseUsername, token),
-		Expires: time.Now().Add(8760 * time.Hour),
+		Name:     "auth",
+		Value:    fmt.Sprintf("%s:%s:%s", keybaseUsername, keybaseConvID, freshToken),
+		Expires:  time.Now().Add(base.LoginTokenMaxAge),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 	})
 	return keybaseUsername, keybaseConvID, true
 }

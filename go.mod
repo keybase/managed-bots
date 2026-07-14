@@ -15,13 +15,13 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/keybase/go-codec v0.0.0-20180928230036-164397562123
-	github.com/keybase/go-keybase-chat-bot v0.0.0-20260127182354-7367dd3315a3
+	github.com/keybase/go-keybase-chat-bot v0.0.0-20260714190752-406d338a3ba3
 	github.com/keybase/showtrends-sdk/go v0.0.0-20260416134812-fab649f0dcd6
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xanzy/go-gitlab v0.29.0
 	golang.org/x/oauth2 v0.34.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.22.0
 	google.golang.org/api v0.14.0
 )
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -84,11 +85,26 @@ func (o *OAuthHTTPSrv) getCallbackMsg(req OAuthRequest) (res chat1.MsgSummary, e
 	return *msg.Msg, nil
 }
 
+// LogOAuthError logs an OAuth error, scrubbing any raw token-endpoint response
+// body. ErrorCode and ErrorDescription from structured OAuth errors are retained.
+func LogOAuthError(debug *DebugOutput, context string, err error) {
+	var retrieveErr *oauth2.RetrieveError
+	if errors.As(err, &retrieveErr) {
+		statusCode := 0
+		if retrieveErr.Response != nil {
+			statusCode = retrieveErr.Response.StatusCode
+		}
+		debug.Errorf("%s: token exchange failed (status %d, %q: %s)", context, statusCode, retrieveErr.ErrorCode, retrieveErr.ErrorDescription)
+	} else {
+		debug.Errorf("%s: %v", context, err)
+	}
+}
+
 func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
-			o.Errorf("oauthHandler: %v", err)
+			LogOAuthError(o.DebugOutput, "oauthHandler", err)
 			o.showOAuthError(w)
 		}
 	}()

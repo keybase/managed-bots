@@ -3,10 +3,7 @@ package pollbot
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,7 +65,7 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 		return "", false
 	}
 	auth := cookie.Value
-	toks := strings.Split(auth, ":")
+	toks := strings.SplitN(auth, ":", 2)
 	if len(toks) != 2 {
 		h.Debug("malformed auth cookie %v", auth)
 		h.showLoginInstructions(w)
@@ -76,7 +73,7 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 	}
 	username := toks[0]
 	token := toks[1]
-	if !hmac.Equal([]byte(token), []byte(h.LoginToken(username))) {
+	if !base.VerifyLoginToken(h.tokenSecret, username, token) {
 		h.Debug("invalid auth cookie")
 		h.showLoginInstructions(w)
 		return "", false
@@ -122,15 +119,17 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	username := r.URL.Query().Get("username")
-	realToken := h.LoginToken(username)
-	if !hmac.Equal([]byte(realToken), []byte(token)) {
+	if !base.VerifyLoginToken(h.tokenSecret, username, token) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:    "auth",
-		Value:   fmt.Sprintf("%s:%s", username, token),
-		Expires: time.Now().Add(8760 * time.Hour),
+		Name:     "auth",
+		Value:    fmt.Sprintf("%s:%s", username, token),
+		Expires:  time.Now().Add(base.LoginTokenMaxAge),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 	})
 	_, _ = w.Write([]byte(htmlLoginSuccess))
 }
@@ -150,9 +149,3 @@ func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleHealthCheck(_ http.ResponseWriter, _ *http.Request) {}
-
-func (h *HTTPSrv) LoginToken(username string) string {
-	mac := hmac.New(sha256.New, []byte(h.tokenSecret))
-	mac.Write([]byte(username))
-	return hex.EncodeToString(mac.Sum(nil))
-}

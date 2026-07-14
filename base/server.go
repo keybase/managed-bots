@@ -337,19 +337,37 @@ func (s *Server) handlePProf(msg chat1.MsgSummary) error {
 	}
 	// drop `!` from `!pprof`
 	toks[0] = strings.TrimPrefix(toks[0], "!")
-	dur, err := time.ParseDuration(toks[len(toks)-1])
-	if err != nil {
-		s.Errorf("unable to parse duration using default of 5m: %v", err)
-		dur = time.Minute * 5
-		toks[len(toks)-1] = dur.String()
+	subcommand := toks[1]
+	switch subcommand {
+	case "cpu", "heap", "trace":
+	default:
+		s.ChatEcho(msg.ConvID, "pprof subcommand must be one of: cpu, heap, trace")
+		return nil
 	}
-	outfile := fmt.Sprintf("/tmp/%s-%d.out", toks[1], time.Now().Unix())
+	dur := 5 * time.Minute
+	if len(toks) > 2 {
+		if d, err := time.ParseDuration(toks[len(toks)-1]); err == nil {
+			dur = d
+		} else {
+			s.ChatEcho(msg.ConvID, "invalid duration %q, using default of 5m", toks[len(toks)-1])
+			toks[len(toks)-1] = dur.String()
+		}
+	} else {
+		toks = append(toks, dur.String())
+	}
+	f, err := os.CreateTemp("", fmt.Sprintf("pprof-%s-*.out", subcommand))
+	if err != nil {
+		return fmt.Errorf("unable to create temp file: %v", err)
+	}
+	outfile := f.Name()
+	_ = f.Close()
 	toks = append(toks, outfile)
 
 	s.ChatEcho(msg.ConvID, "starting pprof... %s", toks)
 	cmd := s.kbc.Command(toks...)
 	if err := cmd.Run(); err != nil {
 		s.Errorf("unable to get run command: %v", err)
+		_ = os.Remove(outfile)
 		return err
 	}
 	GoWithRecover(s.DebugOutput, func() {

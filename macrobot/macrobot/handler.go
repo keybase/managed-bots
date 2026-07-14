@@ -121,11 +121,10 @@ func (h *Handler) handleCreate(ctx context.Context, msg chat1.MsgSummary, forceC
 		return nil
 	}
 
-	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
-	if err != nil {
+	if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
 		return err
-	} else if !isAllowed {
-		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+	} else if !ok {
+		h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
 		return nil
 	}
 
@@ -194,11 +193,10 @@ func (h *Handler) handleRemove(ctx context.Context, msg chat1.MsgSummary, args [
 		return nil
 	}
 
-	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
-	if err != nil {
+	if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
 		return err
-	} else if !isAllowed {
-		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+	} else if !ok {
+		h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
 		return nil
 	}
 

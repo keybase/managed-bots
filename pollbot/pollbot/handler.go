@@ -140,7 +140,7 @@ func (h *Handler) handleLogin(convName, username string) {
 		convName != fmt.Sprintf("%s,%s", h.kbc.GetUsername(), username) {
 		return
 	}
-	token := h.httpSrv.LoginToken(username)
+	token := base.MakeLoginToken(h.httpSrv.tokenSecret, username)
 	body := fmt.Sprintf(`Thanks for using the Keybase polling service!
 
 To login your web browser in order to vote in anonymous polls, please follow the link below. Once that is completed, you will be able to vote in anonymous polls simply by clicking the links that I provide in the polls.

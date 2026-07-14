@@ -156,6 +156,9 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to get configuration: %s", err)
 		return err
 	}
+	if secret == "" {
+		return fmt.Errorf("webhook secret not configured (set via -secret, BOT_WEBHOOK_SECRET, or credentials.json)")
+	}
 	stats = stats.SetPrefix(s.Name())
 	handler := gitlabbot.NewHandler(stats, s.kbc, debugConfig, db, s.opts.HTTPPrefix, secret)
 	httpSrv := gitlabbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, handler, secret)

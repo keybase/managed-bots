@@ -3,6 +3,7 @@ package elastiwatch
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -39,7 +40,10 @@ func (h *Handler) handleDefer(ctx context.Context, convID chat1.ConvIDStr, autho
 		return nil
 	}
 	regex := strings.Join(toks[2:], " ")
-	h.ChatEcho(convID, "adding deferral: %s", regex)
+	if _, err := regexp.Compile(regex); err != nil {
+		h.ChatEcho(convID, "invalid regular expression: %s", err)
+		return nil
+	}
 	if err := h.db.Create(ctx, regex, author); err != nil {
 		return err
 	}
@@ -95,10 +99,22 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!elastiwatch defer"):
+		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
+			return err
+		} else if !ok {
+			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
+			return nil
+		}
 		return h.handleDefer(ctx, msg.ConvID, msg.Sender.Username, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch list-defers"):
 		return h.handleDeferrals(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch undefer"):
+		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
+			return err
+		} else if !ok {
+			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
+			return nil
+		}
 		return h.handleUndefer(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch dump"):
 		return h.handleDump()

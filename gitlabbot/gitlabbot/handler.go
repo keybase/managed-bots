@@ -88,12 +88,10 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		return nil
 	}
 
-	isAllowed, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel)
-	if err != nil {
+	if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
 		return fmt.Errorf("error getting role status: %s", err)
-	}
-	if !isAllowed {
-		h.ChatEcho(msg.ConvID, "You must be at least a writer to configure me!")
+	} else if !ok {
+		h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
 		return nil
 	}
 
