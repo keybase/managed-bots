@@ -33,7 +33,7 @@ func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSr
 	}
 }
 
-func (h *Handler) handleDefer(ctx context.Context, convID chat1.ConvIDStr, author, cmd string) error {
+func (h *Handler) handleDefer(ctx context.Context, convID chat1.ConvIDStr, team, author, cmd string) error {
 	toks := strings.Split(cmd, " ")
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "must specify a regular expression")
@@ -44,15 +44,15 @@ func (h *Handler) handleDefer(ctx context.Context, convID chat1.ConvIDStr, autho
 		h.ChatEcho(convID, "invalid regular expression: %s", err)
 		return nil
 	}
-	if err := h.db.Create(ctx, regex, author); err != nil {
+	if err := h.db.Create(ctx, team, regex, author); err != nil {
 		return err
 	}
 	h.ChatEcho(convID, "Success!")
 	return nil
 }
 
-func (h *Handler) handleDeferrals(ctx context.Context, convID chat1.ConvIDStr, _ string) error {
-	deferrals, err := h.db.List(ctx)
+func (h *Handler) handleDeferrals(ctx context.Context, convID chat1.ConvIDStr, team string, _ string) error {
+	deferrals, err := h.db.List(ctx, team)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (h *Handler) handleDeferrals(ctx context.Context, convID chat1.ConvIDStr, _
 	return nil
 }
 
-func (h *Handler) handleUndefer(ctx context.Context, convID chat1.ConvIDStr, cmd string) error {
+func (h *Handler) handleUndefer(ctx context.Context, convID chat1.ConvIDStr, team, cmd string) error {
 	toks := strings.Split(cmd, " ")
 	if len(toks) < 3 {
 		h.ChatEcho(convID, "must specify an ID")
@@ -80,7 +80,7 @@ func (h *Handler) handleUndefer(ctx context.Context, convID chat1.ConvIDStr, cmd
 		return nil
 	}
 	h.ChatEcho(convID, "removing deferral: %d", id)
-	if err := h.db.Remove(ctx, int(id)); err != nil {
+	if err := h.db.Remove(ctx, team, int(id)); err != nil {
 		return err
 	}
 	h.ChatEcho(convID, "Success!")
@@ -105,9 +105,15 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
 			return nil
 		}
-		return h.handleDefer(ctx, msg.ConvID, msg.Sender.Username, cmd)
+		return h.handleDefer(ctx, msg.ConvID, msg.Channel.Name, msg.Sender.Username, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch list-defers"):
-		return h.handleDeferrals(ctx, msg.ConvID, cmd)
+		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
+			return err
+		} else if !ok {
+			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
+			return nil
+		}
+		return h.handleDeferrals(ctx, msg.ConvID, msg.Channel.Name, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch undefer"):
 		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
 			return err
@@ -115,7 +121,7 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
 			return nil
 		}
-		return h.handleUndefer(ctx, msg.ConvID, cmd)
+		return h.handleUndefer(ctx, msg.ConvID, msg.Channel.Name, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch dump"):
 		return h.handleDump()
 	}

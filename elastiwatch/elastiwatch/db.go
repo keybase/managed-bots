@@ -18,10 +18,10 @@ func NewDB(db *sql.DB) *DB {
 	}
 }
 
-func (d *DB) Create(ctx context.Context, regex, author string) error {
+func (d *DB) Create(ctx context.Context, team, regex, author string) error {
 	_, err := d.ExecContext(ctx, `
-		INSERT INTO deferrals (regex, author, ctime) VALUES (?, ?, NOW())
-	`, regex, author)
+		INSERT INTO deferrals (team, regex, author, ctime) VALUES (?, ?, ?, NOW())
+	`, team, regex, author)
 	return err
 }
 
@@ -32,10 +32,10 @@ type Deferral struct {
 	Ctime  time.Time
 }
 
-func (d *DB) List(ctx context.Context) (res []Deferral, err error) {
+func (d *DB) List(ctx context.Context, team string) (res []Deferral, err error) {
 	rows, err := d.QueryContext(ctx, `
-		SELECT id, regex, author, ctime FROM deferrals
-	`)
+		SELECT id, regex, author, ctime FROM deferrals WHERE team = ?
+	`, team)
 	if err != nil {
 		return res, err
 	}
@@ -50,7 +50,7 @@ func (d *DB) List(ctx context.Context) (res []Deferral, err error) {
 	return res, rows.Err()
 }
 
-func (d *DB) Remove(ctx context.Context, id int) error {
-	_, err := d.ExecContext(ctx, `DELETE FROM deferrals WHERE id = ?`, id)
+func (d *DB) Remove(ctx context.Context, team string, id int) error {
+	_, err := d.ExecContext(ctx, `DELETE FROM deferrals WHERE team = ? AND id = ?`, team, id)
 	return err
 }
