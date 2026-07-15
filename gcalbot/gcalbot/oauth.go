@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"google.golang.org/api/calendar/v3"
 
@@ -18,7 +19,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
-			h.Errorf("oauthHandler: %v", err)
+			base.LogOAuthError(h.DebugOutput, "oauthHandler", err)
 			h.showOAuthError(w)
 		}
 	}()
@@ -117,11 +118,18 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	loginToken := h.handler.LoginToken(req.KeybaseUsername)
+	// Set the auth cookie directly so the token is never exposed in the redirect URL.
+	loginToken := base.MakeLoginToken(h.handler.tokenSecret, req.KeybaseUsername+":"+string(req.KeybaseConvID))
+	http.SetCookie(w, &http.Cookie{
+		Name:     "auth",
+		Value:    fmt.Sprintf("%s:%s:%s", req.KeybaseUsername, req.KeybaseConvID, loginToken),
+		Expires:  time.Now().Add(base.LoginTokenMaxAge),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
 
 	redirectQuery := url.Values{}
-	redirectQuery.Add("token", loginToken)
-	redirectQuery.Add("username", req.KeybaseUsername)
 	redirectQuery.Add("account", req.AccountNickname)
 	redirectQuery.Add("conv_id", string(req.KeybaseConvID))
 	path := fmt.Sprintf("/gcalbot?%s", redirectQuery.Encode())

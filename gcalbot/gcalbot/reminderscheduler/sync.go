@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"google.golang.org/api/calendar/v3"
 )
@@ -74,7 +75,7 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 	switch err := err.(type) {
 	case nil:
 	case *oauth2.RetrieveError:
-		r.Errorf("error refreshing token API: %s", err)
+		base.LogOAuthError(r.DebugOutput, "error refreshing token API", err)
 		return
 	default:
 		r.Debug("error getting events from API: %s", err)

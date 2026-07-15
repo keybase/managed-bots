@@ -225,6 +225,9 @@ func (s *BotServer) Go() (err error) {
 		s.Errorf("failed to get bot configuration: %s", err)
 		return
 	}
+	if botConfig.WebhookSecret == "" {
+		return fmt.Errorf("webhook secret not configured (set via -secret, BOT_WEBHOOK_SECRET, or credentials.json)")
+	}
 
 	// If changing scopes, wipe tokens from DB
 	config := &oauth2.Config{

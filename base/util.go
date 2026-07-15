@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"runtime"
 	"strings"
 	"time"
@@ -155,6 +156,8 @@ func IsAtLeastWriter(kbc *kbchat.API, senderUsername string, channel chat1.ChatC
 	return false, nil
 }
 
+// MakeOAuthHTML renders a simple OAuth status page. botName, title, and logoURL
+// are HTML-escaped; msg is inserted verbatim and must be trusted HTML.
 func MakeOAuthHTML(botName string, title, msg string, logoURL string) []byte {
 	return []byte(`
 <html>
@@ -211,12 +214,12 @@ footer {
 	}
 }
 </style>
-<title>` + botName + ` | ` + title + `</title>
+<title>` + html.EscapeString(botName) + ` | ` + html.EscapeString(title) + `</title>
 </head>
 <body>
   <main>
 	<div class="content">
-	  <a href="https://keybase.io"><img class="logo" src="` + logoURL + `"></a>
+	  <a href="https://keybase.io"><img class="logo" src="` + html.EscapeString(logoURL) + `"></a>
 	  <div>
 		<div class="msg">` + msg + `</div>
 	  </div>

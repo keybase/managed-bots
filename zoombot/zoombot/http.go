@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"time"
 
 	"golang.org/x/oauth2"
 
@@ -71,8 +73,16 @@ func (h *HTTPSrv) validateWebhookMessage(bodyBytes []byte, r *http.Request) (err
 	}
 	actualSig := fmt.Sprintf("v0=%s", hex.EncodeToString(hash.Sum(nil)))
 	givenSig := r.Header.Get("x-zm-signature")
-	if givenSig != actualSig {
-		return fmt.Errorf("invalid signature %s!=%s", actualSig, givenSig)
+	if !hmac.Equal([]byte(givenSig), []byte(actualSig)) {
+		return fmt.Errorf("invalid signature")
+	}
+	// Replay protection: only after authenticity is established.
+	ts, err := strconv.ParseInt(requestTimestamp, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid request timestamp")
+	}
+	if age := time.Since(time.Unix(ts, 0)); age < -30*time.Second || age > 5*time.Minute {
+		return fmt.Errorf("request timestamp outside acceptable window")
 	}
 	return nil
 }

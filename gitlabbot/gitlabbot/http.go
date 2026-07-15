@@ -2,6 +2,7 @@ package gitlabbot
 
 import (
 	"context"
+	"crypto/hmac"
 	"fmt"
 	"io"
 	"net/http"
@@ -130,8 +131,8 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 
 	for _, convID := range convs {
 		secretToken := base.MakeSecret(repo, convID, h.secret)
-		if signature != secretToken {
-			h.Debug("Error validating payload signature for conversation %s: %v", convID, err)
+		if !hmac.Equal([]byte(signature), []byte(secretToken)) {
+			h.Debug("payload signature mismatch for conversation %s", convID)
 			continue
 		}
 		h.ChatEcho(convID, "%s", message)

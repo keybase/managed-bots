@@ -2,9 +2,6 @@ package gcalbot
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"net/url"
 	"strings"
@@ -136,7 +133,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 		return nil
 	}
 	keybaseUsername := msg.Sender.Username
-	token := h.LoginToken(keybaseUsername)
+	token := base.MakeLoginToken(h.tokenSecret, keybaseUsername+":"+string(msg.ConvID))
 
 	query := url.Values{}
 	query.Add("token", token)
@@ -157,10 +154,4 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 	}
 
 	return nil
-}
-
-func (h *Handler) LoginToken(username string) string {
-	mac := hmac.New(sha256.New, []byte(h.tokenSecret))
-	mac.Write([]byte(username))
-	return hex.EncodeToString(mac.Sum(nil))
 }

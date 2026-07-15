@@ -227,7 +227,7 @@ func parseError(statusCode int, data []byte) error {
 	var errorResponse ZoomAPIError
 	err := json.Unmarshal(data, &errorResponse)
 	if err != nil || errorResponse.Code == 0 {
-		return fmt.Errorf("statusCode: %d, error: %s", statusCode, data)
+		return fmt.Errorf("statusCode: %d, body: %s", statusCode, data)
 	}
 	return errorResponse
 }
