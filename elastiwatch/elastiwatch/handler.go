@@ -101,7 +101,7 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 
 	// Only allow commands from the configured team
 	if msg.Channel.Name != h.team {
-		h.ChatEcho(msg.ConvID, "This bot is configured for team '%s' only", h.team)
+		h.ChatEcho(msg.ConvID, "This bot is not configured for this team")
 		return nil
 	}
 
