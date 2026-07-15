@@ -152,7 +152,7 @@ func (s *BotServer) Go() (err error) {
 	logwatch := elastiwatch.NewLogWatch(cli, db, s.opts.Index, s.opts.Email, emailer, s.opts.AlertConvID,
 		s.opts.EmailConvID, debugConfig)
 	httpSrv := elastiwatch.NewHTTPSrv(stats, s.kbc, debugConfig, db)
-	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db, logwatch)
+	handler := elastiwatch.NewHandler(s.kbc, debugConfig, httpSrv, db, logwatch, s.opts.Team)
 	eg := &errgroup.Group{}
 	s.GoWithRecover(eg, func() error { return s.Listen(handler) })
 	s.GoWithRecover(eg, httpSrv.Listen)

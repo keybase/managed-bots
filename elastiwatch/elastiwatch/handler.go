@@ -19,17 +19,19 @@ type Handler struct {
 	httpSrv *HTTPSrv
 	db      *DB
 	logs    *LogWatch
+	team    string
 }
 
 var _ base.Handler = (*Handler)(nil)
 
-func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSrv *HTTPSrv, db *DB, logs *LogWatch) *Handler {
+func NewHandler(kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, httpSrv *HTTPSrv, db *DB, logs *LogWatch, team string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
 		kbc:         kbc,
 		httpSrv:     httpSrv,
 		db:          db,
 		logs:        logs,
+		team:        team,
 	}
 }
 
@@ -96,25 +98,28 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	if msg.Content.Text == nil {
 		return nil
 	}
+
+	// Only allow commands from the configured team
+	if msg.Channel.Name != h.team {
+		h.ChatEcho(msg.ConvID, "This bot is configured for team '%s' only", h.team)
+		return nil
+	}
+
+	// All elastiwatch commands require writer permissions
+	if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
+		return err
+	} else if !ok {
+		h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
+		return nil
+	}
+
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
 	switch {
 	case strings.HasPrefix(cmd, "!elastiwatch defer"):
-		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
-			return err
-		} else if !ok {
-			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
-			return nil
-		}
 		return h.handleDefer(ctx, msg.ConvID, msg.Sender.Username, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch list-defers"):
 		return h.handleDeferrals(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch undefer"):
-		if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
-			return err
-		} else if !ok {
-			h.ChatEcho(msg.ConvID, "you must be at least a writer to use this command")
-			return nil
-		}
 		return h.handleUndefer(ctx, msg.ConvID, cmd)
 	case strings.HasPrefix(cmd, "!elastiwatch dump"):
 		return h.handleDump()
