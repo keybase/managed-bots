@@ -17,7 +17,6 @@ type LogWatch struct {
 	db           *DB
 	cli          *opensearchapi.Client
 	index, email string
-	team         string
 	entries      []*entry
 	emailer      base.Emailer
 	sendCount    int
@@ -28,14 +27,13 @@ type LogWatch struct {
 	peekCh       chan struct{}
 }
 
-func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email, team string, emailer base.Emailer, alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
+func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer base.Emailer, alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
 	return &LogWatch{
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
 		cli:         cli,
 		db:          db,
 		index:       index,
 		email:       email,
-		team:        team,
 		emailer:     emailer,
 		lastSend:    time.Now(),
 		alertConvID: alertConvID,
@@ -95,7 +93,7 @@ func (l *LogWatch) alertEmail(subject string, chunks []chunk) {
 
 func (l *LogWatch) filterEntries(entries []*entry) (res []*entry) {
 	// get regexes
-	deferrals, err := l.db.List(context.Background(), l.team)
+	deferrals, err := l.db.List(context.Background())
 	if err != nil {
 		l.Errorf("failed to get filter list: %s", err)
 		return entries
