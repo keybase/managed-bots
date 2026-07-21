@@ -157,7 +157,7 @@ func (s *BotServer) Go() (err error) {
 		return err
 	}
 	if secret == "" {
-		return fmt.Errorf("webhook secret not configured (set via -secret, BOT_WEBHOOK_SECRET, or credentials.json)")
+		return fmt.Errorf("webhook signing master secret not configured (set via -secret, BOT_WEBHOOK_SECRET, or credentials.json)")
 	}
 	stats = stats.SetPrefix(s.Name())
 	handler := gitlabbot.NewHandler(stats, s.kbc, debugConfig, db, s.opts.HTTPPrefix, secret)
@@ -183,7 +183,7 @@ func mainInner() int {
 	opts := NewOptions()
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&opts.HTTPPrefix, "http-prefix", os.Getenv("BOT_HTTP_PREFIX"), "address of bots HTTP server for webhooks")
-	fs.StringVar(&opts.WebhookSecret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook secret")
+	fs.StringVar(&opts.WebhookSecret, "secret", os.Getenv("BOT_WEBHOOK_SECRET"), "Webhook signing master secret")
 	if err := opts.Parse(fs, os.Args); err != nil {
 		return 3
 	}

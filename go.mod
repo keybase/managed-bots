@@ -19,7 +19,7 @@ require (
 	github.com/keybase/showtrends-sdk/go v0.0.0-20260416134812-fab649f0dcd6
 	github.com/opensearch-project/opensearch-go/v4 v4.5.0
 	github.com/stretchr/testify v1.11.1
-	github.com/xanzy/go-gitlab v0.29.0
+	gitlab.com/gitlab-org/api/client-go v1.46.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.22.0
 	google.golang.org/api v0.14.0
@@ -53,8 +53,8 @@ require (
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
-	github.com/hashicorp/go-retryablehttp v0.6.4 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -62,7 +62,7 @@ require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
 	google.golang.org/grpc v1.20.1 // indirect

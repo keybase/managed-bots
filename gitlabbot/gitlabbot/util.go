@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/xanzy/go-gitlab"
-
-	"github.com/keybase/managed-bots/base"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 var repoRegex = regexp.MustCompile(`^[a-zA-Z0-9_\.-]*$`)
@@ -66,12 +64,13 @@ func formatSetupInstructions(repo string, hostedURL string, msg chat1.MsgSummary
 	message := fmt.Sprintf(`
 To configure your project to send notifications, go to %s/%s/hooks and add a new webhook.
 For “URL”, enter %s%s/gitlabbot/webhook%s.
-For “Secret Token”, enter %s%s%s.
+For “Signing token”, enter %s%s%s.
+Do not configure a “Secret token”.
 Remember to check all the triggers you would like me to update you on.
 Note that I currently support the following Webhook Events: Push, Issues, Merge Request, Pipeline
 
 Happy coding!`,
-		hostedURL, repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
+		hostedURL, repo, back, httpAddress, back, back, webhookSigningToken(repo, msg.ConvID, secret), back)
 	return message
 }
 
@@ -79,10 +78,10 @@ func formatReauthorizationInstructions(repo string, hostedURL string, msg chat1.
 	back := "`"
 	return fmt.Sprintf(`
 To reauthorize notifications, go to %s/%s/hooks and edit the existing webhook for %s%s/gitlabbot/webhook%s.
-Replace its “Secret Token” with %s%s%s.
+Clear its “Secret token” and set “Signing token” to %s%s%s.
 
 Happy coding!`,
-		hostedURL, repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
+		hostedURL, repo, back, httpAddress, back, back, webhookSigningToken(repo, msg.ConvID, secret), back)
 }
 
 // parseRepoInput checks if url or <owner/repo> form

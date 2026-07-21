@@ -2,7 +2,6 @@ package base
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -274,12 +273,6 @@ func IdentifierFromMsg(msg chat1.MsgSummary) string {
 	default:
 		return msg.Sender.Username
 	}
-}
-
-// Secret token given to API's for authentication (after establishing webhooks)
-// We expect them to return this secret token in webhook POST requests for validation
-func MakeSecret(repo string, convID chat1.ConvIDStr, secret string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(repo+string(ShortConvID(convID))+secret)))
 }
 
 func SendByConvNameOrID(kbc *kbchat.API, debugOutput *DebugOutput, name, msg string, args ...any) (err error) {
