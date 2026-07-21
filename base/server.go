@@ -82,7 +82,7 @@ func (s *Server) ReportFatalError(err error) {
 	if s.DebugOutput == nil {
 		return
 	}
-	s.DebugOutput.Report("```fatal error running %s: %v```", s.name, err)
+	s.Report("```fatal error running %s: %v```", s.name, err)
 }
 
 func (s *Server) SetBotAdmins(admins []string) {
