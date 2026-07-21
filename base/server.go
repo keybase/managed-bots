@@ -67,6 +67,24 @@ func (s *Server) Name() string {
 	return s.name
 }
 
+// RunBot runs a bot to completion and reports any fatal error to stdout and,
+// when Start has configured chat error reporting, to the error conversation.
+func RunBot(s *Server, run func() error) int {
+	if err := run(); err != nil {
+		s.ReportFatalError(err)
+		return 3
+	}
+	return 0
+}
+
+func (s *Server) ReportFatalError(err error) {
+	fmt.Printf("error running chat loop: %v\n", err)
+	if s.DebugOutput == nil {
+		return
+	}
+	s.Report("```fatal error running %s: %v```", s.name, err)
+}
+
 func (s *Server) SetBotAdmins(admins []string) {
 	s.botAdmins = admins
 }

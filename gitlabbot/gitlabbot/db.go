@@ -3,6 +3,7 @@ package gitlabbot
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 
@@ -12,6 +13,11 @@ import (
 
 type DB struct {
 	*base.DB
+}
+
+type SubscribedConv struct {
+	ConvID                chat1.ConvIDStr
+	ReauthorizationNeeded bool
 }
 
 func NewDB(db *sql.DB) *DB {
@@ -49,23 +55,22 @@ func (d *DB) DeleteSubscriptionsForRepo(ctx context.Context, convID chat1.ConvID
 	return err
 }
 
-func (d *DB) GetSubscribedConvs(ctx context.Context, repo string) (res []chat1.ConvIDStr, err error) {
+func (d *DB) GetSubscribedConvs(ctx context.Context, repo string) (res []SubscribedConv, err error) {
 	rows, err := d.QueryContext(ctx, `
-		SELECT conv_id
+		SELECT conv_id, reauthorization_needed
 		FROM subscriptions
 		WHERE repo = ?
-		GROUP BY conv_id
 	`, repo)
 	if err != nil {
 		return res, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var convID chat1.ConvIDStr
-		if err := rows.Scan(&convID); err != nil {
+		var subscribedConv SubscribedConv
+		if err := rows.Scan(&subscribedConv.ConvID, &subscribedConv.ReauthorizationNeeded); err != nil {
 			return res, err
 		}
-		res = append(res, convID)
+		res = append(res, subscribedConv)
 	}
 	return res, rows.Err()
 }
@@ -89,22 +94,44 @@ func (d *DB) GetSubscriptionExists(ctx context.Context, convID chat1.ConvIDStr, 
 	}
 }
 
-func (d *DB) GetSubscriptionForRepoExists(ctx context.Context, convID chat1.ConvIDStr, repo string) (exists bool, err error) {
+func (d *DB) GetSubscriptionForRepoStatus(ctx context.Context, convID chat1.ConvIDStr, repo string) (
+	exists bool, reauthorizationNeeded bool, err error,
+) {
 	row := d.QueryRowContext(ctx, `
-	SELECT 1
+	SELECT reauthorization_needed
 	FROM subscriptions
 	WHERE (conv_id = ? AND repo = ?)
 	`, convID, repo)
-	var rowRes string
-	err = row.Scan(&rowRes)
+	err = row.Scan(&reauthorizationNeeded)
 	switch err {
 	case sql.ErrNoRows:
-		return false, nil
+		return false, false, nil
 	case nil:
-		return true, nil
+		return true, reauthorizationNeeded, nil
 	default:
-		return false, err
+		return false, false, err
 	}
+}
+
+func (d *DB) CompleteSubscriptionReauthorization(
+	ctx context.Context, convID chat1.ConvIDStr, repo string,
+) error {
+	res, err := d.ExecContext(ctx, `
+		UPDATE subscriptions
+		SET reauthorization_needed = false
+		WHERE conv_id = ? AND repo = ? AND reauthorization_needed = true
+	`, convID, repo)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected != 1 {
+		return fmt.Errorf("expected to complete one subscription reauthorization, updated %d", rowsAffected)
+	}
+	return nil
 }
 
 func (d *DB) GetAllSubscriptionsForConvID(ctx context.Context, convID chat1.ConvIDStr) (res []string, err error) {

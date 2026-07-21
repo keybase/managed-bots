@@ -129,12 +129,18 @@ func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, convID := range convs {
-		secretToken := base.MakeSecret(repo, convID, h.secret)
+	for _, conv := range convs {
+		secretToken := base.MakeSecret(repo, conv.ConvID, h.secret)
 		if !hmac.Equal([]byte(signature), []byte(secretToken)) {
-			h.Debug("payload signature mismatch for conversation %s", convID)
+			h.Debug("payload signature mismatch for conversation %s", conv.ConvID)
 			continue
 		}
-		h.ChatEcho(convID, "%s", message)
+		if conv.ReauthorizationNeeded {
+			if err := h.db.CompleteSubscriptionReauthorization(ctx, conv.ConvID, repo); err != nil {
+				h.Errorf("Error completing webhook reauthorization for conversation %s: %s", conv.ConvID, err)
+				continue
+			}
+		}
+		h.ChatEcho(conv.ConvID, "%s", message)
 	}
 }

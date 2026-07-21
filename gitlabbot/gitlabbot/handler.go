@@ -101,13 +101,23 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		return nil
 	}
 
-	alreadyExists, err := h.db.GetSubscriptionForRepoExists(ctx, msg.ConvID, repo)
+	subscriptionFound, reauthorizationNeeded, err := h.db.GetSubscriptionForRepoStatus(ctx, msg.ConvID, repo)
 	if err != nil {
 		return fmt.Errorf("error checking subscription: %s", err)
 	}
 
 	if create {
-		if !alreadyExists {
+		if subscriptionFound && reauthorizationNeeded {
+			_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", formatReauthorizationInstructions(repo, hostedURL, msg, h.httpPrefix, h.secret))
+			if err != nil {
+				return fmt.Errorf("error sending message: %s", err)
+			}
+			if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), msg.Sender.Username, msg.Channel) {
+				h.ChatEcho(msg.ConvID, "OK! I've sent instructions to @%s to reauthorize the webhook.", msg.Sender.Username)
+			}
+			return nil
+		}
+		if !subscriptionFound {
 			err = h.db.CreateSubscription(ctx, msg.ConvID, repo, base.IdentifierFromMsg(msg))
 			if err != nil {
 				return fmt.Errorf("error creating subscription: %s", err)
@@ -126,7 +136,7 @@ func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.Msg
 		return nil
 	}
 
-	if alreadyExists {
+	if subscriptionFound {
 		err = h.db.DeleteSubscriptionsForRepo(ctx, msg.ConvID, repo)
 		if err != nil {
 			return fmt.Errorf("error deleting subscriptions: %s", err)
