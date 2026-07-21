@@ -75,6 +75,16 @@ Happy coding!`,
 	return message
 }
 
+func formatReauthorizationInstructions(repo string, hostedURL string, msg chat1.MsgSummary, httpAddress string, secret string) string {
+	back := "`"
+	return fmt.Sprintf(`
+To reauthorize notifications, go to %s/%s/hooks and edit the existing webhook for %s%s/gitlabbot/webhook%s.
+Replace its “Secret Token” with %s%s%s.
+
+Happy coding!`,
+		hostedURL, repo, back, httpAddress, back, back, base.MakeSecret(repo, msg.ConvID, secret), back)
+}
+
 // parseRepoInput checks if url or <owner/repo> form
 func parseRepoInput(urlOrRepoPath string) (hostedURL string, repo string, err error) {
 	urlOrRepoPath = strings.TrimSuffix(urlOrRepoPath, ".git")

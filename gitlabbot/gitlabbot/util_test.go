@@ -3,8 +3,25 @@ package gitlabbot
 import (
 	"testing"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFormatReauthorizationInstructions(t *testing.T) {
+	msg := chat1.MsgSummary{ConvID: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+	repo := "owner/repo"
+	hostedURL := "https://gitlab.example.com"
+	httpAddress := "https://bots.example.com"
+	secret := "server-secret"
+
+	res := formatReauthorizationInstructions(repo, hostedURL, msg, httpAddress, secret)
+
+	require.Contains(t, res, "https://gitlab.example.com/owner/repo/hooks")
+	require.Contains(t, res, "edit the existing webhook")
+	require.Contains(t, res, "https://bots.example.com/gitlabbot/webhook")
+	require.Contains(t, res, base.MakeSecret(repo, msg.ConvID, secret))
+}
 
 func TestParseRepoInputWithURL(t *testing.T) {
 	httpPrefix := "https://mywebsite.com"

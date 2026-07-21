@@ -293,9 +293,5 @@ func mainInner() int {
 		return 3
 	}
 	bs := NewBotServer(*opts)
-	if err := bs.Go(); err != nil {
-		fmt.Printf("error running chat loop: %v\n", err)
-		return 3
-	}
-	return 0
+	return base.RunBot(bs.Server, bs.Go)
 }
