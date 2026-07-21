@@ -7,7 +7,8 @@ A Keybase chat bot that notifies a channel when an event happens on a GitLab pro
 In order to run the GitLab bot, you will need
 
 - A running MySQL database in order to store user preferences, and channel subscriptions
-- An arbitrary secret, used to authenticate webhooks from GitLab (this can be any string)
+- GitLab 19.1 or later for signed webhook setup. Existing `X-Gitlab-Token` webhooks remain supported while their migration is pending.
+- A high-entropy master secret used to derive a distinct webhook signing key for each subscription. The master secret is never sent to GitLab.
 
 ## Running
 

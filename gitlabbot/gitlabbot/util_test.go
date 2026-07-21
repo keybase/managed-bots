@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/keybase/managed-bots/base"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +19,16 @@ func TestFormatReauthorizationInstructions(t *testing.T) {
 	require.Contains(t, res, "https://gitlab.example.com/owner/repo/hooks")
 	require.Contains(t, res, "edit the existing webhook")
 	require.Contains(t, res, "https://bots.example.com/gitlabbot/webhook")
-	require.Contains(t, res, base.MakeSecret(repo, msg.ConvID, secret))
+	require.Contains(t, res, webhookSigningToken(repo, msg.ConvID, secret))
+	require.Contains(t, res, "Signing token")
+}
+
+func TestFormatSetupInstructionsUsesSigningToken(t *testing.T) {
+	msg := chat1.MsgSummary{ConvID: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+	res := formatSetupInstructions("owner/repo", "https://gitlab.com", msg, "https://bots.example.com", "server-secret")
+
+	require.Contains(t, res, webhookSigningToken("owner/repo", msg.ConvID, "server-secret"))
+	require.Contains(t, res, "Do not configure a “Secret token”")
 }
 
 func TestParseRepoInputWithURL(t *testing.T) {
