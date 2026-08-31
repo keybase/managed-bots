@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 )
 
@@ -102,6 +103,17 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 		h.showError(w)
 		return
 	}
+	members, err := h.kbc.ListMembersByConvID(convID)
+	if err != nil {
+		h.Errorf("failed to list conv members: %s", err)
+		h.showError(w)
+		return
+	}
+	if !isConvMember(members, username) {
+		h.Debug("vote rejected: %q is not a member of %q", username, convID)
+		h.showError(w)
+		return
+	}
 	if vote.Choice < 1 || vote.Choice > numChoices {
 		h.Debug("vote choice %d out of range for poll %q", vote.Choice, vote.ID)
 		h.showError(w)
@@ -159,3 +171,18 @@ func (h *HTTPSrv) handleImage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *HTTPSrv) handleHealthCheck(_ http.ResponseWriter, _ *http.Request) {}
+
+func isConvMember(members chat1.ChatMembersDetails, username string) bool {
+	allMembers := [][]chat1.ChatMemberDetails{
+		members.Owners, members.Admins, members.Writers, members.Readers,
+		members.Bots, members.RestrictedBots,
+	}
+	for _, group := range allMembers {
+		for _, m := range group {
+			if m.Username == username {
+				return true
+			}
+		}
+	}
+	return false
+}
