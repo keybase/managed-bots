@@ -174,8 +174,7 @@ func (h *HTTPSrv) handleHealthCheck(_ http.ResponseWriter, _ *http.Request) {}
 
 func isConvMember(members chat1.ChatMembersDetails, username string) bool {
 	allMembers := [][]chat1.ChatMemberDetails{
-		members.Owners, members.Admins, members.Writers, members.Readers,
-		members.Bots, members.RestrictedBots,
+		members.Owners, members.Admins, members.Writers, members.Readers, members.Bots,
 	}
 	for _, group := range allMembers {
 		for _, m := range group {
