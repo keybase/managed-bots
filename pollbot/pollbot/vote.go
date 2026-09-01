@@ -1,6 +1,8 @@
 package pollbot
 
 import (
+	"fmt"
+
 	"github.com/keybase/managed-bots/base"
 )
 
@@ -21,11 +23,19 @@ func NewVote(id string, choice int) Vote {
 	}
 }
 
-func NewVoteFromEncoded(sdat string) Vote {
+func NewVoteFromEncoded(sdat string) (Vote, error) {
 	var ve voteToEncode
-	dat, _ := base.URLEncoder().DecodeString(sdat)
-	_ = base.MsgpackDecode(&ve, dat)
-	return Vote(ve)
+	dat, err := base.URLEncoder().DecodeString(sdat)
+	if err != nil {
+		return Vote{}, err
+	}
+	if err := base.MsgpackDecode(&ve, dat); err != nil {
+		return Vote{}, err
+	}
+	if ve.ID == "" {
+		return Vote{}, fmt.Errorf("missing poll id")
+	}
+	return Vote(ve), nil
 }
 
 func (v Vote) Encode() string {

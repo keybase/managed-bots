@@ -87,18 +87,28 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vstr := r.URL.Query().Get("")
-	vote := NewVoteFromEncoded(vstr)
-	// WithoutCancel: the browser submits the vote and may close the connection;
-	// DB writes and poll result updates must complete regardless.
-	ctx := context.WithoutCancel(r.Context())
-	if err := h.db.CastVote(ctx, username, vote); err != nil {
-		h.Errorf("failed to cast vote: %s", err)
+	vote, err := NewVoteFromEncoded(vstr)
+	if err != nil {
+		h.Debug("invalid vote payload: %s", err)
 		h.showError(w)
 		return
 	}
+	// WithoutCancel: the browser submits the vote and may close the connection;
+	// DB writes and poll result updates must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
 	convID, resultMsgID, numChoices, err := h.db.GetPollInfo(ctx, vote.ID)
 	if err != nil {
 		h.Errorf("failed to find poll result msg: %s", err)
+		h.showError(w)
+		return
+	}
+	if vote.Choice < 1 || vote.Choice > numChoices {
+		h.Debug("vote choice %d out of range for poll %q", vote.Choice, vote.ID)
+		h.showError(w)
+		return
+	}
+	if err := h.db.CastVote(ctx, username, vote); err != nil {
+		h.Errorf("failed to cast vote: %s", err)
 		h.showError(w)
 		return
 	}
