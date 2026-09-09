@@ -129,12 +129,10 @@ func GetCalendarService(ctx context.Context, account *Account, config *oauth2.Co
 		if err != nil {
 			return nil, err
 		}
-		if newToken.AccessToken != account.Token.AccessToken {
-			account.Token = *newToken
-			err = db.InsertAccount(ctx, *account)
-			if err != nil {
-				return nil, fmt.Errorf("unable to update account token: %s", err)
-			}
+		account.Token = *newToken
+		err = db.InsertAccount(ctx, *account)
+		if err != nil {
+			return nil, fmt.Errorf("unable to update account token: %s", err)
 		}
 	}
 	client := config.Client(ctx, &account.Token)
