@@ -91,8 +91,7 @@ func (h *Handler) zoomHandler(ctx context.Context, msg chat1.MsgSummary, attempt
 		}
 		return err
 	default:
-		if strings.Contains(err.Error(), "cannot fetch token") ||
-			strings.Contains(err.Error(), "invalid_grant") {
+		if base.ShouldRetryAuth(err) {
 			h.Errorf("unable to get service %v, deleting credentials and retrying", err)
 			return retry()
 		}
