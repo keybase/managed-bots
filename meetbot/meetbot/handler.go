@@ -79,8 +79,7 @@ func (h *Handler) meetHandler(ctx context.Context, msg chat1.MsgSummary) error {
 		h.Errorf("unable to get service %v, deleting credentials and retrying", err)
 		return retry()
 	default:
-		if strings.Contains(err.Error(), "cannot fetch token") ||
-			strings.Contains(err.Error(), "invalid_grant") {
+		if base.ShouldRetryAuth(err) {
 			h.Errorf("unable to get service %v, deleting credentials and retrying", err)
 			return retry()
 		}

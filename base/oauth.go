@@ -22,6 +22,19 @@ func (e OAuthRequiredError) Error() string {
 	return "OAuth is required for this, permission requested."
 }
 
+// ShouldRetryAuth checks if an error indicates OAuth credentials have failed
+// and should be deleted to trigger re-authentication. This consolidates the
+// retry logic used across meetbot, zoombot, and gcalbot.
+func ShouldRetryAuth(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "cannot fetch token") ||
+		strings.Contains(errMsg, "invalid_grant") ||
+		strings.Contains(errMsg, "token expired and refresh token is not set")
+}
+
 type OAuthStorage interface {
 	GetToken(ctx context.Context, identifier string) (*oauth2.Token, error)
 	PutToken(ctx context.Context, identifier string, token *oauth2.Token) error

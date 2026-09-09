@@ -201,8 +201,15 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srv, err := GetCalendarService(ctx, selectedAccount, h.oauth, h.db)
+	srv, err := h.handler.GetCalendarServiceWithRetry(ctx, selectedAccount)
 	if err != nil {
+		switch err.(type) {
+		case AccountAuthError:
+			h.Errorf("account auth failed for web UI: %v", err)
+			h.showConfigError(w)
+		default:
+			h.Errorf("error getting calendar service: %v", err)
+		}
 		return
 	}
 

@@ -1,6 +1,7 @@
 package gcalbot
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -102,4 +103,14 @@ type AggregatedDailyScheduleSubscription struct {
 	ScheduleToSend   ScheduleToSendType
 	NotificationTime time.Duration
 	Account          Account
+}
+
+// AccountAuthError indicates that account credentials are invalid and were deleted
+type AccountAuthError struct {
+	Username string
+	Nickname string
+}
+
+func (e AccountAuthError) Error() string {
+	return fmt.Sprintf("account '%s' for user '%s' requires re-authentication", e.Nickname, e.Username)
 }

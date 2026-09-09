@@ -25,9 +25,9 @@ func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary,
 		return nil
 	}
 
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
+	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
 	if err != nil {
-		return err
+		return h.handleAuthError(err, accountNickname, msg.ConvID)
 	}
 
 	calendarList, err := getCalendarList(ctx, srv)

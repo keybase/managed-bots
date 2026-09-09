@@ -41,9 +41,9 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
+	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
 	if err != nil {
-		return err
+		return h.handleAuthErrorDM(err, account)
 	}
 	timezone, err := GetUserTimezone(srv)
 	if err != nil {
@@ -107,9 +107,9 @@ func (h *Handler) updateEventResponseStatus(ctx context.Context, invite *Invite,
 		return nil
 	}
 
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
+	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
 	if err != nil {
-		return err
+		return h.handleAuthErrorDM(err, account)
 	}
 
 	// fetch event
