@@ -162,7 +162,7 @@ func (h *Handler) handleListSubscriptions(ctx context.Context, msg chat1.MsgSumm
 
 	var res strings.Builder
 	for _, repo := range subscriptions {
-		res.WriteString(fmt.Sprintf("- *%s*\n", repo))
+		fmt.Fprintf(&res, "- *%s*\n", repo)
 	}
 	h.ChatEcho(msg.ConvID, "%s", res.String())
 	return nil

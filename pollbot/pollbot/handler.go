@@ -61,8 +61,8 @@ func (h *Handler) generateAnonymousPoll(ctx context.Context, convID chat1.ConvID
 	promptMsgID := *sendRes.Result.MessageID
 	var body strings.Builder
 	for index, option := range options {
-		body.WriteString(fmt.Sprintf("\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
-			h.generateVoteLink(id, index+1)))
+		fmt.Fprintf(&body, "\n%s  *%s*\n%s\n", base.NumberToEmoji(index+1), option,
+			h.generateVoteLink(id, index+1))
 	}
 	h.ChatEcho(convID, "%s", body.String())
 	if sendRes, err = h.kbc.SendMessageByConvID(convID, "*Results*\n_No votes yet_"); err != nil {
@@ -80,9 +80,9 @@ func (h *Handler) generateAnonymousPoll(ctx context.Context, convID chat1.ConvID
 
 func (h *Handler) generatePoll(convID chat1.ConvIDStr, prompt string, options []string) error {
 	var body strings.Builder
-	body.WriteString(fmt.Sprintf("Poll: *%s*\n\n", prompt))
+	fmt.Fprintf(&body, "Poll: *%s*\n\n", prompt)
 	for index, option := range options {
-		body.WriteString(fmt.Sprintf("%s  %s\n", base.NumberToEmoji(index+1), option))
+		fmt.Fprintf(&body, "%s  %s\n", base.NumberToEmoji(index+1), option)
 	}
 	body.WriteString("Tap a reaction below to register your vote!")
 	sendRes, err := h.kbc.SendMessageByConvID(convID, "%s", body.String())

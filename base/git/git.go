@@ -60,7 +60,7 @@ func FormatPushMsg(username string, repo string, branch string, numCommits int, 
 }
 
 func formatCommitString(commit string, maxLen int) string {
-	firstLine := strings.Split(commit, "\n")[0]
+	firstLine, _, _ := strings.Cut(commit, "\n")
 	if len(firstLine) > maxLen {
 		firstLine = strings.TrimSpace(firstLine[:maxLen]) + "..."
 	}

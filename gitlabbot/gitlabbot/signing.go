@@ -111,7 +111,7 @@ func verifyWebhookSignature(
 	_, _ = mac.Write(payload)
 	expected := []byte("v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil)))
 
-	for _, signature := range strings.Fields(signatures) {
+	for signature := range strings.FieldsSeq(signatures) {
 		if hmac.Equal([]byte(signature), expected) {
 			return nil
 		}

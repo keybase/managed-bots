@@ -101,8 +101,7 @@ func (o *OAuthHTTPSrv) getCallbackMsg(req OAuthRequest) (res chat1.MsgSummary, e
 // LogOAuthError logs an OAuth error, scrubbing any raw token-endpoint response
 // body. ErrorCode and ErrorDescription from structured OAuth errors are retained.
 func LogOAuthError(debug *DebugOutput, context string, err error) {
-	var retrieveErr *oauth2.RetrieveError
-	if errors.As(err, &retrieveErr) {
+	if retrieveErr, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
 		statusCode := 0
 		if retrieveErr.Response != nil {
 			statusCode = retrieveErr.Response.StatusCode

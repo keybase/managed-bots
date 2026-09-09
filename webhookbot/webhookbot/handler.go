@@ -99,7 +99,7 @@ func (h *Handler) handleList(ctx context.Context, _ string, msg chat1.MsgSummary
 	}
 	var body strings.Builder
 	for _, hook := range hooks {
-		body.WriteString(fmt.Sprintf("%s, %s\n", hook.Name, h.formURL(hook.ID)))
+		fmt.Fprintf(&body, "%s, %s\n", hook.Name, h.formURL(hook.ID))
 	}
 	if _, err := h.kbc.SendMessageByTlfName(msg.Sender.Username, "%s", body.String()); err != nil {
 		h.Debug("handleList: failed to send hook: %s", err)
