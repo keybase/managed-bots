@@ -118,6 +118,7 @@ func (s *BotServer) Go() (err error) {
 	config := &oauth2.Config{
 		ClientID:     credentials.ClientID,
 		ClientSecret: credentials.ClientSecret,
+		//nolint:gosec // G101: False positive - these are public OAuth endpoint URLs, not credentials
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  "https://zoom.us/oauth/authorize",
 			TokenURL: "https://zoom.us/oauth/token",

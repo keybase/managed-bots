@@ -182,6 +182,7 @@ func GetUser(client *http.Client, userID string) (*GetUserResponse, error) {
 
 func CreateMeeting(client *http.Client, userID string, request *CreateMeetingRequest) (*CreateMeetingResponse, error) {
 	apiURL := fmt.Sprintf("%s/users/%s/meetings", apiBaseURLV2, userID)
+	//nolint:gosec // G117: False positive - Password field is a legitimate Zoom API meeting password field, not hardcoded credentials
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return nil, err

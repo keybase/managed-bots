@@ -64,7 +64,7 @@ func (h *Handler) handleDeferrals(ctx context.Context, convID chat1.ConvIDStr, _
 		return nil
 	}
 	for _, d := range deferrals {
-		body.WriteString(fmt.Sprintf("id: %d author: %s regex: %s (created: %v)\n", d.ID, d.Author, d.Regex, d.Ctime))
+		fmt.Fprintf(&body, "id: %d author: %s regex: %s (created: %v)\n", d.ID, d.Author, d.Regex, d.Ctime)
 	}
 	h.ChatEcho(convID, "%s", body.String())
 	return nil

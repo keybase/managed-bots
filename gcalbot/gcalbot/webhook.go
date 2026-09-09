@@ -335,7 +335,7 @@ func (h *Handler) createEventChannel(ctx context.Context, account *Account, cale
 
 	// pre-fill db with invites so we don't send old invites
 	// there could be a race since this process can take up to a few seconds
-	// context.Background() because syncAllInvites is a background goroutine that outlives the request
+	//nolint:gosec // G118: Background context intentional - syncAllInvites is a background goroutine that outlives the request
 	go h.syncAllInvites(account, srv, channelID, calendarID)
 
 	return nil

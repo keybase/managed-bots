@@ -73,14 +73,14 @@ func FormatEvent(
 			uri := strings.TrimPrefix(entryPoint.Uri, "https://")
 			switch entryPoint.EntryPointType {
 			case "video", "more":
-				conferenceData.WriteString(fmt.Sprintf("\n> Join online: %s", uri))
+				fmt.Fprintf(&conferenceData, "\n> Join online: %s", uri)
 			case "phone":
-				conferenceData.WriteString(fmt.Sprintf("\n> Join by phone: %s", entryPoint.Label))
+				fmt.Fprintf(&conferenceData, "\n> Join by phone: %s", entryPoint.Label)
 				if entryPoint.Pin != "" {
-					conferenceData.WriteString(fmt.Sprintf(" PIN: %s", entryPoint.Pin))
+					fmt.Fprintf(&conferenceData, " PIN: %s", entryPoint.Pin)
 				}
 			case "sip":
-				conferenceData.WriteString(fmt.Sprintf("\n> Join by SIP: %s", entryPoint.Label))
+				fmt.Fprintf(&conferenceData, "\n> Join by SIP: %s", entryPoint.Label)
 			}
 		}
 	}

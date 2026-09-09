@@ -46,6 +46,7 @@ type question struct {
 
 func newQuestion(aq apiQuestion) question {
 	a := append([]string{aq.CorrectAnswer}, aq.IncorrectAnswers...)
+	//nolint:gosec // G404: Using math/rand for trivia game answer shuffling, not cryptography
 	rand.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
 	correctAnswer := 0
 	for index, answer := range a {
