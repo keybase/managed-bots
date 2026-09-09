@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 
+	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 )
 
@@ -109,6 +110,10 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 		s.Debug("error retrieving token: %s", err)
 		return
 	default:
+		if base.ShouldRetryAuth(err) {
+			s.Debug("auth error in scheduler (will not auto-delete): %s", err)
+			return
+		}
 		s.Errorf("unable to get calendar service: %s", err)
 		return
 	}

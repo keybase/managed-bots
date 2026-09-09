@@ -70,6 +70,11 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		err = nil // clear error
 		return
 	default:
+		if base.ShouldRetryAuth(err) {
+			h.Debug("auth error in webhook (will not auto-delete): %s", err)
+			err = nil // clear error
+			return
+		}
 		return
 	}
 
@@ -254,21 +259,28 @@ func (h *Handler) removeSubscription(
 		if channel != nil {
 			srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 			if err != nil {
-				return err
-			}
-			err = srv.Channels.Stop(&calendar.Channel{
-				Id:         channel.ChannelID,
-				ResourceId: channel.ResourceID,
-			}).Do()
-			switch err := err.(type) {
-			case nil:
-			case *googleapi.Error:
-				if err.Code != 404 {
+				if base.ShouldRetryAuth(err) {
+					h.Debug("auth error stopping channel, skipping channel.Stop: %s", err)
+					// Still delete from DB even if we can't stop the channel
+				} else {
 					return err
 				}
-				// if the channel wasn't found, don't return
-			default:
-				return err
+			} else {
+				// Only try to stop if we got the service successfully
+				err = srv.Channels.Stop(&calendar.Channel{
+					Id:         channel.ChannelID,
+					ResourceId: channel.ResourceID,
+				}).Do()
+				switch err := err.(type) {
+				case nil:
+				case *googleapi.Error:
+					if err.Code != 404 {
+						return err
+					}
+					// if the channel wasn't found, don't return
+				default:
+					return err
+				}
 			}
 
 			err = h.db.DeleteChannelByChannelID(ctx, channel.ChannelID)
@@ -284,6 +296,9 @@ func (h *Handler) removeSubscription(
 func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) error {
 	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
 	if err != nil {
+		if base.ShouldRetryAuth(err) {
+			h.Debug("auth error creating channel, cannot create webhook: %s", err)
+		}
 		return err
 	}
 	exists, err := h.db.ExistsChannelByAccountAndCalendar(ctx, account, calendarID)
