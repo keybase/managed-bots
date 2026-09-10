@@ -289,17 +289,19 @@ const tmplLogin = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ErrorPage struct {
-	Title string
+	Title   string
+	Heading string
+	Body    string
 }
 
 const tmplError = `{{template "header" .}}
   <div class="container column">
     <img src="/gcalbot/image/logo" class="logo-small" />
 	<h1 class="title">
-		An error occurred :(
+		{{if .Heading}}{{.Heading}}{{else}}An error occurred :({{end}}
 	</h1>
 	<p class="instructions">
-		Please try again!
+		{{if .Body}}{{.Body}}{{else}}Please try again!{{end}}
 	</p>
 	<p class="instructions">
 		If the error is recurring, report the issue by messaging <a target="_" href="https://keybase.io/gcalbot">@gcalbot</a>

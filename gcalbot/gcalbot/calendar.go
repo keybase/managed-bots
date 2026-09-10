@@ -25,7 +25,13 @@ func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary,
 		return nil
 	}
 
-	defer func() { err = h.WrapAuth(ctx, account, err) }()
+	defer func() {
+		err = h.InvalidateIfAuthError(ctx, account, err)
+		if IsAccountAuthError(err) {
+			h.ChatEcho(msg.ConvID, reconnectAccountMsg, accountNickname, accountNickname)
+			err = nil
+		}
+	}()
 
 	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {

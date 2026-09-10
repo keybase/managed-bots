@@ -194,6 +194,9 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 				break
 			}
 		}
+		if err != nil {
+			return
+		}
 	}
 
 	err = h.db.UpdateChannelNextSyncToken(ctx, channelID, nextSyncToken)
@@ -232,7 +235,7 @@ func (h *Handler) createSubscription(
 func (h *Handler) removeSubscription(
 	ctx context.Context, account *Account, subscription Subscription,
 ) (err error) {
-	defer func() { err = h.WrapAuth(ctx, account, err) }()
+	defer func() { err = h.WrapAuth(ctx, account, err) }() // swallow auth errors; subscription is already removed
 
 	err = h.db.DeleteSubscription(ctx, account, subscription)
 	if err != nil {
@@ -286,6 +289,9 @@ func (h *Handler) removeSubscription(
 }
 
 func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) (err error) {
+	// Propagate AccountAuthError so callers do not insert subscriptions after
+	// credentials were deleted. Contrast removeSubscription, which uses WrapAuth
+	// because the subscription row is already gone.
 	defer func() { err = h.InvalidateIfAuthError(ctx, account, err) }()
 
 	srv, err := h.GetCalendarService(ctx, account)

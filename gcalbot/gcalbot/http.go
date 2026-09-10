@@ -84,7 +84,12 @@ func (h *HTTPSrv) healthCheckHandler(_ http.ResponseWriter, _ *http.Request) {}
 func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	h.Stats.Count("config")
 	var err error
+	var accountNickname string
 	defer func() {
+		if IsAccountAuthError(err) {
+			h.showReconnect(w, accountNickname)
+			return
+		}
 		if err != nil {
 			h.Errorf("error in configHandler: %s", err)
 			h.showConfigError(w)
@@ -118,7 +123,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 
 	isPrivate := base.IsDirectPrivateMessage(h.kbc.GetUsername(), keybaseUsername, keybaseConv.Channel)
 
-	accountNickname := r.Form.Get("account")
+	accountNickname = r.Form.Get("account")
 	calendarID := r.Form.Get("calendar")
 
 	previousAccountNickname := r.Form.Get("previous_account")
@@ -444,6 +449,18 @@ func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusInternalServerError)
 	h.servePage(w, "error", ErrorPage{
 		Title: "gcalbot | error",
+	})
+}
+
+func (h *HTTPSrv) showReconnect(w http.ResponseWriter, accountNickname string) {
+	h.Stats.Count("configReconnect")
+	w.WriteHeader(http.StatusUnauthorized)
+	h.servePage(w, "error", ErrorPage{
+		Title:   "gcalbot | reconnect",
+		Heading: "Account needs to be reconnected",
+		Body: fmt.Sprintf(
+			"Your account '%s' needs to be reconnected. Message @gcalbot in the Keybase app with !gcal accounts connect %s.",
+			accountNickname, accountNickname),
 	})
 }
 

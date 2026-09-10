@@ -74,8 +74,13 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 		return
 	}
 	for _, event := range events {
-		if updErr := r.UpdateOrCreateReminderEvent(account, subscription, event); updErr != nil {
-			r.Errorf("error updating or creating reminder event: %s", updErr)
+		err = r.UpdateOrCreateReminderEvent(account, subscription, event)
+		if err != nil {
+			if gcalbot.IsAccountAuthError(err) {
+				return
+			}
+			r.Errorf("error updating or creating reminder event: %s", err)
+			err = nil
 		}
 	}
 }
@@ -85,7 +90,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	subscription *gcalbot.Subscription,
 	event *calendar.Event,
 ) (err error) {
-	defer func() { err = r.cal.WrapAuth(context.Background(), account, err) }()
+	defer func() { err = r.cal.InvalidateIfAuthError(context.Background(), account, err) }()
 	r.stats.Count("UpdateOrCreateReminderEvent")
 	status := gcalbot.EventStatus(event.Status)
 	if status == gcalbot.EventStatusCancelled {
