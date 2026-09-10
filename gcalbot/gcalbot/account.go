@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
+	"sync"
 
 	"golang.org/x/oauth2"
 
 	"google.golang.org/api/googleapi"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
 	"google.golang.org/api/calendar/v3"
@@ -90,9 +91,10 @@ func (h *Handler) deleteAccount(ctx context.Context, keybaseUsername, accountNic
 		return fmt.Errorf("error getting account: %s", err)
 	}
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
-	if err == nil {
-		// Successfully got service, stop all channels before deleting
+	srv, err := getCalendarService(ctx, account, h.oauth, h.db)
+	if err != nil {
+		h.Debug("skipping channel cleanup for %s/%s: %s", keybaseUsername, accountNickname, err)
+	} else {
 		channels, err := h.db.GetChannelListByAccount(ctx, account)
 		if err != nil {
 			return err
@@ -107,7 +109,6 @@ func (h *Handler) deleteAccount(ctx context.Context, keybaseUsername, accountNic
 			case nil:
 			case *googleapi.Error:
 				if err.Code == 404 {
-					// if the channel wasn't found, continue
 					continue
 				}
 				return err
@@ -115,68 +116,99 @@ func (h *Handler) deleteAccount(ctx context.Context, keybaseUsername, accountNic
 				return err
 			}
 		}
-	} else if _, ok := err.(AccountAuthError); ok {
-		// Auth already failed, can't stop channels but continue with deletion
-		h.Debug("skipping channel cleanup for %s/%s due to auth failure", keybaseUsername, accountNickname)
-	} else {
-		// Unexpected error
-		return err
 	}
 
 	// cascading delete of account, oauth, subscriptions, channels and invites
-	err = h.db.DeleteAccount(ctx, keybaseUsername, accountNickname)
-
-	return err
+	return h.db.DeleteAccount(ctx, keybaseUsername, accountNickname)
 }
 
-func GetCalendarService(ctx context.Context, account *Account, config *oauth2.Config, db *DB) (srv *calendar.Service, err error) {
-	if account.Token.Expiry.Before(time.Now()) {
-		newToken, err := config.TokenSource(ctx, &account.Token).Token()
-		if err != nil {
-			return nil, err
-		}
-		account.Token = *newToken
-		err = db.InsertAccount(ctx, *account)
-		if err != nil {
-			return nil, fmt.Errorf("unable to update account token: %s", err)
-		}
+func getCalendarService(ctx context.Context, account *Account, config *oauth2.Config, db *DB) (*calendar.Service, error) {
+	src := base.PersistTokenSource(ctx, &account.Token, base.ConfigTokenSource(ctx, config, &account.Token),
+		func(ctx context.Context, _ *oauth2.Token) error {
+			return db.InsertAccount(ctx, *account)
+		})
+	if _, err := src.Token(); err != nil {
+		return nil, err
 	}
-	client := config.Client(ctx, &account.Token)
-	return calendar.NewService(ctx, option.WithHTTPClient(client))
+	return calendar.NewService(ctx, option.WithHTTPClient(oauth2.NewClient(ctx, src)))
 }
 
-// GetCalendarServiceWithRetry wraps GetCalendarService and handles auth failures
-// by deleting invalid credentials. Returns AccountAuthError if credentials were deleted.
-func (h *Handler) GetCalendarServiceWithRetry(ctx context.Context, account *Account) (*calendar.Service, error) {
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
-	if err != nil && base.ShouldRetryAuth(err) {
-		h.Errorf("auth failed for %s/%s, deleting credentials: %v", account.KeybaseUsername, account.AccountNickname, err)
-		if delErr := h.db.DeleteAccount(ctx, account.KeybaseUsername, account.AccountNickname); delErr != nil {
-			h.Errorf("failed to delete account after auth error: %v", delErr)
-		}
-		return nil, AccountAuthError{
-			Username: account.KeybaseUsername,
-			Nickname: account.AccountNickname,
-		}
-	}
-	return srv, err
+const reconnectAccountMsg = "Your account '%s' needs to be reconnected. Please run `!gcal accounts connect %s` again."
+
+// CalendarAuth obtains a Calendar client and recovers from invalid OAuth credentials.
+type CalendarAuth struct {
+	oauth *oauth2.Config
+	db    *DB
+	debug *base.DebugOutput
+	kbc   *kbchat.API
+
+	mu          sync.Mutex
+	invalidated map[string]struct{}
 }
 
-// handleAuthError sends a reconnection message to the user for AccountAuthError
-func (h *Handler) handleAuthError(err error, accountNickname string, convID chat1.ConvIDStr) error {
-	if _, ok := err.(AccountAuthError); !ok {
-		return err
+func NewCalendarAuth(oauth *oauth2.Config, db *DB, debug *base.DebugOutput, kbc *kbchat.API) *CalendarAuth {
+	return &CalendarAuth{oauth: oauth, db: db, debug: debug, kbc: kbc, invalidated: make(map[string]struct{})}
+}
+
+func accountKey(account *Account) string {
+	return account.KeybaseUsername + "\x00" + account.AccountNickname
+}
+
+func (c *CalendarAuth) GetCalendarService(ctx context.Context, account *Account) (*calendar.Service, error) {
+	if err := c.alreadyInvalidated(account); err != nil {
+		return nil, err
 	}
-	h.ChatEcho(convID, "Your account '%s' needs to be reconnected. Please run `!gcal accounts connect %s` again.", accountNickname, accountNickname)
+	srv, err := getCalendarService(ctx, account, c.oauth, c.db)
+	if err != nil {
+		return nil, c.InvalidateIfAuthError(ctx, account, err)
+	}
+	return srv, nil
+}
+
+func (c *CalendarAuth) alreadyInvalidated(account *Account) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.invalidated[accountKey(account)]; ok {
+		return AccountAuthError{Username: account.KeybaseUsername, Nickname: account.AccountNickname}
+	}
 	return nil
 }
 
-// handleAuthErrorDM sends a reconnection message via DM for AccountAuthError
-func (h *Handler) handleAuthErrorDM(err error, account *Account) error {
-	if _, ok := err.(AccountAuthError); !ok {
+// InvalidateIfAuthError deletes the account and DMs the user when err
+// indicates invalid OAuth credentials. Returns AccountAuthError in that case,
+// otherwise returns err unchanged. Safe to call repeatedly for the same account.
+func (c *CalendarAuth) InvalidateIfAuthError(ctx context.Context, account *Account, err error) error {
+	if err == nil {
+		return nil
+	}
+	if IsAccountAuthError(err) {
 		return err
 	}
-	_, sendErr := h.kbc.SendMessageByTlfName(account.KeybaseUsername,
-		"Your account '%s' needs to be reconnected. Please run `!gcal accounts connect %s` again.", account.AccountNickname, account.AccountNickname)
-	return sendErr
+	if !base.ShouldRetryAuth(err) {
+		return err
+	}
+	authErr := AccountAuthError{Username: account.KeybaseUsername, Nickname: account.AccountNickname}
+	c.mu.Lock()
+	if _, seen := c.invalidated[accountKey(account)]; seen {
+		c.mu.Unlock()
+		return authErr
+	}
+	c.invalidated[accountKey(account)] = struct{}{}
+	c.mu.Unlock()
+
+	c.debug.Errorf("auth failed for %s/%s, deleting credentials: %v", account.KeybaseUsername, account.AccountNickname, err)
+	if delErr := c.db.DeleteAccount(ctx, account.KeybaseUsername, account.AccountNickname); delErr != nil {
+		c.debug.Errorf("failed to delete account after auth error: %v", delErr)
+	}
+	if _, sendErr := c.kbc.SendMessageByTlfName(account.KeybaseUsername, reconnectAccountMsg,
+		account.AccountNickname, account.AccountNickname); sendErr != nil {
+		c.debug.Errorf("failed to DM user after auth error: %v", sendErr)
+	}
+	return authErr
+}
+
+// WrapAuth invalidates the account on auth failure and returns nil in that
+// case so callers can treat reconnect-needed as handled.
+func (c *CalendarAuth) WrapAuth(ctx context.Context, account *Account, err error) error {
+	return IgnoreAccountAuthError(c.InvalidateIfAuthError(ctx, account, err))
 }

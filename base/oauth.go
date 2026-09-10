@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -22,17 +23,26 @@ func (e OAuthRequiredError) Error() string {
 	return "OAuth is required for this, permission requested."
 }
 
-// ShouldRetryAuth checks if an error indicates OAuth credentials have failed
-// and should be deleted to trigger re-authentication. This consolidates the
-// retry logic used across meetbot, zoombot, and gcalbot.
+// ShouldRetryAuth reports whether err means the user's OAuth credentials are
+// permanently unusable and should be deleted. Transient token-fetch failures
+// (network, 5xx) are not treated as credential errors.
 func ShouldRetryAuth(err error) bool {
 	if err == nil {
 		return false
 	}
-	errMsg := err.Error()
-	return strings.Contains(errMsg, "cannot fetch token") ||
-		strings.Contains(errMsg, "invalid_grant") ||
-		strings.Contains(errMsg, "token expired and refresh token is not set")
+	var retr *oauth2.RetrieveError
+	if errors.As(err, &retr) {
+		switch strings.ToLower(retr.ErrorCode) {
+		case "invalid_grant", "invalid_token":
+			return true
+		}
+		body := string(retr.Body)
+		return strings.Contains(body, "invalid_grant") ||
+			strings.Contains(body, "invalid_token")
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "invalid_grant") ||
+		strings.Contains(msg, "token expired and refresh token is not set")
 }
 
 type OAuthStorage interface {
@@ -287,18 +297,58 @@ func GetOAuthClient(
 
 		return nil, OAuthRequiredError{}
 	}
-	// renew token
-	if token.Expiry.Before(time.Now()) {
-		newToken, err := config.TokenSource(ctx, token).Token()
-		if err != nil {
-			return nil, fmt.Errorf("unable to renew token: %s", err)
-		}
-		err = storage.PutToken(ctx, tokenIdentifier, newToken)
-		if err != nil {
-			return nil, fmt.Errorf("unable to update token: %s", err)
-		}
-		token = newToken
-	}
 
-	return config.Client(ctx, token), nil
+	src := PersistTokenSource(ctx, token, ConfigTokenSource(ctx, config, token), func(ctx context.Context, tok *oauth2.Token) error {
+		return storage.PutToken(ctx, tokenIdentifier, tok)
+	})
+	if _, err := src.Token(); err != nil {
+		return nil, fmt.Errorf("unable to renew token: %w", err)
+	}
+	return oauth2.NewClient(ctx, src), nil
+}
+
+// ConfigTokenSource is config.TokenSource, except tokens with a zero Expiry
+// and a refresh token are treated as expired. oauth2.Token.Valid treats a
+// zero Expiry as never-expired, which would skip refresh forever.
+func ConfigTokenSource(ctx context.Context, config *oauth2.Config, token *oauth2.Token) oauth2.TokenSource {
+	if token != nil && token.Expiry.IsZero() && token.RefreshToken != "" {
+		cp := *token
+		cp.Expiry = time.Now().Add(-time.Minute)
+		token = &cp
+	}
+	return config.TokenSource(ctx, token)
+}
+
+// PersistTokenSource wraps src and writes the token whenever AccessToken,
+// RefreshToken, or Expiry changes (including refresh-token rotation).
+func PersistTokenSource(ctx context.Context, token *oauth2.Token, src oauth2.TokenSource, put func(context.Context, *oauth2.Token) error) oauth2.TokenSource {
+	// Token() is invoked on later HTTP refreshes; the caller context may
+	// already be done by then, so persist independently of it.
+	return &persistTokenSource{ctx: context.WithoutCancel(ctx), token: token, src: src, put: put}
+}
+
+type persistTokenSource struct {
+	ctx   context.Context
+	token *oauth2.Token
+	src   oauth2.TokenSource
+	put   func(context.Context, *oauth2.Token) error
+	mu    sync.Mutex
+}
+
+func (s *persistTokenSource) Token() (*oauth2.Token, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tok, err := s.src.Token()
+	if err != nil {
+		return nil, err
+	}
+	if tok.AccessToken != s.token.AccessToken ||
+		tok.RefreshToken != s.token.RefreshToken ||
+		!tok.Expiry.Equal(s.token.Expiry) {
+		*s.token = *tok
+		if err := s.put(s.ctx, tok); err != nil {
+			return nil, fmt.Errorf("unable to update token: %w", err)
+		}
+	}
+	return tok, nil
 }

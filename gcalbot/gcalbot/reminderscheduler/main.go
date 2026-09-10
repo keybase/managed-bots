@@ -3,6 +3,7 @@ package reminderscheduler
 import (
 	"sync"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"golang.org/x/oauth2"
@@ -17,7 +18,7 @@ type ReminderScheduler struct {
 
 	stats *base.StatsRegistry
 	db    *gcalbot.DB
-	oauth *oauth2.Config
+	cal   *gcalbot.CalendarAuth
 
 	subscriptionReminders *SubscriptionReminders
 	eventReminders        *EventReminders
@@ -29,13 +30,15 @@ func NewReminderScheduler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *gcalbot.DB,
 	oauth *oauth2.Config,
+	kbc *kbchat.API,
 ) *ReminderScheduler {
+	debug := base.NewDebugOutput("ReminderScheduler", debugConfig)
 	return &ReminderScheduler{
 		stats:                 stats.SetPrefix("ReminderScheduler"),
-		DebugOutput:           base.NewDebugOutput("ReminderScheduler", debugConfig),
+		DebugOutput:           debug,
 		shutdownCh:            make(chan struct{}),
 		db:                    db,
-		oauth:                 oauth,
+		cal:                   gcalbot.NewCalendarAuth(oauth, db, debug, kbc),
 		subscriptionReminders: NewSubscriptionReminders(),
 		eventReminders:        NewEventReminders(),
 		minuteReminders:       NewMinuteReminders(),

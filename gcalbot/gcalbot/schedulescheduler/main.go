@@ -3,6 +3,7 @@ package schedulescheduler
 import (
 	"sync"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"golang.org/x/oauth2"
@@ -16,7 +17,7 @@ type ScheduleScheduler struct {
 
 	stats *base.StatsRegistry
 	db    *gcalbot.DB
-	oauth *oauth2.Config
+	cal   *gcalbot.CalendarAuth
 }
 
 func NewScheduleScheduler(
@@ -24,13 +25,15 @@ func NewScheduleScheduler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *gcalbot.DB,
 	oauth *oauth2.Config,
+	kbc *kbchat.API,
 ) *ScheduleScheduler {
+	debug := base.NewDebugOutput("ScheduleScheduler", debugConfig)
 	return &ScheduleScheduler{
 		stats:       stats.SetPrefix("ScheduleScheduler"),
-		DebugOutput: base.NewDebugOutput("ScheduleScheduler", debugConfig),
+		DebugOutput: debug,
 		shutdownCh:  make(chan struct{}),
 		db:          db,
-		oauth:       oauth,
+		cal:         gcalbot.NewCalendarAuth(oauth, db, debug, kbc),
 	}
 }
 

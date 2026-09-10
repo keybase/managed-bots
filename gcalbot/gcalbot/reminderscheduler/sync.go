@@ -5,9 +5,6 @@ import (
 	"context"
 	"time"
 
-	"golang.org/x/oauth2"
-
-	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"google.golang.org/api/calendar/v3"
 )
@@ -48,14 +45,15 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 }
 
 func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *gcalbot.Subscription) {
-	srv, err := gcalbot.GetCalendarService(context.Background(), account, r.oauth, r.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		r.Debug("error retrieving token: %s", err)
-		return
-	default:
-		r.Errorf("error getting calendar service: %s", err)
+	var err error
+	defer func() {
+		if err = r.cal.WrapAuth(context.Background(), account, err); err != nil {
+			r.Errorf("error syncing events: %s", err)
+		}
+	}()
+
+	srv, err := r.cal.GetCalendarService(context.Background(), account)
+	if err != nil {
 		return
 	}
 
@@ -72,19 +70,17 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 			events = append(events, page.Items...)
 			return nil
 		})
-	switch err := err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		base.LogOAuthError(r.DebugOutput, "error refreshing token API", err)
-		return
-	default:
-		r.Debug("error getting events from API: %s", err)
+	if err != nil {
 		return
 	}
 	for _, event := range events {
 		err = r.UpdateOrCreateReminderEvent(account, subscription, event)
 		if err != nil {
+			if gcalbot.IsAccountAuthError(err) {
+				return
+			}
 			r.Errorf("error updating or creating reminder event: %s", err)
+			err = nil
 		}
 	}
 }
@@ -93,7 +89,8 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	account *gcalbot.Account,
 	subscription *gcalbot.Subscription,
 	event *calendar.Event,
-) error {
+) (err error) {
+	defer func() { err = r.cal.InvalidateIfAuthError(context.Background(), account, err) }()
 	r.stats.Count("UpdateOrCreateReminderEvent")
 	status := gcalbot.EventStatus(event.Status)
 	if status == gcalbot.EventStatusCancelled {
@@ -125,13 +122,8 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 		}
 	})
 
-	srv, err := gcalbot.GetCalendarService(context.Background(), account, r.oauth, r.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		r.Debug("error retrieving token: %s", err)
-		return nil
-	default:
+	srv, err := r.cal.GetCalendarService(context.Background(), account)
+	if err != nil {
 		return err
 	}
 

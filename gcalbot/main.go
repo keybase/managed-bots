@@ -217,9 +217,9 @@ func (s *BotServer) Go() (err error) {
 	db := gcalbot.NewDB(sdb, debugConfig)
 
 	stats = stats.SetPrefix(s.Name())
-	renewScheduler := gcalbot.NewRenewChannelScheduler(stats, debugConfig, db, config, s.opts.HTTPPrefix)
-	reminderScheduler := reminderscheduler.NewReminderScheduler(stats, debugConfig, db, config)
-	scheduleScheduler := schedulescheduler.NewScheduleScheduler(stats, debugConfig, db, config)
+	renewScheduler := gcalbot.NewRenewChannelScheduler(stats, debugConfig, db, config, s.kbc, s.opts.HTTPPrefix)
+	reminderScheduler := reminderscheduler.NewReminderScheduler(stats, debugConfig, db, config, s.kbc)
+	scheduleScheduler := schedulescheduler.NewScheduleScheduler(stats, debugConfig, db, config, s.kbc)
 	handler := gcalbot.NewHandler(stats, s.kbc, debugConfig, db, config, reminderScheduler, secret, s.opts.HTTPPrefix)
 	httpSrv := gcalbot.NewHTTPSrv(stats, s.kbc, debugConfig, db, config, reminderScheduler, handler)
 	eg := &errgroup.Group{}

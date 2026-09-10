@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 
@@ -103,18 +101,17 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	s.stats.Count("SendDailyScheduleMessage")
 	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
 
-	srv, err := gcalbot.GetCalendarService(context.Background(), &subscription.Account, s.oauth, s.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		s.Debug("error retrieving token: %s", err)
-		return
-	default:
-		if base.ShouldRetryAuth(err) {
-			s.Debug("auth error in scheduler (will not auto-delete): %s", err)
-			return
+	ctx := context.Background()
+	account := &subscription.Account
+	var err error
+	defer func() {
+		if err = s.cal.WrapAuth(ctx, account, err); err != nil {
+			s.Errorf("unable to send daily schedule: %s", err)
 		}
-		s.Errorf("unable to get calendar service: %s", err)
+	}()
+
+	srv, err := s.cal.GetCalendarService(ctx, account)
+	if err != nil {
 		return
 	}
 
@@ -129,21 +126,24 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 
 	format24HourTime, err := gcalbot.GetUserFormat24HourTime(srv)
 	if err != nil {
-		s.Errorf("unable to get user 24 hour time setting: %s", err)
 		return
 	}
 
 	calendarSummaries := make([]string, len(subscription.CalendarIDs))
 	var events []*calendar.Event
 	for index, calendarID := range subscription.CalendarIDs {
-		cal, err := srv.Calendars.Get(calendarID).Fields("summary").Do()
-		if err != nil {
+		cal, calErr := srv.Calendars.Get(calendarID).Fields("summary").Do()
+		if calErr != nil {
+			if base.ShouldRetryAuth(calErr) {
+				err = calErr
+				return
+			}
 			var gerr *googleapi.Error
-			if errors.As(err, &gerr) && gerr.Code == 404 {
+			if errors.As(calErr, &gerr) && gerr.Code == 404 {
 				// Calendar was deleted or user lost access; use ID as display name
 				s.Debug("calendar no longer accessible (404): %s", calendarID)
 			} else {
-				s.Errorf("error getting calendar summary from API: %s", err)
+				s.Errorf("error getting calendar summary from API: %s", calErr)
 			}
 			calendarSummaries[index] = calendarID // use the cal id if there is an error
 		} else {
@@ -155,12 +155,16 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 			TimeMax(maxTime.Format(time.RFC3339)).
 			SingleEvents(true).
 			OrderBy("startTime").
-			Pages(context.Background(), func(page *calendar.Events) error {
+			Pages(ctx, func(page *calendar.Events) error {
 				events = append(events, page.Items...)
 				return nil
 			})
 		if err != nil {
+			if base.ShouldRetryAuth(err) {
+				return
+			}
 			s.Debug("error getting events from API: %s", err)
+			err = nil
 			continue
 		}
 	}
@@ -185,6 +189,7 @@ Calendars: %s
 		formattedSchedule, err = gcalbot.FormatEventSchedule(events, subscription.Timezone, format24HourTime)
 		if err != nil {
 			s.Errorf("unable to format schedule: %s", err)
+			err = nil
 			return
 		}
 	}

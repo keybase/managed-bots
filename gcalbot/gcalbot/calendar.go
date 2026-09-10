@@ -8,7 +8,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary, args []string) error {
+func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary, args []string) (err error) {
 	if len(args) != 1 {
 		h.ChatEcho(msg.ConvID, "Invalid number of arguments.")
 		return nil
@@ -25,9 +25,17 @@ func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary,
 		return nil
 	}
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
+	defer func() {
+		err = h.InvalidateIfAuthError(ctx, account, err)
+		if IsAccountAuthError(err) {
+			h.ChatEcho(msg.ConvID, reconnectAccountMsg, accountNickname, accountNickname)
+			err = nil
+		}
+	}()
+
+	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {
-		return h.handleAuthError(err, accountNickname, msg.ConvID)
+		return err
 	}
 
 	calendarList, err := getCalendarList(ctx, srv)

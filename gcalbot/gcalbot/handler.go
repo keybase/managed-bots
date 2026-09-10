@@ -14,6 +14,7 @@ import (
 
 type Handler struct {
 	*base.DebugOutput
+	*CalendarAuth
 
 	stats *base.StatsRegistry
 	kbc   *kbchat.API
@@ -39,8 +40,10 @@ func NewHandler(
 	tokenSecret string,
 	httpPrefix string,
 ) *Handler {
+	debug := base.NewDebugOutput("Handler", debugConfig)
 	return &Handler{
-		DebugOutput:       base.NewDebugOutput("Handler", debugConfig),
+		DebugOutput:       debug,
+		CalendarAuth:      NewCalendarAuth(oauth, db, debug, kbc),
 		stats:             stats.SetPrefix("Handler"),
 		kbc:               kbc,
 		db:                db,
