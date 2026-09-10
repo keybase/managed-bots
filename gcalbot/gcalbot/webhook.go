@@ -25,7 +25,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 	ctx := context.WithoutCancel(r.Context())
 	defer func() {
 		if account != nil {
-			err = h.handler.wrapAuth(ctx, account, err)
+			err = h.handler.WrapAuth(ctx, account, err)
 		}
 		if err != nil {
 			h.Errorf("error in event update webhook: %s", err)
@@ -69,7 +69,7 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	srv, err := h.handler.GetCalendarServiceWithRetry(ctx, account)
+	srv, err := h.handler.GetCalendarService(ctx, account)
 	if err != nil {
 		return
 	}
@@ -232,7 +232,7 @@ func (h *Handler) createSubscription(
 func (h *Handler) removeSubscription(
 	ctx context.Context, account *Account, subscription Subscription,
 ) (err error) {
-	defer func() { err = h.wrapAuth(ctx, account, err) }()
+	defer func() { err = h.WrapAuth(ctx, account, err) }()
 
 	err = h.db.DeleteSubscription(ctx, account, subscription)
 	if err != nil {
@@ -257,7 +257,7 @@ func (h *Handler) removeSubscription(
 
 		if channel != nil {
 			var srv *calendar.Service
-			srv, err = h.GetCalendarServiceWithRetry(ctx, account)
+			srv, err = h.GetCalendarService(ctx, account)
 			if err != nil {
 				return err
 			}
@@ -286,9 +286,9 @@ func (h *Handler) removeSubscription(
 }
 
 func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) (err error) {
-	defer func() { err = h.invalidateIfAuthError(ctx, account, err) }()
+	defer func() { err = h.InvalidateIfAuthError(ctx, account, err) }()
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
+	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -340,8 +340,7 @@ type RenewChannelScheduler struct {
 
 	stats      *base.StatsRegistry
 	db         *DB
-	config     *oauth2.Config
-	kbc        *kbchat.API
+	cal        *CalendarAuth
 	httpPrefix string
 }
 
@@ -353,12 +352,12 @@ func NewRenewChannelScheduler(
 	kbc *kbchat.API,
 	httpPrefix string,
 ) *RenewChannelScheduler {
+	debug := base.NewDebugOutput("RenewChannelScheduler", debugConfig)
 	return &RenewChannelScheduler{
 		stats:       stats.SetPrefix("RenewChannelScheduler"),
-		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", debugConfig),
+		DebugOutput: debug,
 		db:          db,
-		config:      config,
-		kbc:         kbc,
+		cal:         NewCalendarAuth(config, db, debug, kbc),
 		httpPrefix:  httpPrefix,
 		shutdownCh:  make(chan struct{}),
 	}
@@ -419,9 +418,9 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) (err error) {
 	r.stats.Count("renewChannel")
 	ctx := context.Background()
-	defer func() { err = WrapAuthError(ctx, account, err, r.db, r.DebugOutput, r.kbc) }()
+	defer func() { err = r.cal.WrapAuth(ctx, account, err) }()
 
-	srv, err := GetCalendarServiceWithRetry(ctx, account, r.config, r.db, r.DebugOutput, r.kbc)
+	srv, err := r.cal.GetCalendarService(ctx, account)
 	if err != nil {
 		return err
 	}

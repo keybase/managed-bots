@@ -31,7 +31,7 @@ const (
 
 func (h *Handler) sendEventInvite(ctx context.Context, account *Account, channel *Channel, event *calendar.Event) (err error) {
 	h.stats.Count("sendEventInvite")
-	defer func() { err = h.wrapAuth(ctx, account, err) }()
+	defer func() { err = h.WrapAuth(ctx, account, err) }()
 
 	message := `You've been invited to %s: %s
 Awaiting your response. *Are you going?*`
@@ -43,7 +43,7 @@ Awaiting your response. *Are you going?*`
 		eventType = "a recurring event"
 	}
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
+	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ Awaiting your response. *Are you going?*`
 
 func (h *Handler) updateEventResponseStatus(ctx context.Context, invite *Invite, account *Account, reaction InviteReaction) (err error) {
 	h.stats.Count("updateEventResponseStatus")
-	defer func() { err = h.wrapAuth(ctx, account, err) }()
+	defer func() { err = h.WrapAuth(ctx, account, err) }()
 
 	var responseStatus ResponseStatus
 	var confirmationMessageStatus string
@@ -110,7 +110,7 @@ func (h *Handler) updateEventResponseStatus(ctx context.Context, invite *Invite,
 		return nil
 	}
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
+	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -170,17 +170,17 @@ func (h *Handler) updateEventResponseStatus(ctx context.Context, invite *Invite,
 
 func (h *Handler) syncAllInvites(account *Account, srv *calendar.Service, channelID, calendarID string) {
 	syncStart := time.Now()
+	// context.Background() because syncAllInvites is a background goroutine that outlives the request context
 	ctx := context.Background()
 	var err error
 	defer func() {
-		if err = h.wrapAuth(ctx, account, err); err != nil {
+		if err = h.WrapAuth(ctx, account, err); err != nil {
 			h.Errorf("error syncing all invites: %s", err)
 		}
 	}()
 
 	var nextSyncToken string
 	var events []*calendar.Event
-	// context.Background() because syncAllInvites is a background goroutine that outlives the request context
 	err = srv.Events.List(calendarID).
 		Pages(ctx, func(page *calendar.Events) error {
 			if page.NextPageToken == "" {

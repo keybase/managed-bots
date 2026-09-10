@@ -139,20 +139,40 @@ func getCalendarService(ctx context.Context, account *Account, config *oauth2.Co
 
 const reconnectAccountMsg = "Your account '%s' needs to be reconnected. Please run `!gcal accounts connect %s` again."
 
-// InvalidateAccountIfAuthError deletes the account and DMs the user when err
+// CalendarAuth obtains a Calendar client and recovers from invalid OAuth credentials.
+type CalendarAuth struct {
+	oauth *oauth2.Config
+	db    *DB
+	debug *base.DebugOutput
+	kbc   *kbchat.API
+}
+
+func NewCalendarAuth(oauth *oauth2.Config, db *DB, debug *base.DebugOutput, kbc *kbchat.API) *CalendarAuth {
+	return &CalendarAuth{oauth: oauth, db: db, debug: debug, kbc: kbc}
+}
+
+func (c *CalendarAuth) GetCalendarService(ctx context.Context, account *Account) (*calendar.Service, error) {
+	srv, err := getCalendarService(ctx, account, c.oauth, c.db)
+	if err != nil {
+		return nil, c.InvalidateIfAuthError(ctx, account, err)
+	}
+	return srv, nil
+}
+
+// InvalidateIfAuthError deletes the account and DMs the user when err
 // indicates invalid OAuth credentials. Returns AccountAuthError in that case,
 // otherwise returns err unchanged.
-func InvalidateAccountIfAuthError(ctx context.Context, account *Account, err error, db *DB, debug *base.DebugOutput, kbc *kbchat.API) error {
+func (c *CalendarAuth) InvalidateIfAuthError(ctx context.Context, account *Account, err error) error {
 	if err == nil || !base.ShouldRetryAuth(err) {
 		return err
 	}
-	debug.Errorf("auth failed for %s/%s, deleting credentials: %v", account.KeybaseUsername, account.AccountNickname, err)
-	if delErr := db.DeleteAccount(ctx, account.KeybaseUsername, account.AccountNickname); delErr != nil {
-		debug.Errorf("failed to delete account after auth error: %v", delErr)
+	c.debug.Errorf("auth failed for %s/%s, deleting credentials: %v", account.KeybaseUsername, account.AccountNickname, err)
+	if delErr := c.db.DeleteAccount(ctx, account.KeybaseUsername, account.AccountNickname); delErr != nil {
+		c.debug.Errorf("failed to delete account after auth error: %v", delErr)
 	}
-	if _, sendErr := kbc.SendMessageByTlfName(account.KeybaseUsername, reconnectAccountMsg,
+	if _, sendErr := c.kbc.SendMessageByTlfName(account.KeybaseUsername, reconnectAccountMsg,
 		account.AccountNickname, account.AccountNickname); sendErr != nil {
-		debug.Errorf("failed to DM user after auth error: %v", sendErr)
+		c.debug.Errorf("failed to DM user after auth error: %v", sendErr)
 	}
 	return AccountAuthError{
 		Username: account.KeybaseUsername,
@@ -160,30 +180,8 @@ func InvalidateAccountIfAuthError(ctx context.Context, account *Account, err err
 	}
 }
 
-// GetCalendarServiceWithRetry wraps getCalendarService and handles auth failures
-// by deleting invalid credentials. Returns AccountAuthError if credentials were deleted.
-func GetCalendarServiceWithRetry(ctx context.Context, account *Account, config *oauth2.Config, db *DB, debug *base.DebugOutput, kbc *kbchat.API) (*calendar.Service, error) {
-	srv, err := getCalendarService(ctx, account, config, db)
-	if err != nil {
-		return nil, InvalidateAccountIfAuthError(ctx, account, err, db, debug, kbc)
-	}
-	return srv, nil
-}
-
-func (h *Handler) GetCalendarServiceWithRetry(ctx context.Context, account *Account) (*calendar.Service, error) {
-	return GetCalendarServiceWithRetry(ctx, account, h.oauth, h.db, h.DebugOutput, h.kbc)
-}
-
-func (h *Handler) invalidateIfAuthError(ctx context.Context, account *Account, err error) error {
-	return InvalidateAccountIfAuthError(ctx, account, err, h.db, h.DebugOutput, h.kbc)
-}
-
-func (h *Handler) wrapAuth(ctx context.Context, account *Account, err error) error {
-	return WrapAuthError(ctx, account, err, h.db, h.DebugOutput, h.kbc)
-}
-
-// WrapAuthError invalidates the account on auth failure and returns nil in that
+// WrapAuth invalidates the account on auth failure and returns nil in that
 // case so callers can treat reconnect-needed as handled.
-func WrapAuthError(ctx context.Context, account *Account, err error, db *DB, debug *base.DebugOutput, kbc *kbchat.API) error {
-	return IgnoreAccountAuthError(InvalidateAccountIfAuthError(ctx, account, err, db, debug, kbc))
+func (c *CalendarAuth) WrapAuth(ctx context.Context, account *Account, err error) error {
+	return IgnoreAccountAuthError(c.InvalidateIfAuthError(ctx, account, err))
 }

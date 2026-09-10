@@ -201,14 +201,14 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srv, err := h.handler.GetCalendarServiceWithRetry(ctx, selectedAccount)
+	srv, err := h.handler.GetCalendarService(ctx, selectedAccount)
 	if err != nil {
 		return
 	}
 
 	calendarList, err := srv.CalendarList.List().Do()
 	if err != nil {
-		err = h.handler.invalidateIfAuthError(ctx, selectedAccount, err)
+		err = h.handler.InvalidateIfAuthError(ctx, selectedAccount, err)
 		return
 	}
 	page.Calendars = calendarList.Items

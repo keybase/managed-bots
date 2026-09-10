@@ -47,12 +47,12 @@ func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
 func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *gcalbot.Subscription) {
 	var err error
 	defer func() {
-		if err = r.wrapAuth(context.Background(), account, err); err != nil {
+		if err = r.cal.WrapAuth(context.Background(), account, err); err != nil {
 			r.Errorf("error syncing events: %s", err)
 		}
 	}()
 
-	srv, err := r.getCalendarService(context.Background(), account)
+	srv, err := r.cal.GetCalendarService(context.Background(), account)
 	if err != nil {
 		return
 	}
@@ -85,7 +85,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 	subscription *gcalbot.Subscription,
 	event *calendar.Event,
 ) (err error) {
-	defer func() { err = r.wrapAuth(context.Background(), account, err) }()
+	defer func() { err = r.cal.WrapAuth(context.Background(), account, err) }()
 	r.stats.Count("UpdateOrCreateReminderEvent")
 	status := gcalbot.EventStatus(event.Status)
 	if status == gcalbot.EventStatusCancelled {
@@ -117,7 +117,7 @@ func (r *ReminderScheduler) UpdateOrCreateReminderEvent(
 		}
 	})
 
-	srv, err := r.getCalendarService(context.Background(), account)
+	srv, err := r.cal.GetCalendarService(context.Background(), account)
 	if err != nil {
 		return err
 	}

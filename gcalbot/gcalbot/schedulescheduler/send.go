@@ -100,9 +100,9 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	s.stats.Count("SendDailyScheduleMessage")
 	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
 
-	srv, err := s.getCalendarService(context.Background(), &subscription.Account)
+	srv, err := s.cal.GetCalendarService(context.Background(), &subscription.Account)
 	if err != nil {
-		if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+		if err = s.cal.WrapAuth(context.Background(), &subscription.Account, err); err != nil {
 			s.Errorf("unable to get calendar service: %s", err)
 		}
 		return
@@ -119,7 +119,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 
 	format24HourTime, err := gcalbot.GetUserFormat24HourTime(srv)
 	if err != nil {
-		if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+		if err = s.cal.WrapAuth(context.Background(), &subscription.Account, err); err != nil {
 			s.Errorf("unable to get user 24 hour time setting: %s", err)
 		}
 		return
@@ -130,7 +130,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	for index, calendarID := range subscription.CalendarIDs {
 		cal, err := srv.Calendars.Get(calendarID).Fields("summary").Do()
 		if err != nil {
-			if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+			if err = s.cal.WrapAuth(context.Background(), &subscription.Account, err); err != nil {
 				return
 			}
 			var gerr *googleapi.Error
@@ -155,7 +155,7 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 				return nil
 			})
 		if err != nil {
-			if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+			if err = s.cal.WrapAuth(context.Background(), &subscription.Account, err); err != nil {
 				return
 			}
 			s.Debug("error getting events from API: %s", err)

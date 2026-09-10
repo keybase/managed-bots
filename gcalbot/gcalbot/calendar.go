@@ -25,9 +25,9 @@ func (h *Handler) handleCalendarsList(ctx context.Context, msg chat1.MsgSummary,
 		return nil
 	}
 
-	defer func() { err = h.wrapAuth(ctx, account, err) }()
+	defer func() { err = h.WrapAuth(ctx, account, err) }()
 
-	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
+	srv, err := h.GetCalendarService(ctx, account)
 	if err != nil {
 		return err
 	}
