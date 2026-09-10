@@ -1,12 +1,15 @@
 package reminderscheduler
 
 import (
+	"context"
 	"sync"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/api/calendar/v3"
 )
 
 type ReminderScheduler struct {
@@ -18,6 +21,7 @@ type ReminderScheduler struct {
 	stats *base.StatsRegistry
 	db    *gcalbot.DB
 	oauth *oauth2.Config
+	kbc   *kbchat.API
 
 	subscriptionReminders *SubscriptionReminders
 	eventReminders        *EventReminders
@@ -29,6 +33,7 @@ func NewReminderScheduler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *gcalbot.DB,
 	oauth *oauth2.Config,
+	kbc *kbchat.API,
 ) *ReminderScheduler {
 	return &ReminderScheduler{
 		stats:                 stats.SetPrefix("ReminderScheduler"),
@@ -36,6 +41,7 @@ func NewReminderScheduler(
 		shutdownCh:            make(chan struct{}),
 		db:                    db,
 		oauth:                 oauth,
+		kbc:                   kbc,
 		subscriptionReminders: NewSubscriptionReminders(),
 		eventReminders:        NewEventReminders(),
 		minuteReminders:       NewMinuteReminders(),
@@ -66,4 +72,12 @@ func (r *ReminderScheduler) Shutdown() (err error) {
 		r.shutdownCh = nil
 	}
 	return nil
+}
+
+func (r *ReminderScheduler) getCalendarService(ctx context.Context, account *gcalbot.Account) (*calendar.Service, error) {
+	return gcalbot.GetCalendarServiceWithRetry(ctx, account, r.oauth, r.db, r.DebugOutput, r.kbc)
+}
+
+func (r *ReminderScheduler) wrapAuth(ctx context.Context, account *gcalbot.Account, err error) error {
+	return gcalbot.WrapAuthError(ctx, account, err, r.db, r.DebugOutput, r.kbc)
 }

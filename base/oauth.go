@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
@@ -287,18 +286,42 @@ func GetOAuthClient(
 
 		return nil, OAuthRequiredError{}
 	}
+
 	// renew token
-	if token.Expiry.Before(time.Now()) {
-		newToken, err := config.TokenSource(ctx, token).Token()
-		if err != nil {
-			return nil, fmt.Errorf("unable to renew token: %s", err)
-		}
-		err = storage.PutToken(ctx, tokenIdentifier, newToken)
-		if err != nil {
+	src := PersistTokenSource(ctx, token, config.TokenSource(ctx, token), func(ctx context.Context, tok *oauth2.Token) error {
+		return storage.PutToken(ctx, tokenIdentifier, tok)
+	})
+	if _, err := src.Token(); err != nil {
+		return nil, fmt.Errorf("unable to renew token: %s", err)
+	}
+	return oauth2.NewClient(ctx, src), nil
+}
+
+// PersistTokenSource wraps src and writes the token whenever AccessToken,
+// RefreshToken, or Expiry changes (including refresh-token rotation).
+func PersistTokenSource(ctx context.Context, token *oauth2.Token, src oauth2.TokenSource, put func(context.Context, *oauth2.Token) error) oauth2.TokenSource {
+	return &persistTokenSource{ctx: ctx, token: token, src: src, put: put}
+}
+
+type persistTokenSource struct {
+	ctx   context.Context
+	token *oauth2.Token
+	src   oauth2.TokenSource
+	put   func(context.Context, *oauth2.Token) error
+}
+
+func (s *persistTokenSource) Token() (*oauth2.Token, error) {
+	tok, err := s.src.Token()
+	if err != nil {
+		return nil, err
+	}
+	if tok.AccessToken != s.token.AccessToken ||
+		tok.RefreshToken != s.token.RefreshToken ||
+		!tok.Expiry.Equal(s.token.Expiry) {
+		*s.token = *tok
+		if err := s.put(s.ctx, tok); err != nil {
 			return nil, fmt.Errorf("unable to update token: %s", err)
 		}
-		token = newToken
 	}
-
-	return config.Client(ctx, token), nil
+	return tok, nil
 }

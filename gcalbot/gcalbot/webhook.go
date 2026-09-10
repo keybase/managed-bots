@@ -2,6 +2,7 @@ package gcalbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -9,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 
 	"google.golang.org/api/calendar/v3"
@@ -17,7 +19,14 @@ import (
 
 func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	var err error
+	var account *Account
+	// WithoutCancel: Google sends the webhook and may close the connection
+	// immediately; DB writes and reminder scheduling must complete regardless.
+	ctx := context.WithoutCancel(r.Context())
 	defer func() {
+		if account != nil {
+			err = h.handler.wrapAuth(ctx, account, err)
+		}
 		if err != nil {
 			h.Errorf("error in event update webhook: %s", err)
 		}
@@ -28,13 +37,11 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		// sync header, safe to ignore
 		return
 	}
-	// WithoutCancel: Google sends the webhook and may close the connection
-	// immediately; DB writes and reminder scheduling must complete regardless.
-	ctx := context.WithoutCancel(r.Context())
 
 	channelID := r.Header.Get("X-Goog-Channel-ID")
 	resourceID := r.Header.Get("X-Goog-Resource-ID")
-	channel, account, err := h.db.GetChannelAndAccountByID(ctx, channelID)
+	var channel *Channel
+	channel, account, err = h.db.GetChannelAndAccountByID(ctx, channelID)
 	if err != nil {
 		return
 	} else if channel == nil {
@@ -62,19 +69,8 @@ func (h *HTTPSrv) handleEventUpdateWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		h.Debug("error retrieving token: %s", err)
-		err = nil // clear error
-		return
-	default:
-		if base.ShouldRetryAuth(err) {
-			h.Debug("auth error in webhook (will not auto-delete): %s", err)
-			err = nil // clear error
-			return
-		}
+	srv, err := h.handler.GetCalendarServiceWithRetry(ctx, account)
+	if err != nil {
 		return
 	}
 
@@ -235,8 +231,10 @@ func (h *Handler) createSubscription(
 
 func (h *Handler) removeSubscription(
 	ctx context.Context, account *Account, subscription Subscription,
-) error {
-	err := h.db.DeleteSubscription(ctx, account, subscription)
+) (err error) {
+	defer func() { err = h.wrapAuth(ctx, account, err) }()
+
+	err = h.db.DeleteSubscription(ctx, account, subscription)
 	if err != nil {
 		// if no error, subscription doesn't exist, short circuit
 		return err
@@ -251,34 +249,28 @@ func (h *Handler) removeSubscription(
 
 	if subscriptionCount == 0 {
 		// if there are no more subscriptions for this account + calendar, remove the channel
-		channel, err := h.db.GetChannel(ctx, account, subscription.CalendarID)
+		var channel *Channel
+		channel, err = h.db.GetChannel(ctx, account, subscription.CalendarID)
 		if err != nil {
 			return err
 		}
 
 		if channel != nil {
-			srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
+			var srv *calendar.Service
+			srv, err = h.GetCalendarServiceWithRetry(ctx, account)
 			if err != nil {
-				if base.ShouldRetryAuth(err) {
-					h.Debug("auth error stopping channel, skipping channel.Stop: %s", err)
-					// Still delete from DB even if we can't stop the channel
-				} else {
-					return err
-				}
-			} else {
-				// Only try to stop if we got the service successfully
-				err = srv.Channels.Stop(&calendar.Channel{
-					Id:         channel.ChannelID,
-					ResourceId: channel.ResourceID,
-				}).Do()
-				switch err := err.(type) {
-				case nil:
-				case *googleapi.Error:
-					if err.Code != 404 {
-						return err
-					}
+				return err
+			}
+			err = srv.Channels.Stop(&calendar.Channel{
+				Id:         channel.ChannelID,
+				ResourceId: channel.ResourceID,
+			}).Do()
+			if err != nil {
+				var gerr *googleapi.Error
+				if errors.As(err, &gerr) && gerr.Code == 404 {
 					// if the channel wasn't found, don't return
-				default:
+					err = nil
+				} else {
 					return err
 				}
 			}
@@ -293,12 +285,11 @@ func (h *Handler) removeSubscription(
 	return nil
 }
 
-func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) error {
-	srv, err := GetCalendarService(ctx, account, h.oauth, h.db)
+func (h *Handler) createEventChannel(ctx context.Context, account *Account, calendarID string) (err error) {
+	defer func() { err = h.invalidateIfAuthError(ctx, account, err) }()
+
+	srv, err := h.GetCalendarServiceWithRetry(ctx, account)
 	if err != nil {
-		if base.ShouldRetryAuth(err) {
-			h.Debug("auth error creating channel, cannot create webhook: %s", err)
-		}
 		return err
 	}
 	exists, err := h.db.ExistsChannelByAccountAndCalendar(ctx, account, calendarID)
@@ -350,6 +341,7 @@ type RenewChannelScheduler struct {
 	stats      *base.StatsRegistry
 	db         *DB
 	config     *oauth2.Config
+	kbc        *kbchat.API
 	httpPrefix string
 }
 
@@ -358,6 +350,7 @@ func NewRenewChannelScheduler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *DB,
 	config *oauth2.Config,
+	kbc *kbchat.API,
 	httpPrefix string,
 ) *RenewChannelScheduler {
 	return &RenewChannelScheduler{
@@ -365,6 +358,7 @@ func NewRenewChannelScheduler(
 		DebugOutput: base.NewDebugOutput("RenewChannelScheduler", debugConfig),
 		db:          db,
 		config:      config,
+		kbc:         kbc,
 		httpPrefix:  httpPrefix,
 		shutdownCh:  make(chan struct{}),
 	}
@@ -422,15 +416,13 @@ func (r *RenewChannelScheduler) renewScheduler(shutdownCh chan struct{}) {
 	}
 }
 
-func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) error {
+func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel) (err error) {
 	r.stats.Count("renewChannel")
-	srv, err := GetCalendarService(context.Background(), account, r.config, r.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		r.Debug("error retrieving token: %s", err)
-		return nil
-	default:
+	ctx := context.Background()
+	defer func() { err = WrapAuthError(ctx, account, err, r.db, r.DebugOutput, r.kbc) }()
+
+	srv, err := GetCalendarServiceWithRetry(ctx, account, r.config, r.db, r.DebugOutput, r.kbc)
+	if err != nil {
 		return err
 	}
 
@@ -459,16 +451,10 @@ func (r *RenewChannelScheduler) renewChannel(account *Account, channel *Channel)
 		Id:         channel.ChannelID,
 		ResourceId: channel.ResourceID,
 	}).Do()
-	switch err := err.(type) {
-	case nil:
-	case *googleapi.Error:
-		if err.Code != 404 {
-			return err
-		}
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) && gerr.Code == 404 {
 		// if the channel wasn't found, don't return an error
-	default:
-		return err
+		return nil
 	}
-
-	return nil
+	return err
 }

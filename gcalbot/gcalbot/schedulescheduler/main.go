@@ -1,11 +1,14 @@
 package schedulescheduler
 
 import (
+	"context"
 	"sync"
 
+	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/calendar/v3"
 )
 
 type ScheduleScheduler struct {
@@ -17,6 +20,7 @@ type ScheduleScheduler struct {
 	stats *base.StatsRegistry
 	db    *gcalbot.DB
 	oauth *oauth2.Config
+	kbc   *kbchat.API
 }
 
 func NewScheduleScheduler(
@@ -24,6 +28,7 @@ func NewScheduleScheduler(
 	debugConfig *base.ChatDebugOutputConfig,
 	db *gcalbot.DB,
 	oauth *oauth2.Config,
+	kbc *kbchat.API,
 ) *ScheduleScheduler {
 	return &ScheduleScheduler{
 		stats:       stats.SetPrefix("ScheduleScheduler"),
@@ -31,6 +36,7 @@ func NewScheduleScheduler(
 		shutdownCh:  make(chan struct{}),
 		db:          db,
 		oauth:       oauth,
+		kbc:         kbc,
 	}
 }
 
@@ -54,4 +60,12 @@ func (s *ScheduleScheduler) Shutdown() (err error) {
 		s.shutdownCh = nil
 	}
 	return nil
+}
+
+func (s *ScheduleScheduler) getCalendarService(ctx context.Context, account *gcalbot.Account) (*calendar.Service, error) {
+	return gcalbot.GetCalendarServiceWithRetry(ctx, account, s.oauth, s.db, s.DebugOutput, s.kbc)
+}
+
+func (s *ScheduleScheduler) wrapAuth(ctx context.Context, account *gcalbot.Account, err error) error {
+	return gcalbot.WrapAuthError(ctx, account, err, s.db, s.DebugOutput, s.kbc)
 }

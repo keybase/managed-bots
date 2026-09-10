@@ -88,7 +88,7 @@ func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
 	// if account was created in a 1on1 conv, create default subscription to invites & 5 minute reminder for primary calendar
 	if base.IsDirectPrivateMessage(h.kbc.GetUsername(), req.KeybaseUsername, conv.Channel) {
 		var srv *calendar.Service
-		srv, err = GetCalendarService(ctx, &account, h.oauth, h.db)
+		srv, err = h.handler.GetCalendarServiceWithRetry(ctx, &account)
 		if err != nil {
 			return
 		}

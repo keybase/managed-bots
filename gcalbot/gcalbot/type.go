@@ -1,6 +1,7 @@
 package gcalbot
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -113,4 +114,16 @@ type AccountAuthError struct {
 
 func (e AccountAuthError) Error() string {
 	return fmt.Sprintf("account '%s' for user '%s' requires re-authentication", e.Nickname, e.Username)
+}
+
+func IsAccountAuthError(err error) bool {
+	var e AccountAuthError
+	return errors.As(err, &e)
+}
+
+func IgnoreAccountAuthError(err error) error {
+	if IsAccountAuthError(err) {
+		return nil
+	}
+	return err
 }

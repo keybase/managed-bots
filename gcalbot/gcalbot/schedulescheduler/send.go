@@ -8,12 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 
-	"github.com/keybase/managed-bots/base"
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 )
 
@@ -103,18 +100,11 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	s.stats.Count("SendDailyScheduleMessage")
 	s.stats.CountMult("SendDailyScheduleMessage - calendars", len(subscription.CalendarIDs))
 
-	srv, err := gcalbot.GetCalendarService(context.Background(), &subscription.Account, s.oauth, s.db)
-	switch err.(type) {
-	case nil:
-	case *oauth2.RetrieveError:
-		s.Debug("error retrieving token: %s", err)
-		return
-	default:
-		if base.ShouldRetryAuth(err) {
-			s.Debug("auth error in scheduler (will not auto-delete): %s", err)
-			return
+	srv, err := s.getCalendarService(context.Background(), &subscription.Account)
+	if err != nil {
+		if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+			s.Errorf("unable to get calendar service: %s", err)
 		}
-		s.Errorf("unable to get calendar service: %s", err)
 		return
 	}
 
@@ -129,7 +119,9 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 
 	format24HourTime, err := gcalbot.GetUserFormat24HourTime(srv)
 	if err != nil {
-		s.Errorf("unable to get user 24 hour time setting: %s", err)
+		if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+			s.Errorf("unable to get user 24 hour time setting: %s", err)
+		}
 		return
 	}
 
@@ -138,6 +130,9 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 	for index, calendarID := range subscription.CalendarIDs {
 		cal, err := srv.Calendars.Get(calendarID).Fields("summary").Do()
 		if err != nil {
+			if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+				return
+			}
 			var gerr *googleapi.Error
 			if errors.As(err, &gerr) && gerr.Code == 404 {
 				// Calendar was deleted or user lost access; use ID as display name
@@ -160,6 +155,9 @@ func (s *ScheduleScheduler) SendDailyScheduleMessage(sendMinute time.Time, subsc
 				return nil
 			})
 		if err != nil {
+			if err = s.wrapAuth(context.Background(), &subscription.Account, err); err != nil {
+				return
+			}
 			s.Debug("error getting events from API: %s", err)
 			continue
 		}
