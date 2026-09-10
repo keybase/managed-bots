@@ -136,6 +136,7 @@ func TestConfigTokenSourceZeroExpiry(t *testing.T) {
 	token := &oauth2.Token{AccessToken: "a", RefreshToken: "r"}
 	require.True(t, token.Valid(), "zero expiry is Valid() in oauth2")
 
+	//nolint:gosec // G101: False positive - TokenURL is a dummy loopback address, not credentials
 	cfg := &oauth2.Config{Endpoint: oauth2.Endpoint{TokenURL: "http://127.0.0.1:1"}}
 	src := ConfigTokenSource(context.Background(), cfg, token)
 	_, err := src.Token()
