@@ -135,6 +135,8 @@ func getCalendarService(ctx context.Context, account *Account, config *oauth2.Co
 
 const reconnectAccountMsg = "Your account '%s' needs to be reconnected. Please run `!gcal accounts connect %s` again."
 
+const restrictedAccountMsg = "Google Workspace has blocked this bot from accessing your account '%s' (an admin may have restricted the app). I disconnected it so it stops retrying. If you get access again, run `!gcal accounts connect %s`."
+
 // CalendarAuth obtains a Calendar client and recovers from invalid OAuth credentials.
 type CalendarAuth struct {
 	oauth *oauth2.Config
@@ -200,7 +202,11 @@ func (c *CalendarAuth) InvalidateIfAuthError(ctx context.Context, account *Accou
 	if delErr := c.db.DeleteAccount(ctx, account.KeybaseUsername, account.AccountNickname); delErr != nil {
 		c.debug.Errorf("failed to delete account after auth error: %v", delErr)
 	}
-	if _, sendErr := c.kbc.SendMessageByTlfName(account.KeybaseUsername, reconnectAccountMsg,
+	msg := reconnectAccountMsg
+	if base.IsOAuthAccountRestricted(err) {
+		msg = restrictedAccountMsg
+	}
+	if _, sendErr := c.kbc.SendMessageByTlfName(account.KeybaseUsername, msg,
 		account.AccountNickname, account.AccountNickname); sendErr != nil {
 		c.debug.Errorf("failed to DM user after auth error: %v", sendErr)
 	}

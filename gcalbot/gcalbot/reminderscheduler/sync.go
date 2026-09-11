@@ -3,10 +3,12 @@ package reminderscheduler
 import (
 	"container/list"
 	"context"
+	"errors"
 	"time"
 
 	"github.com/keybase/managed-bots/gcalbot/gcalbot"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 )
 
 func (r *ReminderScheduler) eventSyncLoop(shutdownCh chan struct{}) error {
@@ -71,6 +73,12 @@ func (r *ReminderScheduler) syncEvents(account *gcalbot.Account, subscription *g
 			return nil
 		})
 	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) && gerr.Code == 404 {
+			// Calendar was deleted or the user lost access.
+			r.Debug("calendar no longer accessible (404): %s", subscription.CalendarID)
+			err = nil
+		}
 		return
 	}
 	for _, event := range events {

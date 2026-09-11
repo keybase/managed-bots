@@ -43,6 +43,24 @@ func TestShouldRetryAuth(t *testing.T) {
 	t.Run("unrelated", func(t *testing.T) {
 		require.False(t, ShouldRetryAuth(errors.New("calendar: 404 not found")))
 	})
+
+	t.Run("workspace account restricted", func(t *testing.T) {
+		err := &oauth2.RetrieveError{
+			ErrorCode:        "access_not_configured",
+			ErrorDescription: "Account Restricted",
+			ErrorURI:         "https://access.workspace.google.com/ServiceNotAllowed?application=435070579839&source=scrip",
+		}
+		require.True(t, IsOAuthAccountRestricted(err))
+		require.True(t, ShouldRetryAuth(err))
+		require.True(t, ShouldRetryAuth(fmt.Errorf("unable to renew token: %w", err)))
+		require.True(t, IsOAuthAccountRestricted(errors.New(`oauth2: "access_not_configured" "Account Restricted" "https://access.workspace.google.com/ServiceNotAllowed"`)))
+	})
+
+	t.Run("access_not_configured without restriction is not credential error", func(t *testing.T) {
+		err := &oauth2.RetrieveError{ErrorCode: "access_not_configured", ErrorDescription: "API not enabled"}
+		require.False(t, IsOAuthAccountRestricted(err))
+		require.False(t, ShouldRetryAuth(err))
+	})
 }
 
 type stubTokenSource struct {

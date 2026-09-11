@@ -24,11 +24,16 @@ func (e OAuthRequiredError) Error() string {
 }
 
 // ShouldRetryAuth reports whether err means the user's OAuth credentials are
-// permanently unusable and should be deleted. Transient token-fetch failures
-// (network, 5xx) are not treated as credential errors.
+// permanently unusable and should be deleted: invalid_grant, invalid_token,
+// a missing refresh token, or a Google Workspace Account Restricted refresh
+// failure. Transient token-fetch failures (network, 5xx) and a bare
+// access_not_configured (API not enabled on the Cloud project) are not.
 func ShouldRetryAuth(err error) bool {
 	if err == nil {
 		return false
+	}
+	if IsOAuthAccountRestricted(err) {
+		return true
 	}
 	var retr *oauth2.RetrieveError
 	if errors.As(err, &retr) {
@@ -43,6 +48,34 @@ func ShouldRetryAuth(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "invalid_grant") ||
 		strings.Contains(msg, "token expired and refresh token is not set")
+}
+
+// IsOAuthAccountRestricted reports whether Google Workspace has blocked this
+// OAuth client for the user (token refresh returns access_not_configured /
+// Account Restricted). This is per-account admin policy, not a missing API on
+// the Cloud project.
+func IsOAuthAccountRestricted(err error) bool {
+	if err == nil {
+		return false
+	}
+	restricted := func(s string) bool {
+		s = strings.ToLower(s)
+		return strings.Contains(s, "account restricted") ||
+			strings.Contains(s, "servicenotallowed")
+	}
+	var retr *oauth2.RetrieveError
+	if errors.As(err, &retr) {
+		code := strings.ToLower(retr.ErrorCode)
+		body := strings.ToLower(string(retr.Body))
+		if code != "access_not_configured" && !strings.Contains(body, "access_not_configured") {
+			return false
+		}
+		return restricted(retr.ErrorDescription) ||
+			restricted(retr.ErrorURI) ||
+			restricted(body)
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "access_not_configured") && restricted(msg)
 }
 
 type OAuthStorage interface {
