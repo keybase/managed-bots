@@ -1,0 +1,29 @@
+base/oauth_test.go
+  s_e36daef3a7a336::t_4a34e3733b091c 46-63
+gcalbot/gcalbot/account.go
+  s_e36daef3a7a336::t_d4ca544922fb7a 138-139
+  s_e36daef3a7a336::t_2f7755d4172baf 205-209
+gcalbot/gcalbot/reminderscheduler/sync.go
+  s_e36daef3a7a336::t_eb69d3500dcc8b 6,11
+  s_e36daef3a7a336::t_a8386525eec938 76-81
+base/oauth.go
+  s_e36daef3a7a336::t_fb33b6526f123c 27-30
+  s_e36daef3a7a336::t_ae670ae5399044 35-37,53-78
+  s_e36daef3a7a336::t_b66db1198bffea 79-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "d3d0ef40d41b177d471789daf67280364d51fc41",
+  "prompts": {},
+  "sessions": {
+    "s_e36daef3a7a336": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "452d0d91-eaa1-47cb-9d72-7fd38f4ac97d",
+        "model": "auto-smart"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
