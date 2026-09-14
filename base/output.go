@@ -55,7 +55,7 @@ func (d *DebugOutput) Report(msg string, args ...any) {
 		d.Debug("Errorf: Unable to report error to chat, errReportConv: %v, kbc: %v",
 			d.config.ErrReportConv, d.config.KBC)
 	} else {
-		if err := SendByConvNameOrID(d.config.KBC, d, d.config.ErrReportConv, msg, args...); err != nil && !IsDeletedConvError(err) {
+		if err := SendByConvNameOrID(d.config.KBC, d, d.config.ErrReportConv, msg, args...); err != nil && !IsIgnoredSendError(err) {
 			d.Debug("Errorf: failed to send error message: %s", err)
 		}
 	}
@@ -63,20 +63,20 @@ func (d *DebugOutput) Report(msg string, args ...any) {
 
 func (d *DebugOutput) ChatDebug(convID chat1.ConvIDStr, msg string, args ...any) {
 	d.Debug(msg, args...)
-	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsDeletedConvError(err) {
+	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsIgnoredSendError(err) {
 		d.Errorf("ChatDebug: failed to send error message: %s", err)
 	}
 }
 
 func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...any) {
 	d.Errorf(msg, args...)
-	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsDeletedConvError(err) {
+	if _, err := d.config.KBC.SendMessageByConvID(convID, "Something went wrong!"); err != nil && !IsIgnoredSendError(err) {
 		d.Errorf("ChatErrorf: failed to send error message: %s", err)
 	}
 }
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...any) {
-	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil && !IsDeletedConvError(err) {
+	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil && !IsIgnoredSendError(err) {
 		d.Errorf("ChatEcho: failed to send echo message: %s", err)
 	}
 }
@@ -90,9 +90,20 @@ func (d *DebugOutput) Trace(err *error, format string, args ...any) func() {
 	}
 }
 
+func IsIgnoredSendError(err error) bool {
+	return IsDeletedConvError(err) || IsEphemeralKeyError(err)
+}
+
 func IsDeletedConvError(err error) bool {
 	// error created in https://github.com/keybase/client/blob/1985b18c4e7659bede1d4a2e68e4f68467acebc6/go/client/chat_svc_handler.go#L1407
 	// error created in https://github.com/keybase/keybase/blob/9a82c96231ea2c6132532002e58bac80849265e6/go/chatbase/storage/sql_chat.go#L2324
 	return strings.Contains(err.Error(), "no conversations matched") ||
 		strings.Contains(err.Error(), "GetConvTriple called with unknown ConversationID")
+}
+
+func IsEphemeralKeyError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "unboxing teambotEK@generation:") ||
+		strings.Contains(msg, "missing userEK@generation:") ||
+		strings.Contains(msg, "Missing box for teambotEK@generation:")
 }
