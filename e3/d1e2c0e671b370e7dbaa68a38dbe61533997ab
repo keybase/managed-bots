@@ -1,0 +1,21 @@
+go.mod
+  s_ee97987c18c7d1::t_268f820baa611c 18
+go.sum
+  s_ee97987c18c7d1::t_ebdb2a7cc77ef5 103-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "e3d1e2c0e671b370e7dbaa68a38dbe61533997ab",
+  "prompts": {},
+  "sessions": {
+    "s_ee97987c18c7d1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "768745b4-5410-4e76-b349-417c5ec5363d",
+        "model": "auto-smart"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
