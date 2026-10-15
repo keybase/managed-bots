@@ -57,7 +57,7 @@ const (
 )
 
 func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
-	deferExtended := fmt.Sprintf(`Defer reporting on logs lines that match the givesn regular expression. Useful if there is a known error spamming emails that is not a problem
+	deferExtended := fmt.Sprintf(`Defer reporting on logs lines that match the given regular expression. Useful if there is a known error spamming emails that is not a problem
 
 	Example:%s
 		!elastiwatch defer error loading .*%s`, backs, backs)
