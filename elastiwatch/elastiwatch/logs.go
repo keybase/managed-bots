@@ -15,18 +15,18 @@ import (
 
 type LogWatch struct {
 	*base.DebugOutput
-	db           *DB
-	cli          *opensearchapi.Client
-	indices      []string
-	email        string
-	entries      []*entry
-	emailer      base.Emailer
-	sendCount    int
-	lastSend     time.Time
-	alertConvID  chat1.ConvIDStr
-	emailConvID  chat1.ConvIDStr
-	shutdownCh   chan struct{}
-	peekCh       chan struct{}
+	db          *DB
+	cli         *opensearchapi.Client
+	indices     []string
+	email       string
+	entries     []*entry
+	emailer     base.Emailer
+	sendCount   int
+	lastSend    time.Time
+	alertConvID chat1.ConvIDStr
+	emailConvID chat1.ConvIDStr
+	shutdownCh  chan struct{}
+	peekCh      chan struct{}
 }
 
 func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer base.Emailer, alertConvID, emailConvID chat1.ConvIDStr, debugConfig *base.ChatDebugOutputConfig) *LogWatch {
