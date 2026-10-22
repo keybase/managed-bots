@@ -1,0 +1,19 @@
+elastiwatch/elastiwatch/logs.go
+  s_c49ea829834658::t_a8196d958bf999 18-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "3b9e22a2402557487699777ed9ce88ce869f3c4b",
+  "prompts": {},
+  "sessions": {
+    "s_c49ea829834658": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "4ea73602-c631-41fd-b125-2cfa550f63f4",
+        "model": "auto-smart"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
