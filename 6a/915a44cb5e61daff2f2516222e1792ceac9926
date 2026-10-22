@@ -1,0 +1,35 @@
+elastiwatch/elastiwatch/grouper.go
+  s_8aa3ac2cc29a66::t_6f853fb8233c3c 13-25
+  s_c51d00afcbebc5::t_1b0387549211ec 46,49,57-60,62,64-66,69
+  s_c51d00afcbebc5::t_6836e934b3394f 4
+  s_8aa3ac2cc29a66::t_7a6e4180203123 45,47-48,50-51,61,67
+elastiwatch/elastiwatch/entry_test.go
+  s_c51d00afcbebc5::t_7e1bf37ba7510c 9-10,14,17-18,20,24-25,27-28,30,33-42,44,46,49-52,54
+  s_8aa3ac2cc29a66::t_4bc81930917551 29,31-32,43,45,47-48
+base/oauth.go
+  s_c51d00afcbebc5::t_09dd3ba9f2b08c 38,65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "6a915a44cb5e61daff2f2516222e1792ceac9926",
+  "prompts": {},
+  "sessions": {
+    "s_8aa3ac2cc29a66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "96daf59a-c6d7-4fe4-a6b8-80cdb2c3ed5f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    },
+    "s_c51d00afcbebc5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ea42bb42-2520-4982-968d-a4512ec47fd0",
+        "model": "grok-4.6"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
