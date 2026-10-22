@@ -35,8 +35,7 @@ func ShouldRetryAuth(err error) bool {
 	if IsOAuthAccountRestricted(err) {
 		return true
 	}
-	var retr *oauth2.RetrieveError
-	if errors.As(err, &retr) {
+	if retr, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
 		switch strings.ToLower(retr.ErrorCode) {
 		case "invalid_grant", "invalid_token":
 			return true
@@ -63,8 +62,7 @@ func IsOAuthAccountRestricted(err error) bool {
 		return strings.Contains(s, "account restricted") ||
 			strings.Contains(s, "servicenotallowed")
 	}
-	var retr *oauth2.RetrieveError
-	if errors.As(err, &retr) {
+	if retr, ok := errors.AsType[*oauth2.RetrieveError](err); ok {
 		code := strings.ToLower(retr.ErrorCode)
 		body := strings.ToLower(string(retr.Body))
 		if code != "access_not_configured" && !strings.Contains(body, "access_not_configured") {
