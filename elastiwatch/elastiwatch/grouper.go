@@ -1,6 +1,7 @@
 package elastiwatch
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -9,15 +10,19 @@ import (
 )
 
 type entry struct {
-	Message   string `json:"message"`
-	Msg       string `json:"msg"`
-	Severity  string `json:"severity"`
-	Level     string `json:"level"`
-	UID       string `json:"uid"`
-	Time      string `json:"time"`
-	Timestamp string `json:"@timestamp"`
-	Program   string `json:"program"`
-	parts     []string
+	Message       string `json:"message"`
+	Msg           string `json:"msg"`
+	Severity      string `json:"severity"`
+	Level         string `json:"level"`
+	UID           string `json:"uid"`
+	Time          string `json:"time"`
+	Timestamp     string `json:"@timestamp"`
+	Program       string `json:"program"`
+	SyslogProgram string `json:"syslog_program"`
+	Instance      string `json:"instance"`
+	Section       string `json:"section"`
+	Error         any    `json:"error"`
+	parts         []string
 }
 
 func normalizeSeverity(s string) string {
@@ -37,24 +42,31 @@ func normalizeSeverity(s string) string {
 	}
 }
 
+func stringifyField(v any) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
+}
+
 func newEntry(dat []byte) (*entry, error) {
 	entry := new(entry)
 	if err := json.Unmarshal(dat, entry); err != nil {
 		return nil, err
 	}
-	if entry.Message == "" {
-		entry.Message = entry.Msg
+	entry.Message = cmp.Or(entry.Message, entry.Msg)
+	entry.Severity = normalizeSeverity(cmp.Or(entry.Severity, entry.Level))
+	entry.Time = cmp.Or(entry.Time, entry.Timestamp)
+	entry.Program = cmp.Or(entry.Program, entry.SyslogProgram, entry.Instance, entry.Section)
+	if errText := stringifyField(entry.Error); errText != "" && !strings.Contains(entry.Message, errText) {
+		entry.Message = strings.TrimSpace(entry.Message + " " + errText)
 	}
-	if entry.Severity == "" {
-		entry.Severity = entry.Level
+	for _, s := range []string{entry.Program, entry.UID} {
+		if s != "" {
+			entry.parts = append(entry.parts, s)
+		}
 	}
-	entry.Severity = normalizeSeverity(entry.Severity)
-	if entry.Time == "" {
-		entry.Time = entry.Timestamp
-	}
-	entry.parts = append(entry.parts, entry.Program)
-	entry.parts = append(entry.parts, entry.UID)
-	entry.parts = append(entry.parts, strings.Split(entry.Message, " ")...)
+	entry.parts = append(entry.parts, strings.Fields(entry.Message)...)
 	return entry, nil
 }
 
