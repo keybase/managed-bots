@@ -1,0 +1,27 @@
+elastiwatch/elastiwatch/grouper.go
+  s_c49ea829834658::t_7f82b397353111 12-37,45-54
+elastiwatch/elastiwatch/entry_test.go
+  s_c49ea829834658::t_24b08bf9c73493 1-41
+elastiwatch/elastiwatch/logs.go
+  s_c49ea829834658::t_e9a2e389a04430 205-207
+  s_c49ea829834658::t_eef3d9143ab284 183,185
+  s_c49ea829834658::t_9a9708e3d92381 19-20,31-41,47
+elastiwatch/main.go
+  s_c49ea829834658::t_ebad14c553da35 179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "d90119f0e834d01c4d275e3d0164244f64488619",
+  "prompts": {},
+  "sessions": {
+    "s_c49ea829834658": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "4ea73602-c631-41fd-b125-2cfa550f63f4",
+        "model": "auto-smart"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
