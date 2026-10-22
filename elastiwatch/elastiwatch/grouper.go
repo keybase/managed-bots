@@ -9,18 +9,48 @@ import (
 )
 
 type entry struct {
-	Message  string `json:"message"`
-	Severity string `json:"severity"`
-	UID      string `json:"uid"`
-	Time     string `json:"time"`
-	Program  string `json:"program"`
-	parts    []string
+	Message   string `json:"message"`
+	Msg       string `json:"msg"`
+	Severity  string `json:"severity"`
+	Level     string `json:"level"`
+	UID       string `json:"uid"`
+	Time      string `json:"time"`
+	Timestamp string `json:"@timestamp"`
+	Program   string `json:"program"`
+	parts     []string
+}
+
+func normalizeSeverity(s string) string {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "WARN", "WARNING":
+		return "WARNING"
+	case "ERR", "ERROR":
+		return "ERROR"
+	case "FATAL", "PANIC", "CRIT", "CRITICAL":
+		return "CRITICAL"
+	case "INFO", "INFORMATION", "NOTICE":
+		return "INFO"
+	case "DEBUG", "TRACE":
+		return "DEBUG"
+	default:
+		return strings.ToUpper(strings.TrimSpace(s))
+	}
 }
 
 func newEntry(dat []byte) (*entry, error) {
 	entry := new(entry)
 	if err := json.Unmarshal(dat, entry); err != nil {
 		return nil, err
+	}
+	if entry.Message == "" {
+		entry.Message = entry.Msg
+	}
+	if entry.Severity == "" {
+		entry.Severity = entry.Level
+	}
+	entry.Severity = normalizeSeverity(entry.Severity)
+	if entry.Time == "" {
+		entry.Time = entry.Timestamp
 	}
 	entry.parts = append(entry.parts, entry.Program)
 	entry.parts = append(entry.parts, entry.UID)

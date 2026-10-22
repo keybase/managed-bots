@@ -176,7 +176,7 @@ func mainInner() int {
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	var alertConvID, emailConvID string
 	fs.StringVar(&opts.ESAddress, "esaddress", os.Getenv("ESADDRESS"), "Elasticsearch address")
-	fs.StringVar(&opts.Index, "index", os.Getenv("INDEX"), "Elasticsearch index")
+	fs.StringVar(&opts.Index, "index", os.Getenv("INDEX"), "OpenSearch index pattern(s), comma-separated")
 	fs.StringVar(&opts.Email, "email", os.Getenv("EMAIL"), "Destination email address")
 	fs.StringVar(&opts.SenderEmail, "sender-email", os.Getenv("SENDER_EMAIL"), "Sourceemail address")
 	fs.StringVar(&opts.Team, "team", os.Getenv("TEAM"), "Team")
