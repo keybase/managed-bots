@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
@@ -16,7 +17,8 @@ type LogWatch struct {
 	*base.DebugOutput
 	db           *DB
 	cli          *opensearchapi.Client
-	index, email string
+	indices      []string
+	email        string
 	entries      []*entry
 	emailer      base.Emailer
 	sendCount    int
@@ -32,7 +34,9 @@ func NewLogWatch(cli *opensearchapi.Client, db *DB, index, email string, emailer
 		DebugOutput: base.NewDebugOutput("LogWatch", debugConfig),
 		cli:         cli,
 		db:          db,
-		index:       index,
+		indices: strings.FieldsFunc(index, func(r rune) bool {
+			return r == ',' || unicode.IsSpace(r)
+		}),
 		email:       email,
 		emailer:     emailer,
 		lastSend:    time.Now(),
@@ -168,9 +172,9 @@ func (l *LogWatch) generateAndSend(entries []*entry) {
 
 func (l *LogWatch) runOnce() {
 	res, err := l.cli.Search(context.Background(), &opensearchapi.SearchReq{
-		Indices: []string{l.index},
+		Indices: l.indices,
 		Params: opensearchapi.SearchParams{
-			Query:  `NOT severity:debug AND @timestamp:[now-1m TO now]`,
+			Query:  `NOT severity:debug AND NOT level:debug AND @timestamp:[now-1m TO now]`,
 			Sort:   []string{"@timestamp:desc"},
 			Size:   new(10000),
 			Pretty: true,
@@ -188,6 +192,9 @@ func (l *LogWatch) runOnce() {
 			entry, err := newEntry(hit.Source)
 			if err != nil {
 				l.Errorf("failed to unmarshal log entry: %s", err)
+				continue
+			}
+			if entry.Severity == "DEBUG" {
 				continue
 			}
 			entries = append(entries, entry)
