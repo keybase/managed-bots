@@ -1,0 +1,24 @@
+elastiwatch/elastiwatch/grouper.go
+  s_6efc7e68f39f13::t_7518a714c8626a 26-27,54-82,87,91,104-115
+  s_6efc7e68f39f13::t_9988dce81c075d 116-117
+elastiwatch/elastiwatch/logs.go
+  s_6efc7e68f39f13::t_918a8d752cfa5a 177-179,194,199
+elastiwatch/elastiwatch/entry_test.go
+  s_6efc7e68f39f13::t_7f3b4f764c142b 10,15,19,23,27,35-49,51,55,61,67,73-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "e8d77ae641e117db2055d727f9a10505e46197c6",
+  "prompts": {},
+  "sessions": {
+    "s_6efc7e68f39f13": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "55b66e30-1864-4251-b540-3d21f2d96c8d",
+        "model": "auto-smart"
+      },
+      "human_author": null
+    }
+  }
+}
