@@ -23,6 +23,8 @@ type entry struct {
 	Section       string `json:"section"`
 	Error         any    `json:"error"`
 	parts         []string
+	// levelOnly is true when severity came from logrus/iced `level` (not gregor `severity`).
+	levelOnly bool
 }
 
 func normalizeSeverity(s string) string {
@@ -49,15 +51,44 @@ func stringifyField(v any) string {
 	return fmt.Sprint(v)
 }
 
-func newEntry(dat []byte) (*entry, error) {
+// serviceFromIndex extracts the service from logstash-<service>-logs[-date].
+// e.g. logstash-mdserver-logs-2026.10.22 → mdserver, logstash-iced-merkle-logs-… → iced-merkle
+func serviceFromIndex(index string) string {
+	const prefix = "logstash-"
+	if !strings.HasPrefix(index, prefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(index, prefix)
+	i := strings.Index(rest, "-logs")
+	if i <= 0 {
+		return ""
+	}
+	return rest[:i]
+}
+
+func resolveProgram(program, syslogProgram, instance, section, index string) string {
+	if program != "" {
+		return program
+	}
+	if svc := serviceFromIndex(index); svc != "" {
+		return svc
+	}
+	if syslogProgram != "" && !strings.EqualFold(syslogProgram, "kbfs") {
+		return syslogProgram
+	}
+	return cmp.Or(instance, section)
+}
+
+func newEntry(dat []byte, index string) (*entry, error) {
 	entry := new(entry)
 	if err := json.Unmarshal(dat, entry); err != nil {
 		return nil, err
 	}
+	entry.levelOnly = entry.Severity == "" && entry.Level != ""
 	entry.Message = cmp.Or(entry.Message, entry.Msg)
 	entry.Severity = normalizeSeverity(cmp.Or(entry.Severity, entry.Level))
 	entry.Time = cmp.Or(entry.Time, entry.Timestamp)
-	entry.Program = cmp.Or(entry.Program, entry.SyslogProgram, entry.Instance, entry.Section)
+	entry.Program = resolveProgram(entry.Program, entry.SyslogProgram, entry.Instance, entry.Section, index)
 	if errText := stringifyField(entry.Error); errText != "" && !strings.Contains(entry.Message, errText) {
 		entry.Message = strings.TrimSpace(entry.Message + " " + errText)
 	}
@@ -68,6 +99,20 @@ func newEntry(dat []byte) (*entry, error) {
 	}
 	entry.parts = append(entry.parts, strings.Fields(entry.Message)...)
 	return entry, nil
+}
+
+// ignore reports whether this entry should be dropped before scoring/alerting.
+// DEBUG is always dropped. INFO from level-based sources (kbfs logrus, iced) is
+// also dropped; gregor-style severity:INFO is kept.
+func (e *entry) ignore() bool {
+	switch e.Severity {
+	case "DEBUG":
+		return true
+	case "INFO":
+		return e.levelOnly
+	default:
+		return false
+	}
 }
 
 func (e *entry) words() []string {
