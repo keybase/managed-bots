@@ -174,7 +174,9 @@ func (l *LogWatch) runOnce() {
 	res, err := l.cli.Search(context.Background(), &opensearchapi.SearchReq{
 		Indices: l.indices,
 		Params: opensearchapi.SearchParams{
-			Query:  `NOT severity:debug AND NOT level:debug AND @timestamp:[now-1m TO now]`,
+			// Drop debug everywhere. Also drop level:info from kbfs/iced (logrus
+			// / iced-logger); gregor still uses severity:INFO which we keep.
+			Query:  `NOT severity:debug AND NOT level:(debug OR info) AND @timestamp:[now-1m TO now]`,
 			Sort:   []string{"@timestamp:desc"},
 			Size:   new(10000),
 			Pretty: true,
@@ -189,12 +191,12 @@ func (l *LogWatch) runOnce() {
 	if res.Hits.Total.Value > 0 {
 		l.Debug("query hits: %d", res.Hits.Total.Value)
 		for _, hit := range res.Hits.Hits {
-			entry, err := newEntry(hit.Source)
+			entry, err := newEntry(hit.Source, hit.Index)
 			if err != nil {
 				l.Errorf("failed to unmarshal log entry: %s", err)
 				continue
 			}
-			if entry.Severity == "DEBUG" {
+			if entry.ignore() {
 				continue
 			}
 			entries = append(entries, entry)
