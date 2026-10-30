@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/didip/tollbooth/v7"
+	"github.com/didip/tollbooth/v8"
 	"github.com/gorilla/mux"
 	"github.com/keybase/managed-bots/base"
 )
