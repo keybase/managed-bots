@@ -2,6 +2,7 @@ package base
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -76,9 +77,60 @@ func (d *DebugOutput) ChatErrorf(convID chat1.ConvIDStr, msg string, args ...any
 }
 
 func (d *DebugOutput) ChatEcho(convID chat1.ConvIDStr, msg string, args ...any) {
-	if _, err := d.config.KBC.SendMessageByConvID(convID, msg, args...); err != nil && !IsIgnoredSendError(err) {
+	if err := d.SendMessageByConvIDOrFile(convID, "", msg, args...); err != nil && !IsIgnoredSendError(err) {
 		d.Errorf("ChatEcho: failed to send echo message: %s", err)
 	}
+}
+
+// SendMessageByConvIDOrFile sends a chat message, falling back to a file
+// attachment when the message exceeds Keybase's maximum length.
+func (d *DebugOutput) SendMessageByConvIDOrFile(convID chat1.ConvIDStr, title, msg string, args ...any) error {
+	if d.config == nil || d.config.KBC == nil {
+		return fmt.Errorf("chat not configured")
+	}
+	body := msg
+	if len(args) > 0 {
+		body = fmt.Sprintf(msg, args...)
+	}
+	if _, err := d.config.KBC.SendMessageByConvID(convID, body); err == nil ||
+		IsIgnoredSendError(err) || !IsMessageTooLongError(err) {
+		return err
+	}
+
+	filePath, err := writeTempFile(d.name, body)
+	if err != nil {
+		return err
+	}
+	GoWithRecover(d, func() {
+		defer func() {
+			time.Sleep(time.Minute)
+			d.Debug("cleaning up %s", filePath)
+			if err := os.Remove(filePath); err != nil {
+				d.Errorf("unable to clean up %s: %v", filePath, err)
+			}
+		}()
+		if _, err := d.config.KBC.SendAttachmentByConvID(convID, filePath, title); err != nil {
+			d.Errorf("failed to send attachment %s: %s", filePath, err)
+		}
+	})
+	return nil
+}
+
+func writeTempFile(namePrefix, content string) (string, error) {
+	f, err := os.CreateTemp("", namePrefix+"-*.txt")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(content); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	if err := f.Sync(); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
 }
 
 func (d *DebugOutput) Trace(err *error, format string, args ...any) func() {
@@ -92,6 +144,11 @@ func (d *DebugOutput) Trace(err *error, format string, args ...any) func() {
 
 func IsIgnoredSendError(err error) bool {
 	return IsDeletedConvError(err) || IsEphemeralKeyError(err)
+}
+
+func IsMessageTooLongError(err error) bool {
+	// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
+	return err != nil && strings.Contains(err.Error(), "exceeds the maximum length")
 }
 
 func IsDeletedConvError(err error) bool {
