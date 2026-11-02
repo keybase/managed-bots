@@ -92,7 +92,7 @@ func (d *DebugOutput) SendMessageByConvIDOrFile(convID chat1.ConvIDStr, title, m
 	if len(args) > 0 {
 		body = fmt.Sprintf(msg, args...)
 	}
-	if _, err := d.config.KBC.SendMessageByConvID(convID, body); err == nil ||
+	if _, err := d.config.KBC.SendMessageByConvID(convID, "%s", body); err == nil ||
 		IsIgnoredSendError(err) || !IsMessageTooLongError(err) {
 		return err
 	}
@@ -121,16 +121,19 @@ func writeTempFile(namePrefix, content string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	path := f.Name()
+	defer func() {
+		_ = f.Close()
+	}()
 	if _, err := f.WriteString(content); err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(path)
 		return "", err
 	}
 	if err := f.Sync(); err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(path)
 		return "", err
 	}
-	return f.Name(), nil
+	return path, nil
 }
 
 func (d *DebugOutput) Trace(err *error, format string, args ...any) func() {
