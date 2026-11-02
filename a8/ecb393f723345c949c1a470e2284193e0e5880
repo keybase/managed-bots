@@ -1,0 +1,24 @@
+webhookbot/webhookbot/http.go
+  s_73dda55136df78::t_4988a24e89ea0f 90
+  s_73dda55136df78::t_6c35af07167361 91
+base/output.go
+  s_73dda55136df78::t_51d3f4ff564ac9 5
+  s_73dda55136df78::t_4ebbda7d831f5c 80,85-133
+  s_73dda55136df78::t_e39c0055fe8ba7 134-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "a8ecb393f723345c949c1a470e2284193e0e5880",
+  "prompts": {},
+  "sessions": {
+    "s_73dda55136df78": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "29ae89f5-99f3-44f1-b6db-973c6178d5db",
+        "model": "auto-smart"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
