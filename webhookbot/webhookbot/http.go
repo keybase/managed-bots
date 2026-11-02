@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/didip/tollbooth/v8"
 	"github.com/gorilla/mux"
@@ -68,30 +65,6 @@ func (h *HTTPSrv) getMessage(r *http.Request) (string, error) {
 	return "`Error: no body found. To use a webhook URL, supply a 'msg' URL parameter, or a JSON POST body with a field 'msg'`", nil
 }
 
-func (h *HTTPSrv) safeWriteToFile(hookName, content string) (string, error) {
-	pattern := fmt.Sprintf("webhookbot-%s-*.txt", hookName)
-	file, err := os.CreateTemp("", pattern)
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer func() {
-		if cerr := file.Close(); cerr != nil {
-			h.Errorf("safeWriteToFile: failed to close temp file: %s", cerr)
-		}
-	}()
-
-	if _, err := file.Write([]byte(content)); err != nil {
-		return "", fmt.Errorf("failed to write file: %w", err)
-	}
-
-	// Explicitly sync to ensure all data is written to disk before upload
-	if err := file.Sync(); err != nil {
-		return "", fmt.Errorf("failed to sync file: %w", err)
-	}
-
-	return file.Name(), nil
-}
-
 func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -114,37 +87,8 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.Stats.Count("handle - success")
-	if _, err := h.Config().KBC.SendMessageByConvID(hook.ConvID, "[hook: *%s*]\n\n%s", hook.Name, msg); err != nil {
-		if base.IsDeletedConvError(err) {
-			h.Debug("handleHook: failed to send message: %s", err)
-			return
-		}
-
-		// error created in https://github.com/keybase/client/blob/7d6aa64f3fba66adba7a5dd1cc7c523d5086a548/go/chat/msgchecker/plaintext_checker.go#L50
-		if strings.Contains(err.Error(), "exceeds the maximum length") {
-			filePath, err := h.safeWriteToFile(hook.Name, msg)
-			if err != nil {
-				h.Errorf("failed to write attachment file: %s", err)
-				return
-			}
-			base.GoWithRecover(h.DebugOutput, func() {
-				defer func() {
-					// Cleanup after the file is sent.
-					time.Sleep(time.Minute)
-					h.Debug("cleaning up %s", filePath)
-					if err = os.Remove(filePath); err != nil {
-						h.Errorf("unable to clean up %s: %v", filePath, err)
-					}
-				}()
-				title := fmt.Sprintf("[hook: *%s*]", hook.Name)
-				if _, err := h.Config().KBC.SendAttachmentByConvID(hook.ConvID, filePath, title); err != nil {
-					h.Errorf("failed to send attachment %s: %s", filePath, err)
-					return
-				}
-			})
-			return
-		}
-
+	title := fmt.Sprintf("[hook: *%s*]", hook.Name)
+	if err := h.SendMessageByConvIDOrFile(hook.ConvID, title, "%s\n\n%s", title, msg); err != nil {
 		h.Debug("handleHook: failed to send message: %s", err)
 	}
 }
