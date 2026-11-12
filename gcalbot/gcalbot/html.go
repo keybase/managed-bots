@@ -333,8 +333,9 @@ const tmplAccountHelp = `{{template "header" .}}
 {{template "footer" .}}`
 
 type ConfigPage struct {
-	Title    string
-	CaretSVG template.HTML
+	Title     string
+	CaretSVG  template.HTML
+	CSRFToken string
 
 	ConvID        chat1.ConvIDStr
 	ConvHelpText  string
@@ -392,6 +393,7 @@ const tmplConfig = `{{template "header" .}}
 	  {{.ConvHelpText}}
 	</p>
 	<form action="/gcalbot" method="post" class="column">
+		<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 		<input type="hidden" name="conv_id" value="{{.ConvID}}">
 		<input type="hidden" name="previous_account" value="{{.Account}}">
 		<input type="hidden" name="previous_calendar" value="{{.CalendarID}}">

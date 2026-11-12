@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -49,9 +50,9 @@ func NewHTTPSrv(
 	}
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	oauthFlow := newOAuthFlow(h.DebugOutput, oauthConfig, db, kbc.GetUsername())
-	http.HandleFunc("/gcalbot", h.configHandler)
+	http.HandleFunc("/gcalbot", base.SecureHandler(h.configHandler))
 	http.HandleFunc("/gcalbot/healthcheck", h.healthCheckHandler)
-	http.HandleFunc("/gcalbot/home", h.homeHandler)
+	http.HandleFunc("/gcalbot/home", base.SecureHandler(h.homeHandler))
 	http.HandleFunc(oauthPath, oauthFlow.HandleCallback)
 	http.HandleFunc(oauthPath+"/start", oauthFlow.HandleStart)
 	http.HandleFunc("/gcalbot/image/logo", h.logoHandler)
@@ -59,6 +60,16 @@ func NewHTTPSrv(
 	http.HandleFunc("/gcalbot/events/webhook", h.handleEventUpdateWebhook)
 	return h
 }
+
+const (
+	// maxConfigFormBytes caps the config form body; the form is a few fields.
+	maxConfigFormBytes = 16 << 10
+	loginPurpose       = "gcalbot-login"
+	// csrfPurpose domain-separates config form tokens from login tokens. A CSRF
+	// token is an HMAC over the session's login token, so it only works with
+	// that session's cookie.
+	csrfPurpose = "gcalbot-csrf"
+)
 
 var reminderOptions = []ReminderType{
 	{"At time of event", "0"},
@@ -85,6 +96,9 @@ func (h *HTTPSrv) healthCheckHandler(_ http.ResponseWriter, _ *http.Request) {}
 
 func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	h.Stats.Count("config")
+	// Only POST can change settings. A GET renders the page and never saves.
+	isPost := r.Method == http.MethodPost
+
 	var err error
 	var accountNickname string
 	defer func() {
@@ -98,14 +112,36 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	if isPost {
+		base.LimitRequestBody(w, r, maxConfigFormBytes)
+	}
 	err = r.ParseForm()
 	if err != nil {
 		return
 	}
 
-	keybaseUsername, keybaseConvID, ok := h.authUser(w, r)
+	h.Stats.Count("authUser")
+	var sess authSession
+	var ok bool
+	if r.Method == http.MethodGet && (r.URL.Query().Get("username") != "" || r.URL.Query().Get("token") != "") {
+		sess, ok = h.authFromLink(w, r)
+		if ok {
+			// the session cookie is set, so drop the login token from the URL
+			http.Redirect(w, r, "/gcalbot", http.StatusSeeOther)
+			return
+		}
+	} else {
+		sess, ok = h.authFromCookie(r)
+	}
 	if !ok {
 		h.showLoginInstructions(w)
+		return
+	}
+	keybaseUsername, keybaseConvID := sess.username, sess.convID
+
+	if isPost && !base.VerifyLoginToken(h.handler.tokenSecret, csrfPurpose, sess.token, r.Form.Get("csrf_token")) {
+		h.Debug("invalid csrf token")
+		h.showForbidden(w)
 		return
 	}
 
@@ -119,6 +155,15 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if !isAllowed {
 		// should only be able to configure notifications if isAllowed
+		h.showConfigError(w)
+		return
+	}
+
+	// Team membership is covered by IsAtLeastWriter. For other conversations,
+	// check the session user is still a participant before showing or saving
+	// anything, since the session outlives removal from the conversation.
+	if keybaseConv.Channel.MembersType != "team" && !isConvParticipant(keybaseUsername, keybaseConv.Channel) {
+		h.Stats.Count("config - not a participant")
 		h.showConfigError(w)
 		return
 	}
@@ -182,6 +227,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	page := ConfigPage{
 		Title:             "gcalbot | config",
 		CaretSVG:          caretSVG,
+		CSRFToken:         base.MakeLoginToken(h.handler.tokenSecret, csrfPurpose, sess.token),
 		ConvID:            keybaseConvID,
 		ConvHelpText:      GetConvHelpText(keybaseConv.Channel, isPrivate, false),
 		ConvIsPrivate:     isPrivate,
@@ -326,7 +372,7 @@ func (h *HTTPSrv) configHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if the calendar hasn't changed, update the settings
-	if calendarID == previousCalendarID {
+	if calendarID == previousCalendarID && isPost {
 		h.Stats.Count("config - update")
 
 		if (!page.Invite && page.Reminder == "") && (inviteInput != "" || reminderInput != "") {
@@ -454,6 +500,17 @@ func (h *HTTPSrv) showConfigError(w http.ResponseWriter) {
 	})
 }
 
+func (h *HTTPSrv) showForbidden(w http.ResponseWriter) {
+	h.Stats.Count("configForbidden")
+
+	w.WriteHeader(http.StatusForbidden)
+	h.servePage(w, "error", ErrorPage{
+		Title:   "gcalbot | error",
+		Heading: "Form expired",
+		Body:    "Your form could not be verified. Reload the configure page and try again.",
+	})
+}
+
 func (h *HTTPSrv) showReconnect(w http.ResponseWriter, accountNickname string) {
 	h.Stats.Count("configReconnect")
 	w.WriteHeader(http.StatusUnauthorized)
@@ -503,46 +560,74 @@ func (h *HTTPSrv) showLoginInstructions(w http.ResponseWriter) {
 	h.servePage(w, "login", LoginPage{Title: "gcalbot | login"})
 }
 
-func (h *HTTPSrv) authUser(w http.ResponseWriter, r *http.Request) (keybaseUsername string, keybaseConvID chat1.ConvIDStr, ok bool) {
-	h.Stats.Count("authUser")
-	urlUsername := r.Form.Get("username")
-	urlToken := r.Form.Get("token")
-	urlConvID := r.Form.Get("conv_id")
+// authSession is a verified login. token is the signed login token that the
+// auth cookie carries.
+type authSession struct {
+	username string
+	convID   chat1.ConvIDStr
+	token    string
+}
 
-	var token string
-	if urlUsername != "" || urlToken != "" {
-		if urlUsername == "" || urlToken == "" || urlConvID == "" {
-			h.Debug("incomplete URL auth params")
-			return "", "", false
-		}
-		keybaseUsername, token, keybaseConvID = urlUsername, urlToken, chat1.ConvIDStr(urlConvID)
-	} else {
-		cookie, err := r.Cookie("auth")
-		if err != nil || cookie == nil {
-			h.Debug("no auth cookie: %s", err)
-			return "", "", false
-		}
-		toks := strings.SplitN(cookie.Value, ":", 3)
-		if len(toks) != 3 {
-			h.Debug("malformed auth cookie: %v", cookie.Value)
-			return "", "", false
-		}
-		keybaseUsername, keybaseConvID, token = toks[0], chat1.ConvIDStr(toks[1]), toks[2]
+// authFromLink verifies a login link and sets the auth cookie from it. The
+// caller redirects so the login token doesn't stay in the URL.
+func (h *HTTPSrv) authFromLink(w http.ResponseWriter, r *http.Request) (authSession, bool) {
+	query := r.URL.Query()
+	username, token, convID := query.Get("username"), query.Get("token"), query.Get("conv_id")
+	if username == "" || token == "" || convID == "" {
+		h.Debug("incomplete URL auth params")
+		return authSession{}, false
 	}
-
-	if !base.VerifyLoginToken(h.handler.tokenSecret, "gcalbot-login", keybaseUsername+":"+string(keybaseConvID), token) {
-		h.Debug("invalid auth token")
-		return "", "", false
+	sess := authSession{username: username, convID: chat1.ConvIDStr(convID), token: token}
+	if !h.verifySession(sess) {
+		return authSession{}, false
 	}
-	// Re-mint a fresh token so the cookie's Expires and embedded timestamp stay in sync.
-	freshToken := base.MakeLoginToken(h.handler.tokenSecret, "gcalbot-login", keybaseUsername+":"+string(keybaseConvID))
+	// the login token carries its issue time under the HMAC, and
+	// VerifyLoginToken rejects it after base.LoginTokenMaxAge.
+	// Lax, not Strict: the caller redirects, and browsers withhold Strict
+	// cookies on a redirect that began with a cross-site click. The CSRF token
+	// guards POSTs, and Lax already withholds the cookie on cross-site POSTs.
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth",
-		Value:    fmt.Sprintf("%s:%s:%s", keybaseUsername, keybaseConvID, freshToken),
+		Value:    fmt.Sprintf("%s:%s:%s", sess.username, sess.convID, sess.token),
 		Expires:  time.Now().Add(base.LoginTokenMaxAge),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
-	return keybaseUsername, keybaseConvID, true
+	return sess, true
+}
+
+// authFromCookie verifies the auth cookie set by a previous login link.
+func (h *HTTPSrv) authFromCookie(r *http.Request) (authSession, bool) {
+	cookie, err := r.Cookie("auth")
+	if err != nil || cookie == nil {
+		h.Debug("no auth cookie: %s", err)
+		return authSession{}, false
+	}
+	toks := strings.SplitN(cookie.Value, ":", 3)
+	if len(toks) != 3 {
+		h.Debug("malformed auth cookie: %v", cookie.Value)
+		return authSession{}, false
+	}
+	sess := authSession{username: toks[0], convID: chat1.ConvIDStr(toks[1]), token: toks[2]}
+	if !h.verifySession(sess) {
+		return authSession{}, false
+	}
+	return sess, true
+}
+
+func (h *HTTPSrv) verifySession(sess authSession) bool {
+	if !base.VerifyLoginToken(h.handler.tokenSecret, loginPurpose, sess.username+":"+string(sess.convID), sess.token) {
+		h.Debug("invalid auth token")
+		return false
+	}
+	return true
+}
+
+// isConvParticipant reports whether username is a member of a non-team
+// conversation. Names are comma-separated; a "#" starts the reader list of a
+// public conversation, which counts as membership too.
+func isConvParticipant(username string, channel chat1.ChatChannel) bool {
+	members := strings.Split(strings.ReplaceAll(channel.Name, "#", ","), ",")
+	return slices.Contains(members, username)
 }

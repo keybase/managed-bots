@@ -41,7 +41,7 @@ func TestLoginRequiresConfirmation(t *testing.T) {
 	// A GET from a link must not set the auth cookie. It sets the login CSRF cookie.
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/pollbot/login?token="+url.QueryEscape(token)+"&username=alice", nil)
-	h.handleLogin(rec, req)
+	base.SecureHandler(h.handleLogin)(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), "Log in as @alice")
 	require.Contains(t, rec.Body.String(), `name="token"`)
@@ -123,7 +123,7 @@ func TestVoteWithoutSessionShowsLogin(t *testing.T) {
 	vote := NewVote("poll1", 1)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/pollbot/vote?="+url.QueryEscape(vote.Encode()), nil)
-	h.handleVote(rec, req)
+	base.SecureHandler(h.handleVote)(rec, req)
 	require.Contains(t, rec.Body.String(), "Login Required")
 	require.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
 }

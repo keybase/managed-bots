@@ -47,8 +47,8 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 		tokenSecret: tokenSecret,
 	}
 	http.HandleFunc("/pollbot", h.handleHealthCheck)
-	http.HandleFunc("/pollbot/vote", h.handleVote)
-	http.HandleFunc("/pollbot/login", h.handleLogin)
+	http.HandleFunc("/pollbot/vote", base.SecureHandler(h.handleVote))
+	http.HandleFunc("/pollbot/login", base.SecureHandler(h.handleLogin))
 	http.HandleFunc("/pollbot/image", h.handleImage)
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
 	return h
@@ -106,7 +106,6 @@ func voteCSRFToken(secret, username string, vote Vote) string {
 
 // handleVote shows a confirmation page for a vote link and records the vote only on POST.
 func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
-	base.SecureHeaders(w)
 	username, ok := h.checkLogin(w, r)
 	if !ok {
 		return
@@ -210,7 +209,6 @@ func (h *HTTPSrv) recordVote(w http.ResponseWriter, r *http.Request, username st
 // handleLogin shows a confirmation page for a login link and sets the auth
 // cookie only on POST, so a link alone can't log the browser into someone else's identity.
 func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
-	base.SecureHeaders(w)
 	switch r.Method {
 	case http.MethodGet:
 		nonce, err := base.RandBytes(16)

@@ -46,7 +46,7 @@ func NewHTTPSrv(
 		"zoombot", base.Images["logo"], "/zoombot", oauth2.AccessTypeOffline)
 	http.HandleFunc("/zoombot", h.healthCheckHandler)
 	http.HandleFunc("/zoombot/deauthorize", h.zoomDeauthorize)
-	http.HandleFunc("/zoombot/support", h.supportHandler)
+	http.HandleFunc("/zoombot/support", base.SecureHandler(h.supportHandler))
 	return h
 }
 
