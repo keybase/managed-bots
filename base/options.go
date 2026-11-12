@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"unicode"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -37,6 +39,8 @@ type Options struct {
 	// Allow the bot to read it's own messages (default: false)
 	ReadSelf bool
 	AWSOpts  *AWSOptions
+	// Keybase usernames allowed to run hidden admin commands (from BOT_ADMINS)
+	BotAdmins []string
 
 	// Optional, used for debugging to identify the bot.
 	DebugTag string
@@ -49,7 +53,7 @@ func NewOptions() *Options {
 }
 
 func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
-	var dsnStr, multiDSNStr, mysqlTLSCA string
+	var dsnStr, multiDSNStr, mysqlTLSCA, botAdmins string
 	fs.StringVar(&o.KeybaseLocation, "keybase", "keybase", "keybase command")
 	fs.StringVar(&o.Home, "home", "", "Home directory")
 	fs.StringVar(&o.Announcement, "announcement", os.Getenv("BOT_ANNOUNCEMENT"),
@@ -60,6 +64,8 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	fs.StringVar(&multiDSNStr, "multi-dsn", os.Getenv("BOT_MULTI_DSN"), "Bot multi coordination database DSN")
 	fs.StringVar(&mysqlTLSCA, "mysql-tls-ca", os.Getenv("BOT_MYSQL_TLS_CA"), "Bot MySQL TLS CA")
 	fs.BoolVar(&o.ReadSelf, "read-self", false, "Allow the bot to read it's own messages")
+	fs.StringVar(&botAdmins, "bot-admins", os.Getenv("BOT_ADMINS"),
+		"Comma-separated Keybase usernames allowed to run hidden admin commands")
 	fs.StringVar(&o.DebugTag, "debug-tag", os.Getenv("BOT_DEBUG_TAG"), "Bot debug tag")
 	fs.StringVar(&o.ShowtrendsAddr, "showtrends-addr", os.Getenv("BOT_SHOWTRENDS_ADDR"), "showtrends server address for stats")
 
@@ -72,6 +78,10 @@ func (o *Options) Parse(fs *flag.FlagSet, argv []string) error {
 	if err := fs.Parse(argv[1:]); err != nil {
 		return err
 	}
+
+	o.BotAdmins = strings.FieldsFunc(botAdmins, func(r rune) bool {
+		return r == ',' || unicode.IsSpace(r)
+	})
 
 	var err error
 	if dsnStr != "" {

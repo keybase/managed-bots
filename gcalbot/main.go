@@ -46,7 +46,7 @@ type BotServer struct {
 
 func NewBotServer(opts Options) *BotServer {
 	return &BotServer{
-		Server: base.NewServer("gcalbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, kbchat.RunOptions{
+		Server: base.NewServer("gcalbot", opts.Announcement, opts.AWSOpts, opts.MultiDSN, opts.ReadSelf, opts.BotAdmins, kbchat.RunOptions{
 			KeybaseLocation: opts.KeybaseLocation,
 			HomeDir:         opts.Home,
 			DebugTag:        opts.DebugTag,
