@@ -305,6 +305,10 @@ func SplitTokens(cmd string) (tokens []string, userErrorMessage string, err erro
 	}
 }
 
+// IsDirectPrivateMessage reports whether the conversation is a 1:1 between
+// senderUsername and the bot (or a self-DM of the sender). The check compares
+// whole usernames: a substring match would let "alice,gcalbotfan" pass for a
+// DM with "gcalbot". Conversations with reader suffixes ("#") are not DMs.
 func IsDirectPrivateMessage(botUsername, senderUsername string, channel chat1.ChatChannel) bool {
 	if channel.MembersType == "team" {
 		return false
@@ -312,13 +316,15 @@ func IsDirectPrivateMessage(botUsername, senderUsername string, channel chat1.Ch
 	if senderUsername == channel.Name {
 		return true
 	}
-	if len(strings.Split(channel.Name, ",")) == 2 {
-		if strings.Contains(channel.Name, botUsername+",") ||
-			strings.Contains(channel.Name, ","+botUsername) {
-			return true
-		}
+	if strings.Contains(channel.Name, "#") {
+		return false
 	}
-	return false
+	members := strings.Split(channel.Name, ",")
+	if len(members) != 2 {
+		return false
+	}
+	return (members[0] == senderUsername && members[1] == botUsername) ||
+		(members[1] == senderUsername && members[0] == botUsername)
 }
 
 func feedbackCmd(prefix string) string {
