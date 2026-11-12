@@ -87,7 +87,11 @@ func (h *HTTPSrv) validateWebhookMessage(bodyBytes []byte, r *http.Request) (err
 	return nil
 }
 
+// deauthorizeBodyLimit caps the webhook body; Zoom's payloads are a few hundred bytes.
+const deauthorizeBodyLimit = 1 << 20
+
 func (h *HTTPSrv) zoomDeauthorize(w http.ResponseWriter, r *http.Request) {
+	base.LimitRequestBody(w, r, deauthorizeBodyLimit)
 	bodyBytes, err := io.ReadAll(r.Body)
 	defer func() {
 		if cerr := r.Body.Close(); cerr != nil {
