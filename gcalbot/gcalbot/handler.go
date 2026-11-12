@@ -141,7 +141,7 @@ func (h *Handler) handleConfigure(msg chat1.MsgSummary) error {
 		return nil
 	}
 	keybaseUsername := msg.Sender.Username
-	token := base.MakeLoginToken(h.tokenSecret, keybaseUsername+":"+string(msg.ConvID))
+	token := base.MakeLoginToken(h.tokenSecret, "gcalbot-login", keybaseUsername+":"+string(msg.ConvID))
 
 	query := url.Values{}
 	query.Add("token", token)
