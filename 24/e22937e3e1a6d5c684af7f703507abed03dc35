@@ -1,0 +1,21 @@
+githubbot/githubbot/security_test.go
+  s_1d78357c578086::t_7aaa174614e499 13,18-21,36,55-56,61
+triviabot/triviabot/handler_test.go
+  s_1d78357c578086::t_1dc03bf3bd22b9 9,35,38,41-42,52-53,57,60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "24e22937e3e1a6d5c684af7f703507abed03dc35",
+  "prompts": {},
+  "sessions": {
+    "s_1d78357c578086": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3e60fd19-6c38-4469-9bc9-4303710098bc",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
