@@ -51,3 +51,12 @@ func SecureHeaders(w http.ResponseWriter) {
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Content-Type-Options", "nosniff")
 }
+
+// SecureHandler wraps an HTML page handler so every response gets SecureHeaders.
+// Wrap the route instead of calling SecureHeaders in each handler.
+func SecureHandler(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		SecureHeaders(w)
+		next(w, r)
+	}
+}

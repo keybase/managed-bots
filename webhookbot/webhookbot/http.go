@@ -112,8 +112,7 @@ func (h *HTTPSrv) handleHook(w http.ResponseWriter, r *http.Request) {
 	}
 	msg, err := h.getMessage(r)
 	if err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			h.Stats.Count("handle - too large")
 			http.Error(w, "webhook payload too large", http.StatusRequestEntityTooLarge)
 			return

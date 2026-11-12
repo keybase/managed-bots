@@ -80,8 +80,7 @@ func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	base.LimitRequestBody(w, r, webhookBodyLimit)
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			http.Error(w, "webhook payload too large", http.StatusRequestEntityTooLarge)
 			return
 		}

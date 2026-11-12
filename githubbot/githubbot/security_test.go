@@ -14,7 +14,7 @@ import (
 )
 
 func TestRepoFullNameMatches(t *testing.T) {
-	repo := &github.Repository{FullName: github.Ptr("Keybase/Managed-Bots")}
+	repo := &github.Repository{FullName: new("Keybase/Managed-Bots")}
 	require.Equal(t, true, repoFullNameMatches(repo, "keybase/managed-bots"), "expected case-insensitive match")
 	require.Equal(t, false, repoFullNameMatches(repo, "keybase/other"), "expected mismatch for a different repo")
 	require.Equal(t, false, repoFullNameMatches(&github.Repository{}, ""), "empty full name must not match an empty repo")

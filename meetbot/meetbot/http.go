@@ -32,7 +32,7 @@ func NewHTTPSrv(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, ConfirmCmd,
 		"meetbot", base.Images["logo"], "/meetbot", oauth2.AccessTypeOffline)
 	http.HandleFunc("/meetbot", h.healthCheckHandler)
-	http.HandleFunc("/meetbot/home", h.homeHandler)
+	http.HandleFunc("/meetbot/home", base.SecureHandler(h.homeHandler))
 	http.HandleFunc("/meetbot/image", h.handleImage)
 	return h
 }
