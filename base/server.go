@@ -8,11 +8,14 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -44,8 +47,16 @@ type Server struct {
 	multi        *multi
 	readSelf     bool
 
+	feedbackMu   sync.Mutex
+	feedbackLast map[string]time.Time
+
 	runOptions kbchat.RunOptions
 }
+
+const (
+	feedbackMinInterval = 30 * time.Second
+	feedbackMaxRunes    = 5000
+)
 
 func NewServer(
 	name, announcement string, awsOpts *AWSOptions, multiDBDSN *mysql.Config, readSelf bool,
@@ -56,6 +67,7 @@ func NewServer(
 		announcement: announcement,
 		awsOpts:      awsOpts,
 		botAdmins:    DefaultBotAdmins,
+		feedbackLast: make(map[string]time.Time),
 		shutdownCh:   make(chan struct{}),
 		multiDBDSN:   multiDBDSN,
 		readSelf:     readSelf,
@@ -254,7 +266,7 @@ func (s *Server) listenForMsgs(ctx context.Context, shutdownCh chan struct{}, su
 			}
 		}
 
-		err = handler.HandleCommand(ctx, msg)
+		err = s.safely("HandleCommand", func() error { return handler.HandleCommand(ctx, msg) })
 		switch {
 		case err == nil:
 		case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
@@ -286,7 +298,7 @@ func (s *Server) listenForConvs(ctx context.Context, shutdownCh chan struct{}, s
 			continue
 		}
 
-		if err := handler.HandleNewConv(ctx, c.Conversation); err != nil {
+		if err := s.safely("HandleNewConv", func() error { return handler.HandleNewConv(ctx, c.Conversation) }); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				s.Debug("listenForConvs: suppressing shutdown context error: %v", err)
 				continue
@@ -296,8 +308,40 @@ func (s *Server) listenForConvs(ctx context.Context, shutdownCh chan struct{}, s
 	}
 }
 
+// safely runs f and converts a panic into an error, so one bad message can't
+// take the whole bot down. The stack trace goes to the error conversation.
+func (s *Server) safely(name string, f func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Errorf("panic in %s: %v stack trace: %s", name, r, debug.Stack())
+			err = fmt.Errorf("panic in %s: %v", name, r)
+		}
+	}()
+	return f()
+}
+
+// allowHiddenCommand limits the hidden admin commands to a direct message from
+// a bot admin. Output from these commands can include logs and stacks that
+// must not reach a team channel.
 func (s *Server) allowHiddenCommand(msg chat1.MsgSummary) bool {
-	return slices.Contains(s.botAdmins, msg.Sender.Username)
+	return isHiddenCommandAllowed(s.botAdmins, s.kbc.GetUsername(), msg)
+}
+
+func isHiddenCommandAllowed(botAdmins []string, botUsername string, msg chat1.MsgSummary) bool {
+	return slices.Contains(botAdmins, msg.Sender.Username) &&
+		IsDirectPrivateMessage(botUsername, msg.Sender.Username, msg.Channel)
+}
+
+// feedbackAllowed rate-limits feedback per sender so the ops channel can't be flooded.
+func (s *Server) feedbackAllowed(username string) bool {
+	s.feedbackMu.Lock()
+	defer s.feedbackMu.Unlock()
+	now := time.Now()
+	if last, ok := s.feedbackLast[username]; ok && now.Sub(last) < feedbackMinInterval {
+		return false
+	}
+	s.feedbackLast[username] = now
+	return true
 }
 
 func (s *Server) handleLogSend(msg chat1.MsgSummary) error {
@@ -443,12 +487,20 @@ func (s *Server) handleFeedback(msg chat1.MsgSummary) {
 	if len(toks) < 3 {
 		s.ChatEcho(msg.ConvID, "Woah there @%s, I can't deliver a blank message...not again. What did you want to say?",
 			msg.Sender.Username)
-	} else {
-		body := strings.Join(toks[2:], " ")
-		s.Report("Feedback from @%s:\n ```%s```", msg.Sender.Username, body)
-		s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
-			msg.Sender.Username)
+		return
 	}
+	if !s.feedbackAllowed(msg.Sender.Username) {
+		s.ChatEcho(msg.ConvID, "Thanks @%s, but you just sent feedback. Give it a minute and try again.",
+			msg.Sender.Username)
+		return
+	}
+	body := strings.Join(toks[2:], " ")
+	if utf8.RuneCountInString(body) > feedbackMaxRunes {
+		body = string([]rune(body)[:feedbackMaxRunes]) + "..."
+	}
+	s.Report("Feedback from @%s:\n ```%s```", msg.Sender.Username, EscapeCodeBlock(body))
+	s.ChatEcho(msg.ConvID, "Roger that @%s, passed this along to my humans :robot_face:",
+		msg.Sender.Username)
 }
 
 func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation string) error {
@@ -461,13 +513,19 @@ func (s *Server) kbfsDebugOutput(msg chat1.MsgSummary, data []byte, operation st
 	if err := s.runOptions.Command("fs", "mkdir", folder).Run(); err != nil {
 		return fmt.Errorf("kbfsOutput: failed to make directory %s: %s", folder, err)
 	}
-	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
-	filePath := fmt.Sprintf("/tmp/%s", fileName)
+	// A private temp directory avoids a predictable, shared path that another
+	// local user could pre-create as a symlink.
+	tmpDir, err := os.MkdirTemp("", operation+"-*")
+	if err != nil {
+		return fmt.Errorf("kbfsOutput: failed to make temp directory: %s", err)
+	}
 	defer func() {
-		if rmErr := os.Remove(filePath); rmErr != nil {
-			s.Errorf("unable to clean up %s: %v", filePath, rmErr)
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
+			s.Errorf("unable to clean up %s: %v", tmpDir, rmErr)
 		}
 	}()
+	fileName := fmt.Sprintf("%s-%d.txt", operation, time.Now().Unix())
+	filePath := filepath.Join(tmpDir, fileName)
 	if err := os.WriteFile(filePath, data, 0o600); err != nil {
 		return fmt.Errorf("kbfsOutput: failed to write %s output: %s", operation, err)
 	}
