@@ -1,0 +1,55 @@
+gcalbot/gcalbot/http.go
+  s_2b4edd5e649a2f::t_8d97d05c8b29e1 53,55
+  s_2b4edd5e649a2f::t_4d6892e877362a 64-66,71-72,99-101,115-117,140-141,143-146,162-169,374,502-512,562-568,573,582,595,598-600,602-605,607,609,611,613-615,617-627
+  s_2b4edd5e649a2f::t_4e558fdd90539d 10
+  s_2b4edd5e649a2f::t_16f24994e5fd23 570-572,574-577,579-581,583-584,587,591,593-594,596-597,601,606,608,610,612,616
+  s_2b4edd5e649a2f::t_ec691f04f5a50e 628
+  s_2b4edd5e649a2f::t_c5f2f3b3c64349 123-135,142
+  s_2b4edd5e649a2f::t_1f4f2a5edc0197 229
+  s_2b4edd5e649a2f::t_b4906813743427 67-70,73
+base/http_test.go
+  s_2b4edd5e649a2f::t_c87a96151be29c 1-24
+gcalbot/gcalbot/config_security_test.go
+  s_2b4edd5e649a2f::t_06ba604eaf8942 129
+  s_2b4edd5e649a2f::t_79b02915c327b4 69
+  s_2b4edd5e649a2f::t_26ad9352dce1f3 4-24,31,36,44-46,48-68,70-118,122-128,130-138
+  s_2b4edd5e649a2f::t_1f91759bbd27cb 25-29
+  s_2b4edd5e649a2f::t_a85bf53038eddf 119-121
+  s_2b4edd5e649a2f::t_857df44739cd01 1-3
+  s_2b4edd5e649a2f::t_6dbea2a13ffa7d 30
+  s_2b4edd5e649a2f::t_6c1c5f27f8a28b 32-35
+  s_2b4edd5e649a2f::t_baf2825fd0c179 37-39,41-43
+  s_2b4edd5e649a2f::t_e2e7ebd078093b 47
+  s_2b4edd5e649a2f::t_00ae3d1f8e663a 40
+zoombot/zoombot/http.go
+  s_2b4edd5e649a2f::t_93e9122b8b9e52 49
+pollbot/pollbot/http_test.go
+  s_2b4edd5e649a2f::t_d075291f9a3b4c 126
+  s_2b4edd5e649a2f::t_ae6d2dce6f9763 44
+base/http.go
+  s_2b4edd5e649a2f::t_abda68acf42304 54-62
+meetbot/meetbot/http.go
+  s_2b4edd5e649a2f::t_72cd99e7bcbd7c 35
+gcalbot/gcalbot/handler.go
+  s_2b4edd5e649a2f::t_dd90452b5e90ff 144
+pollbot/pollbot/http.go
+  s_2b4edd5e649a2f::t_3c1c5b893d1f8e 50-51
+gcalbot/gcalbot/html.go
+  s_2b4edd5e649a2f::t_50445e2bfd58da 336-338,396
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "44d74e443c4d23654ae7749eda82803e19f3795d",
+  "prompts": {},
+  "sessions": {
+    "s_2b4edd5e649a2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "feb8910a-9810-4d4c-99f8-7910cd4cdf46",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
