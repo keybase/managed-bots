@@ -462,7 +462,8 @@ func (h *HTTPSrv) showReconnect(w http.ResponseWriter, accountNickname string) {
 		Heading: "Account needs to be reconnected",
 		Body: fmt.Sprintf(
 			"Your account '%s' needs to be reconnected. Message @gcalbot in the Keybase app with !gcal accounts connect %s.",
-			accountNickname, accountNickname),
+			accountNickname, accountNickname,
+		),
 	})
 }
 
