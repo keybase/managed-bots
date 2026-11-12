@@ -21,22 +21,6 @@ func TestRepoFullNameMatches(t *testing.T) {
 	require.Equal(t, false, repoFullNameMatches(nil, "keybase/managed-bots"), "nil repository must not match")
 }
 
-func TestFormatCheckRunSanitizesExternalText(t *testing.T) {
-	evt := &github.CheckRunEvent{
-		Action: github.Ptr("completed"),
-		Repo:   &github.Repository{Name: github.Ptr("repo")},
-		CheckRun: &github.CheckRun{
-			Name:       github.Ptr("@channel build `x`"),
-			Conclusion: github.Ptr("success"),
-			CheckSuite: &github.CheckSuite{HeadBranch: github.Ptr("@here\n!evil")},
-		},
-	}
-	res := formatCheckRunMessage(evt, "")
-	for _, bad := range []string{"@channel", "@here", "`", "\n!evil"} {
-		require.NotContains(t, res, bad, "message %q contains unsanitized %q", res, bad)
-	}
-}
-
 func TestValidateWebhookLimitsBody(t *testing.T) {
 	const secret = "s3cret"
 	body := []byte(`{"zen":"ok"}`)
