@@ -1,0 +1,55 @@
+canarybot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 36
+webhookbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 38
+base/options_test.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 1-24
+base/server.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 63,69
+elastiwatch/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 45
+pollbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 40
+triviabot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 27
+meetbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 43
+base/options.go
+  s_e16d896606dc27::t_35b9f835a77fa7 82-84
+  s_2c69197f12b15f::t_1afb8fc3e13e43 11,42-43,56,67-68,85
+  s_e16d896606dc27::t_f62bfdebb321d9 12
+zoombot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 46
+gcalbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 49
+githubbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 51
+macrobot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 28
+gitlabbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "326eb0e1e0a200ccb331d024190e9fe7ccd6e116",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    },
+    "s_e16d896606dc27": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11625ce9-7ac8-44ff-9787-c9d997b3482e",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
