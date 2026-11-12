@@ -1,0 +1,29 @@
+gcalbot/gcalbot/handler.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 144
+pollbot/pollbot/handler.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 143
+base/login_token_test.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 1-17
+base/login_token.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 14-17,19-26,30,48
+pollbot/pollbot/http.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 77,144
+gcalbot/gcalbot/http.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 532,537
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "5b477f1eca2184640bc792ec393753f34877d249",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
