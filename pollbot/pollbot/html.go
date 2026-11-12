@@ -1,6 +1,9 @@
 package pollbot
 
-import "fmt"
+import (
+	"fmt"
+	"html/template"
+)
 
 const htmlVoteResult = `<html>
 <head>
@@ -153,3 +156,54 @@ const htmlLogin = `<html>
 </body>
 </html>
 `
+
+const htmlConfirmStyle = `<style>
+  body {
+	padding: 50px;
+	font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva,
+	  Verdana, sans-serif;
+	font-size: 22px;
+	text-align: center;
+  }
+  button {
+	font-size: 22px;
+	padding: 8px 24px;
+	margin-top: 24px;
+  }
+  .instructions {
+	margin-top: 16px;
+  }
+</style>`
+
+// confirmTmpl renders a POST-only confirmation page: a heading, a short
+// explanation, and a single button that submits hidden fields to Action.
+var confirmTmpl = template.Must(template.New("confirm").Parse(`<html>
+<head>
+  <title>Polling Service {{.Title}}</title>
+  ` + htmlConfirmStyle + `
+</head>
+<body>
+  <div>
+	<span style="font-size: 32px;">{{.Heading}}</span>
+	<p class="instructions">{{.Instructions}}</p>
+	<form method="POST" action="{{.Action}}">
+	  {{range .Fields}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">
+	  {{end}}<button type="submit">{{.Button}}</button>
+	</form>
+  </div>
+</body>
+</html>`))
+
+type confirmField struct {
+	Name  string
+	Value string
+}
+
+type confirmData struct {
+	Title        string
+	Heading      string
+	Instructions string
+	Action       string
+	Fields       []confirmField
+	Button       string
+}
