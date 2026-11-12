@@ -1,0 +1,21 @@
+base/output.go
+  s_2c69197f12b15f::t_a5bcaf41a1ac1d 53-55
+  s_2c69197f12b15f::t_1afb8fc3e13e43 47-50
+  s_2c69197f12b15f::t_98cf370afa5248 51-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "878119b854ee77c28ed35f393d2da9e2cdf33977",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
