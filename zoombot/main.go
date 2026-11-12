@@ -63,6 +63,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 						Name:        "zoom",
 						Description: "New Zoom meeting",
 					},
+					base.ConfirmCommandAdvertisement(zoombot.ConfirmCmd),
 					base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 				},
 			},

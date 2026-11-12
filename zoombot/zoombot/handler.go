@@ -64,12 +64,18 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	}
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
+	if handled, err := base.HandleConfirmCmd(ctx, h.DebugOutput, h.kbc, h.db, msg, ConfirmCmd, h.HandleAuth); handled {
+		h.stats.Count("confirm")
+		return err
+	}
 	if strings.HasPrefix(cmd, "!zoom") {
 		h.stats.Count("zoom")
 		return h.zoomHandler(ctx, msg, 0)
 	}
 	return nil
 }
+
+const ConfirmCmd = "!zoom confirm"
 
 func (h *Handler) zoomHandler(ctx context.Context, msg chat1.MsgSummary, attempts int) error {
 	retry := func() error {
@@ -103,8 +109,7 @@ func (h *Handler) zoomHandlerInner(ctx context.Context, msg chat1.MsgSummary, at
 	identifier := IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(ctx, identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
-			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
-			OAuthOfflineAccessType: true,
+			AuthMessageTemplate: "Authorize me by clicking this link:\n%s",
 		})
 	if err != nil || client == nil {
 		return err

@@ -48,10 +48,12 @@ func NewHTTPSrv(
 		reminderScheduler: reminderScheduler,
 	}
 	h.HTTPSrv = base.NewHTTPSrv(stats, debugConfig)
+	oauthFlow := newOAuthFlow(h.DebugOutput, oauthConfig, db, kbc.GetUsername())
 	http.HandleFunc("/gcalbot", h.configHandler)
 	http.HandleFunc("/gcalbot/healthcheck", h.healthCheckHandler)
 	http.HandleFunc("/gcalbot/home", h.homeHandler)
-	http.HandleFunc("/gcalbot/oauth", h.oauthHandler)
+	http.HandleFunc(oauthPath, oauthFlow.HandleCallback)
+	http.HandleFunc(oauthPath+"/start", oauthFlow.HandleStart)
 	http.HandleFunc("/gcalbot/image/logo", h.logoHandler)
 	http.HandleFunc("/gcalbot/image/screenshot", h.screenshotHandler)
 	http.HandleFunc("/gcalbot/events/webhook", h.handleEventUpdateWebhook)

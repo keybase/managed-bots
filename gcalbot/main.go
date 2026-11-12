@@ -127,6 +127,8 @@ Examples:%s
 			Description: "Configure Google Calendar notifications for the current conversation",
 		},
 
+		base.ConfirmCommandAdvertisement(gcalbot.ConfirmCmd),
+
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 

@@ -81,50 +81,51 @@ type OAuthStorage interface {
 	PutToken(ctx context.Context, identifier string, token *oauth2.Token) error
 	DeleteToken(ctx context.Context, identifier string) error
 
-	GetState(ctx context.Context, state string) (*OAuthRequest, error)
 	PutState(ctx context.Context, state string, req *OAuthRequest) error
-	CompleteState(ctx context.Context, state string) error
+
+	OAuthFlowStorage
+	PendingOAuthStorage
 }
 
+// OAuthHTTPSrv serves the OAuthFlow (see it for the steps) for bots that get
+// tokens through GetOAuthClient. The bot passes its messages to
+// HandleConfirmCmd.
 type OAuthHTTPSrv struct {
 	*HTTPSrv
-	kbc         *kbchat.API
-	oauth       *oauth2.Config
-	storage     OAuthStorage
-	callback    func(ctx context.Context, msg chat1.MsgSummary, identifier string) error
-	htmlTitle   string
 	htmlLogoB64 string
-	htmlLogoSrc string
 }
 
+// NewOAuthHTTPSrv registers the OAuth handlers under urlPrefix. confirmCmd is
+// the chat command (e.g. "!github confirm") the bot handles with
+// HandleConfirmCmd.
 func NewOAuthHTTPSrv(
 	stats *StatsRegistry,
 	kbc *kbchat.API,
 	debugConfig *ChatDebugOutputConfig,
 	oauth *oauth2.Config,
 	storage OAuthStorage,
-	callback func(ctx context.Context, msg chat1.MsgSummary, identifier string) error,
+	confirmCmd string,
 	htmlTitle string,
 	htmlLogoB64 string,
 	urlPrefix string,
+	authCodeOpts ...oauth2.AuthCodeOption,
 ) *OAuthHTTPSrv {
 	o := &OAuthHTTPSrv{
-		kbc:         kbc,
-		oauth:       oauth,
-		storage:     storage,
-		callback:    callback,
-		htmlTitle:   htmlTitle,
+		HTTPSrv:     NewHTTPSrv(stats, debugConfig),
 		htmlLogoB64: htmlLogoB64,
-		htmlLogoSrc: urlPrefix + "/image/logo",
 	}
-	o.HTTPSrv = NewHTTPSrv(stats, debugConfig)
-	http.HandleFunc(urlPrefix+"/oauth", o.oauthHandler)
-	http.HandleFunc(o.htmlLogoSrc, o.logoHandler)
+	callbackPath := urlPrefix + "/oauth"
+	htmlLogoSrc := urlPrefix + "/image/logo"
+	flow := NewOAuthFlow(o.DebugOutput, oauth, storage, confirmCmd, kbc.GetUsername(), htmlTitle,
+		htmlLogoSrc, callbackPath, authCodeOpts...)
+	http.HandleFunc(callbackPath, flow.HandleCallback)
+	http.HandleFunc(callbackPath+"/start", flow.HandleStart)
+	http.HandleFunc(htmlLogoSrc, o.logoHandler)
 	return o
 }
 
-func (o *OAuthHTTPSrv) getCallbackMsg(req OAuthRequest) (res chat1.MsgSummary, err error) {
-	msgs, err := o.kbc.GetMessagesByConvID(req.ConvID, []chat1.MessageID{req.MsgID})
+func getCallbackMsg(kbc *kbchat.API, req OAuthRequest) (res chat1.MsgSummary, err error) {
+	msgs, err := kbc.GetMessagesByConvID(req.ConvID, []chat1.MessageID{req.MsgID})
 	if err != nil {
 		return res, err
 	}
@@ -153,87 +154,56 @@ func LogOAuthError(debug *DebugOutput, context string, err error) {
 	}
 }
 
-func (o *OAuthHTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			LogOAuthError(o.DebugOutput, "oauthHandler", err)
-			o.showOAuthError(w)
-		}
-	}()
-
-	if r.URL == nil {
-		err = fmt.Errorf("r.URL == nil")
-		return
+// HandleConfirmCmd reports whether msg is "<confirmCmd> <code>" and handles it
+// if so: when the code matches one of the sender's pending links, the token is
+// stored and callback is run with the message that originally required auth.
+// Failures are reported to the user here, so err only comes from callback.
+func HandleConfirmCmd(
+	ctx context.Context,
+	debug *DebugOutput,
+	kbc *kbchat.API,
+	storage OAuthStorage,
+	msg chat1.MsgSummary,
+	confirmCmd string,
+	callback func(ctx context.Context, msg chat1.MsgSummary, identifier string) error,
+) (handled bool, err error) {
+	if msg.Content.Text == nil {
+		return false, nil
+	}
+	code, ok := ParseConfirmCmd(msg.Content.Text.Body, confirmCmd)
+	if !ok {
+		return false, nil
+	} else if code == "" {
+		debug.ChatEcho(msg.ConvID, "%s", ConfirmUsageMsg(confirmCmd))
+		return true, nil
 	}
 
-	query := r.URL.Query()
-	state := query.Get("state")
-	// WithoutCancel: the browser may close after the redirect; DB writes and the
-	// HandleAuth callback (which sends Keybase messages) must finish regardless.
-	ctx := context.WithoutCancel(r.Context())
-
-	req, err := o.storage.GetState(ctx, state)
+	var req *OAuthRequest
+	confirmed, err := ConfirmPendingOAuth(ctx, storage, msg.Sender.Username, code,
+		func(ctx context.Context, state string, token *oauth2.Token) (err error) {
+			if req, err = storage.GetState(ctx, state); err != nil {
+				return err
+			} else if req == nil {
+				return fmt.Errorf("state expired before the token was saved")
+			}
+			return storage.PutToken(ctx, req.TokenIdentifier, token)
+		})
 	if err != nil {
-		err = fmt.Errorf("could not get state %q: %v", state, err)
-		return
-	} else if req == nil {
-		// no state is found
-		o.showOAuthError(w)
-		return
+		debug.Errorf("HandleConfirmCmd: %v", err)
+		debug.ChatEcho(msg.ConvID, "%s", ConfirmSaveFailedMsg)
+		return true, nil
+	} else if !confirmed {
+		debug.ChatEcho(msg.ConvID, "%s", ConfirmNoMatchMsg("Run your command again to get a new link."))
+		return true, nil
 	}
 
-	if req.IsComplete {
-		_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
-			`<div class="success"> Success! </div>
-		<div>You can now close this page and return to the Keybase app.</div>`,
-			o.htmlLogoSrc))
-		if err != nil {
-			o.Errorf("oauthHandler: unable to write: %v", err)
-		}
-		return
-	}
-
-	code := query.Get("code")
-	if code == "" {
-		// no code is provided
-		o.showOAuthError(w)
-		return
-	}
-	token, err := o.oauth.Exchange(ctx, code)
+	callbackMsg, err := getCallbackMsg(kbc, *req)
 	if err != nil {
-		return
+		debug.Errorf("HandleConfirmCmd: unable to get callback message: %v", err)
+		debug.ChatEcho(msg.ConvID, "You're authorized, but I couldn't find the command you sent before. Please send it again.")
+		return true, nil
 	}
-
-	if err = o.storage.PutToken(ctx, req.TokenIdentifier, token); err != nil {
-		return
-	}
-	if err = o.storage.CompleteState(ctx, state); err != nil {
-		return
-	}
-	callbackMsg, err := o.getCallbackMsg(*req)
-	if err != nil {
-		return
-	}
-
-	if err = o.callback(ctx, callbackMsg, req.TokenIdentifier); err != nil {
-		return
-	}
-
-	_, err = w.Write(MakeOAuthHTML(o.htmlTitle, "success",
-		`<div class="success"> Success! </div>
-		<div>You can now close this page and return to the Keybase app.</div>`,
-		o.htmlLogoSrc))
-	if err != nil {
-		o.Errorf("oauthHandler: unable to write: %v", err)
-	}
-}
-
-func (o *OAuthHTTPSrv) showOAuthError(w http.ResponseWriter) {
-	if _, err := w.Write(MakeOAuthHTML(o.htmlTitle, "error",
-		"Unable to complete request, please try running the bot command again!", o.htmlLogoSrc)); err != nil {
-		o.Errorf("oauthHandler: unable to write: %v", err)
-	}
+	return true, callback(ctx, callbackMsg, req.TokenIdentifier)
 }
 
 func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, _ *http.Request) {
@@ -245,15 +215,19 @@ func (o *OAuthHTTPSrv) logoHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 type OAuthRequest struct {
-	IsComplete      bool
+	IsComplete bool
+	// IsPending is set once the provider redirected back and the token is
+	// waiting for the requester's confirmation.
+	IsPending       bool
 	TokenIdentifier string
-	ConvID          chat1.ConvIDStr
-	MsgID           chat1.MessageID
+	// Requester is the Keybase user who asked for the link. TokenIdentifier
+	// may be a team name instead.
+	Requester string
+	ConvID    chat1.ConvIDStr
+	MsgID     chat1.MessageID
 }
 
 type GetOAuthOpts struct {
-	// set the OAuth2 OfflineAccessType (default: false)
-	OAuthOfflineAccessType bool
 	// template for the auth message (default: "Visit %s\n to authorize me.")
 	AuthMessageTemplate string
 	// optional callback which constructs and sends auth URL (default: disabled)
@@ -291,17 +265,16 @@ func GetOAuthClient(
 		}
 		if err := storage.PutState(ctx, state, &OAuthRequest{
 			TokenIdentifier: tokenIdentifier,
+			Requester:       callbackMsg.Sender.Username,
 			ConvID:          callbackMsg.ConvID,
 			MsgID:           callbackMsg.Id,
 		}); err != nil {
 			return nil, err
 		}
 
-		oauthOpts := []oauth2.AuthCodeOption{oauth2.ApprovalForce}
-		if opts.OAuthOfflineAccessType {
-			oauthOpts = append(oauthOpts, oauth2.AccessTypeOffline)
-		}
-		authURL := config.AuthCodeURL(state, oauthOpts...)
+		// Send the bot's start page, not the provider URL: the start page binds
+		// the browser to the state (see OAuthFlow).
+		authURL := OAuthStartURL(config, state)
 		// strip protocol to skip unfurl prompt
 		authURL = strings.TrimPrefix(authURL, "https://")
 		if opts.AuthURLCallback != nil {

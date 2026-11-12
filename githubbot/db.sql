@@ -1,10 +1,16 @@
 CREATE TABLE `oauth_state` (
   `state` char(24) NOT NULL,
   `identifier` varchar(128) NOT NULL,
+  `requester` varchar(128) NOT NULL DEFAULT '',
   `conv_id` char(64) NOT NULL,
   `msg_id` char(64) NOT NULL,
   `is_complete` boolean NOT NULL DEFAULT 0,
-  PRIMARY KEY (`state`)
+  `ctime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `pending_token` text,
+  `confirm_code_hash` char(64),
+  `confirm_attempts` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`state`),
+  INDEX (`requester`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `oauth` (

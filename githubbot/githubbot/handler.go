@@ -72,6 +72,11 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 		return h.handleMentionPref(ctx, cmd, msg)
 	}
 
+	if handled, err := base.HandleConfirmCmd(ctx, h.DebugOutput, h.kbc, h.db, msg, ConfirmCmd, h.HandleAuth); handled {
+		h.stats.Count("confirm")
+		return err
+	}
+
 	client, err := github.NewClient(github.WithHTTPClient(&http.Client{Transport: h.atr}))
 	if err != nil {
 		return fmt.Errorf("error creating github client: %s", err)
@@ -92,7 +97,17 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	return nil
 }
 
+const ConfirmCmd = "!github confirm"
+
 func (h *Handler) handleSubscribe(ctx context.Context, cmd string, msg chat1.MsgSummary, create bool, client *github.Client) (err error) {
+	// The user token only proves repo access for one subscription. Drop it
+	// however this command ends, so each new subscription needs its own
+	// confirmed authorization.
+	defer func() {
+		if derr := h.db.DeleteToken(ctx, msg.Sender.Username); derr != nil {
+			h.Errorf("handleSubscribe: unable to delete token: %v", derr)
+		}
+	}()
 	toks, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err
