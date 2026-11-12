@@ -1,0 +1,32 @@
+triviabot/triviabot/handler_test.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 1-63
+triviabot/triviabot/handler.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 43,45,61,71-80,129-132,136-138
+  s_e3bd89560beb36::t_bac3d9b167ac99 38-40,44,49-58
+triviabot/triviabot/session.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 21-23,129,180,182-184,186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "31adefaaf40f8b76a44dc8b50a744b3843c7bdc1",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    },
+    "s_e3bd89560beb36": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9e86707-0e43-4b27-a342-3b1a70a51583",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
