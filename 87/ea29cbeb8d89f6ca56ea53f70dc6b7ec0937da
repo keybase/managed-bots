@@ -1,0 +1,131 @@
+githubbot/githubbot/http.go
+  s_6176b526d14ebe::t_9f74ad1dd3725b 39
+gcalbot/gcalbot/type.go
+  s_6176b526d14ebe::t_39021b20afc155 9
+  s_6176b526d14ebe::t_c504cb7ed85fe6 15-17,19
+base/oauth_confirm.go
+  s_6176b526d14ebe::t_e73b8185cf17d0 13,61-63,68,70,72-84,87-89,92-96,100-104,106,109-110,113-114,118-119,121-122,134,147-148,151-157
+  s_6176b526d14ebe::t_67415dbcae0072 17-19,22-25,97-99,105,107-108,111-112,115,117,135-146,149-150
+  s_6176b526d14ebe::t_04380ce4d0d746 1-12,14-16,20-21,26-60,64-67,69,71,85-86,90-91,116,161,163-176
+  s_6176b526d14ebe::t_707e9527736061 162
+  s_6176b526d14ebe::t_2ef49e50f376ad 120,123-133,158-160
+gcalbot/gcalbot/oauth.go
+  s_6176b526d14ebe::t_5a8db816fc6e16 35
+  s_6176b526d14ebe::t_e2b2a0bd92cfe3 60,66,74,84,90
+  s_6176b526d14ebe::t_253877bf951c5f 17,26,53-54,56-57,61-62,80,86-87,94,109-110
+  s_6176b526d14ebe::t_9f74ad1dd3725b 19
+  s_6176b526d14ebe::t_ace1e4290d2d3e 13-15,21,23-25,31,37,39,43,45,58-59,64-65,67-73,75-79,81-83,85,89,91-93,96-98,101-104,108,112,116,121-126,128-133
+  s_2c69197f12b15f::t_2c1aa2822c4ff6 27-29,34,36,42,48-50
+gcalbot/gcalbot/db.go
+  s_6176b526d14ebe::t_89d8b3ce037744 65,79
+  s_6176b526d14ebe::t_2c49d179b01f0c 42-43
+  s_6176b526d14ebe::t_1cb73f6f148afa 17-18,25,27-29,39,58,61,69-71,74-76
+  s_6176b526d14ebe::t_16dc577a15c31f 34-35,41,44,59,63-64,72-73,77-78
+gcalbot/migrations/oauth_state_confirm.sql
+  s_6176b526d14ebe::t_c805475417e580 1-2,5,7-10,12-14
+  s_6176b526d14ebe::t_12f94e9fdf5bb1 3-4,6,11
+meetbot/meetbot/http.go
+  s_6176b526d14ebe::t_367348799fbbca 33
+  s_6176b526d14ebe::t_9f74ad1dd3725b 32
+base/oauth.go
+  s_6176b526d14ebe::t_05bef3b45173b3 86,90,114,117-118,120,123
+  s_6176b526d14ebe::t_730cd4511cad50 119,121-122
+  s_6176b526d14ebe::t_34017d243cde29 276-277
+  s_6176b526d14ebe::t_a1e78684c57a92 157-161,167,169-171,173-178,182,192-197,202-204,206
+  s_6176b526d14ebe::t_cd0c73bb4f6151 268,275
+  s_6176b526d14ebe::t_7dade2763890e4 91-92,99-100
+  s_6176b526d14ebe::t_292a8a499d2dde 163,181,183-190
+  s_6176b526d14ebe::t_58a74bae06de24 162,164-166,168,200
+  s_6176b526d14ebe::t_7b6622d43bae37 218-221,223-227
+  s_6176b526d14ebe::t_1e64fa724762ce 85,87,98,107,111,127-128
+gcalbot/gcalbot/http.go
+  s_6176b526d14ebe::t_355483b6f41be3 51,55-56
+meetbot/db.sql
+  s_6176b526d14ebe::t_50ddb195d9d9d5 4,8-13
+base/oauth_confirm_test.go
+  s_6176b526d14ebe::t_b8239aadb637ac 413
+  s_6176b526d14ebe::t_0920be38b7ed37 257-258,269,274-277,293,299
+  s_6176b526d14ebe::t_89967344c67e8c 232,234,239,241,246,248
+  s_6176b526d14ebe::t_7192817d28aaa3 5,44,55,58-63,65-68,75-77,86-88,115,122,126-128,131,135,137-138,144-146,148-156,160-168,170-171,175-182,185,187-188,192,194-195,199,201,205-231,233,235-238,243-245,247,249-250,260-266,270-273,280-289,302,313-323,328,330-332,337,341,348,351-356,362,367,370,373-379,381-387,393-394,398-403,405-407,409,411,414,419-431,433,435,437-438
+  s_6176b526d14ebe::t_e6fef64dbe3901 324-327
+  s_6176b526d14ebe::t_8c81a819b5737d 1-4,6-43,45-54,56-57,64,69-74,78-85,89-114,116-121,123-125,129-130,132-134,136,139-143,147,157-159,169,172-174,183-184,186,189-191,193,196-198,200,202-204,240,242,251-256,259,267-268,278-279,290-292,294-298,300-301,303-312,329,333-336,338-340,342-347,349-350,357-361,363-366,368-369,371-372,380,388-392,395-397,404,408,410,412,415-418,432,434,436,439-440
+base/db.go
+  s_6176b526d14ebe::t_d1a57d43579ed3 71,76
+  s_6176b526d14ebe::t_98d39f04ffc536 80,83-84,87-88,101-102,105,107-109
+  s_6176b526d14ebe::t_461a85da03645b 86
+githubbot/githubbot/handler.go
+  s_6176b526d14ebe::t_8b522cccd4f327 76,78-79
+  s_6176b526d14ebe::t_94597ca4f96a15 103-110
+  s_6176b526d14ebe::t_3bc5056fea8012 101
+  s_6176b526d14ebe::t_9f74ad1dd3725b 100
+  s_6176b526d14ebe::t_abb3374cbe6fd2 75,77
+zoombot/main.go
+  s_6176b526d14ebe::t_1ac81598bc6d11 66
+githubbot/migrations/oauth_state_confirm.sql
+  s_6176b526d14ebe::t_fc22ee8880ca94 1-12
+meetbot/main.go
+  s_6176b526d14ebe::t_b67fcbd48765ed 63
+meetbot/migrations/oauth_state_confirm.sql
+  s_6176b526d14ebe::t_d934700fb15357 1-12
+githubbot/main.go
+  s_6176b526d14ebe::t_30c0f56eb6e9ae 126
+meetbot/meetbot/handler.go
+  s_6176b526d14ebe::t_df891378443401 59,61
+  s_6176b526d14ebe::t_cbdcde5a79baa2 60,62
+  s_6176b526d14ebe::t_9f74ad1dd3725b 70
+  s_6176b526d14ebe::t_6622be289e57c8 71
+  s_6176b526d14ebe::t_266d70a00ba9e2 100
+zoombot/db.sql
+  s_6176b526d14ebe::t_fd4f5512e8470b 4,8-13
+gcalbot/db.sql
+  s_6176b526d14ebe::t_fa9386cbb6ec64 5
+  s_6176b526d14ebe::t_e1d7eeddf933d6 9-13
+  s_6176b526d14ebe::t_5a370a76eb7bbf 14
+zoombot/migrations/oauth_state_confirm.sql
+  s_6176b526d14ebe::t_8a94977c12f4ad 1-12
+githubbot/db.sql
+  s_6176b526d14ebe::t_a7d8450b87b5c6 4,8-13
+base/oauth_flow.go
+  s_6176b526d14ebe::t_d97a2098db23a4 5,7,9-11,15-106
+  s_6176b526d14ebe::t_0920be38b7ed37 174,190,192,209,229,269
+  s_6176b526d14ebe::t_2cb9dd07de5cd6 1-4,6,8,12-14,107-173,175-189,191,193-208,210-228,230-268,270-280
+gcalbot/gcalbot/handler.go
+  s_6176b526d14ebe::t_f2682825944bda 77-81
+base/oauth_state_db.go
+  s_6176b526d14ebe::t_8d6535df6c2926 1-27,29-42,44-55,57-80,82-112
+  s_2c69197f12b15f::t_51c7469c88b67d 28,43,56,81
+zoombot/zoombot/handler.go
+  s_6176b526d14ebe::t_07ace6bcd6422a 67,69
+  s_6176b526d14ebe::t_1bbfd498c0564d 68,70,79
+  s_6176b526d14ebe::t_9f74ad1dd3725b 78
+  s_6176b526d14ebe::t_06a39674f9cacc 112
+gcalbot/main.go
+  s_6176b526d14ebe::t_4e4e480f935038 130-131
+zoombot/zoombot/http.go
+  s_6176b526d14ebe::t_9f74ad1dd3725b 45
+  s_6176b526d14ebe::t_c44b199d62294d 46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "87ea29cbeb8d89f6ca56ea53f70dc6b7ec0937da",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    },
+    "s_6176b526d14ebe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2bba2f37-3128-4930-a4af-f4168fd83f34",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
