@@ -1,0 +1,21 @@
+base/server.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 11-12,18,50-52,56-60,70,269,301,311-325,327-344,490-493,495,497-503,516-521,523-524,527-528
+base/server_test.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "aa1964c1d2fe72cc80f57e3dc0616d43d3d67845",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
