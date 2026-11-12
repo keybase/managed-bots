@@ -6,6 +6,7 @@ import (
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestHandler() *Handler {
@@ -31,14 +32,14 @@ func TestHandleAnswerNeverBlocks(t *testing.T) {
 				"user")
 		}
 	}()
+	finished := false
 	select {
 	case <-done:
+		finished = true
 	case <-time.After(5 * time.Second):
-		t.Fatal("handleAnswer blocked on a full answer queue")
 	}
-	if len(s.answerCh) != cap(s.answerCh) {
-		t.Fatalf("expected queue to fill to %d, got %d", cap(s.answerCh), len(s.answerCh))
-	}
+	require.Equal(t, true, finished, "handleAnswer blocked on a full answer queue")
+	require.Equal(t, cap(s.answerCh), len(s.answerCh), "expected queue to fill to capacity")
 }
 
 func TestRemoveSessionOnlyRemovesSameSession(t *testing.T) {
@@ -48,16 +49,14 @@ func TestRemoveSessionOnlyRemovesSameSession(t *testing.T) {
 	h.sessions[convID] = old
 
 	// A newer session replaced the old one; removing the old one must not
-	// touch it.
+	// touch it. Require Same rather than Equal: the two sessions are built
+	// identically, so they could compare deeply equal.
 	current := newSession(nil, nil, nil, convID)
 	h.sessions[convID] = current
 	h.removeSession(convID, old)
-	if h.sessions[convID] != current {
-		t.Fatal("removeSession dropped a session it did not own")
-	}
+	require.Same(t, current, h.sessions[convID], "removeSession dropped a session it did not own")
 
 	h.removeSession(convID, current)
-	if _, ok := h.sessions[convID]; ok {
-		t.Fatal("removeSession did not remove the finished session")
-	}
+	_, ok := h.sessions[convID]
+	require.Equal(t, false, ok, "removeSession did not remove the finished session")
 }

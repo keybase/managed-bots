@@ -32,7 +32,6 @@ var _ base.Handler = (*Handler)(nil)
 
 const (
 	subscribeFailedMsg = "I couldn't subscribe to updates on `%s`! Make sure the repository exists, you have access to it, and the Keybase integration is installed on it.\n\ngithub.com/apps/%s/installations/new"
-	maxBranchRunes     = 200
 )
 
 // checkUserRepoAccess asks GitHub, with the user's own token, whether the user
