@@ -1,0 +1,23 @@
+webhookbot/webhookbot/http.go
+  s_2c69197f12b15f::t_66e6c551dbb935 7,11,14,19-37,42-44,49-50,55,96,108-112,115-120
+webhookbot/webhookbot/http_test.go
+  s_2c69197f12b15f::t_a9d3517ebc9af1 1-60
+zoombot/zoombot/http.go
+  s_2c69197f12b15f::t_381060ebeac42c 90-92,94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "97eeb2a099a83bc377eb00d7cbbe71388f508bc7",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
