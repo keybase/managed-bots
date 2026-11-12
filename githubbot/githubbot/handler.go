@@ -30,6 +30,34 @@ type Handler struct {
 
 var _ base.Handler = (*Handler)(nil)
 
+const (
+	subscribeFailedMsg = "I couldn't subscribe to updates on `%s`! Make sure the repository exists, you have access to it, and the Keybase integration is installed on it.\n\ngithub.com/apps/%s/installations/new"
+	maxBranchRunes     = 200
+)
+
+// checkUserRepoAccess asks GitHub, with the user's own token, whether the user
+// can see repo. A missing repo and a forbidden one both return false.
+func checkUserRepoAccess(ctx context.Context, userClient *github.Client, repo string) (bool, error) {
+	parsedRepo := strings.Split(repo, "/")
+	if len(parsedRepo) != 2 {
+		return false, fmt.Errorf("invalid repo: %s", repo)
+	}
+	got, res, err := userClient.Repositories.Get(ctx, parsedRepo[0], parsedRepo[1])
+	if err != nil {
+		if res != nil && (res.StatusCode == http.StatusNotFound || res.StatusCode == http.StatusForbidden) {
+			return false, nil
+		}
+		return false, err
+	}
+	return repoFullNameMatches(got, repo), nil
+}
+
+// repoFullNameMatches reports whether r is the repo named by repo, ignoring case.
+func repoFullNameMatches(r *github.Repository, repo string) bool {
+	full := r.GetFullName()
+	return full != "" && strings.EqualFold(full, repo)
+}
+
 func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.ChatDebugOutputConfig, db *DB, oauthConfig *oauth2.Config, atr *ghinstallation.AppsTransport, httpPrefix, appName string) *Handler {
 	return &Handler{
 		DebugOutput: base.NewDebugOutput("Handler", debugConfig),
@@ -240,16 +268,6 @@ func (h *Handler) handleNewSubscription(ctx context.Context, repo string, msg ch
 		h.ChatEcho(msg.ConvID, "`%s` doesn't look like a repository to me! Try sending `!github subscribe <owner/repo>`", repo)
 		return false, nil
 	}
-	repoInstallation, res, err := client.Apps.GetRepositoryInstallation(context.TODO(), parsedRepo[0], parsedRepo[1])
-	if err != nil {
-		switch res.StatusCode {
-		case http.StatusNotFound:
-			h.ChatEcho(msg.ConvID, "I couldn't subscribe to updates on `%s`! Make sure the Keybase integration is installed on your repository, and that the repository exists.\n\ngithub.com/apps/%s/installations/new", repo, h.appName)
-			return false, nil
-		default:
-			return false, fmt.Errorf("error getting installation: %s", err)
-		}
-	}
 
 	// check that user has authorization
 	tc, err := base.GetOAuthClient(ctx, msg.Sender.Username, msg, h.kbc, h.oauthConfig, h.db,
@@ -263,23 +281,26 @@ func (h *Handler) handleNewSubscription(ctx context.Context, repo string, msg ch
 	if err != nil {
 		return false, fmt.Errorf("error creating github client: %s", err)
 	}
-	installations, _, err := userClient.Apps.ListUserInstallations(context.TODO(), nil)
+
+	// Check the user's access before touching the app's credentials. A repo that
+	// doesn't exist and one the user can't see get the same reply, so this
+	// doesn't reveal which repos exist.
+	hasAccess, err := checkUserRepoAccess(ctx, userClient, repo)
 	if err != nil {
-		return false, fmt.Errorf("Error getting installations for current user: %s", err)
+		return false, fmt.Errorf("error checking repository access: %s", err)
+	}
+	if !hasAccess {
+		h.ChatEcho(msg.ConvID, subscribeFailedMsg, repo, h.appName)
+		return false, nil
 	}
 
-	// search through all user installations to see if they have permission to access the repo's installation
-	hasPermission := false
-	for _, i := range installations {
-		if i.GetID() == repoInstallation.GetID() {
-			hasPermission = true
-			break
+	repoInstallation, res, err := client.Apps.GetRepositoryInstallation(ctx, parsedRepo[0], parsedRepo[1])
+	if err != nil {
+		if res != nil && res.StatusCode == http.StatusNotFound {
+			h.ChatEcho(msg.ConvID, subscribeFailedMsg, repo, h.appName)
+			return false, nil
 		}
-	}
-
-	if !hasPermission {
-		h.ChatEcho(msg.ConvID, "You don't have permission to subscribe to `%s`.", repo)
-		return false, fmt.Errorf("unauthorized for subscription")
+		return false, fmt.Errorf("error getting installation: %s", err)
 	}
 
 	// auth checked, now we create the subscription
