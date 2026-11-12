@@ -1,0 +1,21 @@
+githubbot/githubbot/handler.go
+  s_2c69197f12b15f::t_b078f62b9ac195 33-60,284-288,290,292-294,297-303
+githubbot/githubbot/security_test.go
+  s_2c69197f12b15f::t_5ecc907394d9ec 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "68adb2740889a63ea3b2b071479323ed319ac8bd",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
