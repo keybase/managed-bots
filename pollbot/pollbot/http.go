@@ -3,7 +3,10 @@ package pollbot
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +16,16 @@ import (
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/keybase/managed-bots/base"
+)
+
+// formBodyLimit caps the POST forms for login and vote; both carry a few hundred bytes.
+const formBodyLimit = 4 << 10
+
+const (
+	// loginCSRFCookie pairs a login confirm page with the POST that completes it.
+	loginCSRFCookie = "login_csrf"
+	// loginConfirmMaxAge is how long a confirm page stays valid.
+	loginConfirmMaxAge = 15 * time.Minute
 )
 
 type HTTPSrv struct {
@@ -53,6 +66,7 @@ func (h *HTTPSrv) showError(w http.ResponseWriter) {
 	_, _ = w.Write([]byte(makeHTMLVoteResult("Something went wrong, vote not recorded.")))
 }
 
+// checkLogin returns the username of a valid session.
 func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bool) {
 	cookie, err := r.Cookie("auth")
 	if err != nil {
@@ -82,15 +96,70 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 	return username, true
 }
 
+// voteCSRFToken binds a vote to the user shown the confirm page,
+// so a cross-site form can't cast a vote for the user.
+func voteCSRFToken(secret, username string, vote Vote) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(fmt.Appendf(nil, "pollbot-vote-csrf\x00%s\x00%s\x00%d", username, vote.ID, vote.Choice))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// handleVote shows a confirmation page for a vote link and records the vote only on POST.
 func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
+	base.SecureHeaders(w)
 	username, ok := h.checkLogin(w, r)
 	if !ok {
 		return
 	}
-	vstr := r.URL.Query().Get("")
-	vote, err := NewVoteFromEncoded(vstr)
+	switch r.Method {
+	case http.MethodGet:
+		h.showVoteConfirm(w, r, username)
+	case http.MethodPost:
+		h.recordVote(w, r, username)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *HTTPSrv) showVoteConfirm(w http.ResponseWriter, r *http.Request, username string) {
+	vote, err := NewVoteFromEncoded(r.URL.Query().Get(""))
 	if err != nil {
 		h.Debug("invalid vote payload: %s", err)
+		h.showError(w)
+		return
+	}
+	data := confirmData{
+		Title:        "Vote",
+		Heading:      "Confirm your vote",
+		Instructions: fmt.Sprintf("You are about to vote for option %d.", vote.Choice),
+		Action:       "/pollbot/vote",
+		Fields: []confirmField{
+			{Name: "vote", Value: vote.Encode()},
+			{Name: "csrf", Value: voteCSRFToken(h.tokenSecret, username, vote)},
+		},
+		Button: fmt.Sprintf("Vote for option %d", vote.Choice),
+	}
+	if err := confirmTmpl.Execute(w, data); err != nil {
+		h.Errorf("failed to render vote confirmation: %s", err)
+	}
+}
+
+func (h *HTTPSrv) recordVote(w http.ResponseWriter, r *http.Request, username string) {
+	base.LimitRequestBody(w, r, formBodyLimit)
+	if err := r.ParseForm(); err != nil {
+		h.Debug("invalid vote form: %s", err)
+		h.showError(w)
+		return
+	}
+	vote, err := NewVoteFromEncoded(r.PostFormValue("vote"))
+	if err != nil {
+		h.Debug("invalid vote payload: %s", err)
+		h.showError(w)
+		return
+	}
+	expected := voteCSRFToken(h.tokenSecret, username, vote)
+	if !hmac.Equal([]byte(r.PostFormValue("csrf")), []byte(expected)) {
+		h.Debug("vote rejected: CSRF token mismatch")
 		h.showError(w)
 		return
 	}
@@ -138,9 +207,67 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 	h.showSuccess(w)
 }
 
+// handleLogin shows a confirmation page for a login link and sets the auth
+// cookie only on POST, so a link alone can't log the browser into someone else's identity.
 func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
-	token := r.URL.Query().Get("token")
-	username := r.URL.Query().Get("username")
+	base.SecureHeaders(w)
+	switch r.Method {
+	case http.MethodGet:
+		nonce, err := base.RandBytes(16)
+		if err != nil {
+			h.Errorf("failed to make login nonce: %s", err)
+			h.showError(w)
+			return
+		}
+		csrf := hex.EncodeToString(nonce)
+		// The POST must echo this cookie. A cross-site form can't read it, and a
+		// SameSite=Strict cookie isn't sent on a cross-site POST, so the form fails.
+		http.SetCookie(w, &http.Cookie{
+			Name:     loginCSRFCookie,
+			Value:    csrf,
+			MaxAge:   int(loginConfirmMaxAge.Seconds()),
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+		})
+		username := r.URL.Query().Get("username")
+		data := confirmData{
+			Title:        "Login",
+			Heading:      fmt.Sprintf("Log in as @%s?", username),
+			Instructions: "Only continue if you requested this login yourself.",
+			Action:       "/pollbot/login",
+			Fields: []confirmField{
+				{Name: "token", Value: r.URL.Query().Get("token")},
+				{Name: "username", Value: username},
+				{Name: "csrf", Value: csrf},
+			},
+			Button: "Log in",
+		}
+		if err := confirmTmpl.Execute(w, data); err != nil {
+			h.Errorf("failed to render login confirmation: %s", err)
+		}
+	case http.MethodPost:
+		h.completeLogin(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *HTTPSrv) completeLogin(w http.ResponseWriter, r *http.Request) {
+	base.LimitRequestBody(w, r, formBodyLimit)
+	if err := r.ParseForm(); err != nil {
+		h.Debug("invalid login form: %s", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	cookie, err := r.Cookie(loginCSRFCookie)
+	if err != nil || !hmac.Equal([]byte(cookie.Value), []byte(r.PostFormValue("csrf"))) {
+		h.Debug("login rejected: CSRF token mismatch")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+	token := r.PostFormValue("token")
+	username := r.PostFormValue("username")
 	if !base.VerifyLoginToken(h.tokenSecret, "pollbot-login", username, token) {
 		w.WriteHeader(http.StatusForbidden)
 		return
