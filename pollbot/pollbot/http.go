@@ -74,7 +74,7 @@ func (h *HTTPSrv) checkLogin(w http.ResponseWriter, r *http.Request) (string, bo
 	}
 	username := toks[0]
 	token := toks[1]
-	if !base.VerifyLoginToken(h.tokenSecret, username, token) {
+	if !base.VerifyLoginToken(h.tokenSecret, "pollbot-login", username, token) {
 		h.Debug("invalid auth cookie")
 		h.showLoginInstructions(w)
 		return "", false
@@ -141,7 +141,7 @@ func (h *HTTPSrv) handleVote(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPSrv) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	username := r.URL.Query().Get("username")
-	if !base.VerifyLoginToken(h.tokenSecret, username, token) {
+	if !base.VerifyLoginToken(h.tokenSecret, "pollbot-login", username, token) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}

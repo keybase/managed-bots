@@ -529,12 +529,12 @@ func (h *HTTPSrv) authUser(w http.ResponseWriter, r *http.Request) (keybaseUsern
 		keybaseUsername, keybaseConvID, token = toks[0], chat1.ConvIDStr(toks[1]), toks[2]
 	}
 
-	if !base.VerifyLoginToken(h.handler.tokenSecret, keybaseUsername+":"+string(keybaseConvID), token) {
+	if !base.VerifyLoginToken(h.handler.tokenSecret, "gcalbot-login", keybaseUsername+":"+string(keybaseConvID), token) {
 		h.Debug("invalid auth token")
 		return "", "", false
 	}
 	// Re-mint a fresh token so the cookie's Expires and embedded timestamp stay in sync.
-	freshToken := base.MakeLoginToken(h.handler.tokenSecret, keybaseUsername+":"+string(keybaseConvID))
+	freshToken := base.MakeLoginToken(h.handler.tokenSecret, "gcalbot-login", keybaseUsername+":"+string(keybaseConvID))
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth",
 		Value:    fmt.Sprintf("%s:%s:%s", keybaseUsername, keybaseConvID, freshToken),
