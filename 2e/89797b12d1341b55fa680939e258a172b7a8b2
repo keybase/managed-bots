@@ -1,0 +1,48 @@
+base/server.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 11-12,18,50-52,56-57,59-60,63,69-70,265,297,307-321,323-340,486-489,491-495,497-499,512-517,519-520,523-524
+gitlabbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 44
+base/options_test.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 1-24
+canarybot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 36
+base/options.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 11,41-42,55,66-67,81-82,110-118
+  s_2c69197f12b15f::t_f8e81d46039a98 119-120
+base/util.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 301-304,312-317,319-320
+triviabot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 27
+pollbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 40
+githubbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 51
+elastiwatch/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 45
+gcalbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 49
+meetbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 43
+zoombot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 46
+macrobot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 28
+webhookbot/main.go
+  s_2c69197f12b15f::t_1afb8fc3e13e43 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "2e89797b12d1341b55fa680939e258a172b7a8b2",
+  "prompts": {},
+  "sessions": {
+    "s_2c69197f12b15f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4e10983-5445-4a31-99bb-8a90a86c8dc8",
+        "model": "claude-haiku-5-5"
+      },
+      "human_author": "Joshua Blum <joshua.blum@zoom.us>"
+    }
+  }
+}
