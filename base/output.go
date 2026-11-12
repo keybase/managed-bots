@@ -44,9 +44,15 @@ func (d *DebugOutput) Debug(format string, args ...any) {
 }
 
 func (d *DebugOutput) Errorf(msg string, args ...any) {
-	d.Debug(msg, args...)
-	msg = fmt.Sprintf("```%s```", msg)
-	d.Report(msg, args...)
+	formatted := fmt.Sprintf(msg, args...)
+	d.Debug("%s", formatted)
+	// Format first, then escape, so user-supplied arguments can't close the code block.
+	d.Report("```%s```", EscapeCodeBlock(formatted))
+}
+
+// EscapeCodeBlock makes s safe to place between triple backticks.
+func EscapeCodeBlock(s string) string {
+	return strings.ReplaceAll(s, "`", "'")
 }
 
 func (d *DebugOutput) Report(msg string, args ...any) {
