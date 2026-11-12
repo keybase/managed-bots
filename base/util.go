@@ -21,13 +21,6 @@ const backs = "```"
 
 type ShortID string
 
-var DefaultBotAdmins = []string{
-	"01",
-	"joshblum",
-	"marceloneil",
-	"mikem",
-}
-
 func MsgpackDecode(dst any, src []byte) error {
 	h := codecHandle()
 	return codec.NewDecoderBytes(src, h).Decode(dst)

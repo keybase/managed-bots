@@ -60,13 +60,13 @@ const (
 
 func NewServer(
 	name, announcement string, awsOpts *AWSOptions, multiDBDSN *mysql.Config, readSelf bool,
-	runOptions kbchat.RunOptions,
+	botAdmins []string, runOptions kbchat.RunOptions,
 ) *Server {
 	return &Server{
 		name:         name,
 		announcement: announcement,
 		awsOpts:      awsOpts,
-		botAdmins:    DefaultBotAdmins,
+		botAdmins:    botAdmins,
 		feedbackLast: make(map[string]time.Time),
 		shutdownCh:   make(chan struct{}),
 		multiDBDSN:   multiDBDSN,
@@ -95,10 +95,6 @@ func (s *Server) ReportFatalError(err error) {
 		return
 	}
 	s.Report("```fatal error running %s: %v```", s.name, err)
-}
-
-func (s *Server) SetBotAdmins(admins []string) {
-	s.botAdmins = admins
 }
 
 func (s *Server) GoWithRecover(eg *errgroup.Group, f func() error) {
