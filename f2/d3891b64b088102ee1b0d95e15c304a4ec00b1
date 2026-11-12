@@ -1,0 +1,60 @@
+zoombot/zoombot/http.go
+  s_2b4edd5e649a2f::t_93e9122b8b9e52 49
+meetbot/meetbot/http.go
+  s_2b4edd5e649a2f::t_72cd99e7bcbd7c 35
+pollbot/pollbot/http_test.go
+  s_2b4edd5e649a2f::t_d075291f9a3b4c 126
+  s_2b4edd5e649a2f::t_ae6d2dce6f9763 44
+gcalbot/gcalbot/handler.go
+  s_2b4edd5e649a2f::t_dd90452b5e90ff 144
+pollbot/pollbot/http.go
+  s_2b4edd5e649a2f::t_3c1c5b893d1f8e 50-51
+base/http.go
+  s_2b4edd5e649a2f::t_abda68acf42304 54-62
+gcalbot/gcalbot/http.go
+  s_2b4edd5e649a2f::t_4d6892e877362a 64-66,71-72,99-101,115-117,140-141,143-146,162,166-170,375,503-513,563-569,574,583,599,602-604,606-609,611,613,615,617-619,621-631
+  s_2b4edd5e649a2f::t_8d97d05c8b29e1 53,55
+  s_2b4edd5e649a2f::t_b4906813743427 67-70,73
+  s_2b4edd5e649a2f::t_ec691f04f5a50e 632
+  s_2b4edd5e649a2f::t_c5f2f3b3c64349 123-135,142
+  s_2b4edd5e649a2f::t_1f4f2a5edc0197 230
+  s_2b4edd5e649a2f::t_e2d6a422736824 163-165
+  s_2b4edd5e649a2f::t_4e558fdd90539d 10
+  s_2b4edd5e649a2f::t_16f24994e5fd23 571-573,575-578,580-582,584,591,597-598,600-601,605,610,612,614,616,620
+  s_2b4edd5e649a2f::t_975946fa90ac5f 585-588
+base/http_test.go
+  s_2b4edd5e649a2f::t_c87a96151be29c 1-24
+gcalbot/gcalbot/html.go
+  s_2b4edd5e649a2f::t_50445e2bfd58da 336-338,396
+gcalbot/gcalbot/config_security_test.go
+  s_2b4edd5e649a2f::t_1f91759bbd27cb 25-26,28-29
+  s_2b4edd5e649a2f::t_00ae3d1f8e663a 40
+  s_2b4edd5e649a2f::t_baf2825fd0c179 37-39,41-43
+  s_2b4edd5e649a2f::t_79b02915c327b4 69
+  s_2b4edd5e649a2f::t_168e224f373e6f 104-105
+  s_2b4edd5e649a2f::t_59c5a84a5aec67 114-116,126-129,133,144-157
+  s_2b4edd5e649a2f::t_857df44739cd01 1-3
+  s_2b4edd5e649a2f::t_a85bf53038eddf 123-125
+  s_2b4edd5e649a2f::t_26ad9352dce1f3 4-24,31,36,44-46,48-68,70-103,106-113,117-122,130-132,134,136-143,158
+  s_2b4edd5e649a2f::t_6c1c5f27f8a28b 32-35
+  s_2b4edd5e649a2f::t_06ba604eaf8942 135
+  s_2b4edd5e649a2f::t_bc64ac0a07a4ef 27
+  s_2b4edd5e649a2f::t_6dbea2a13ffa7d 30
+  s_2b4edd5e649a2f::t_e2e7ebd078093b 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "f2d3891b64b088102ee1b0d95e15c304a4ec00b1",
+  "prompts": {},
+  "sessions": {
+    "s_2b4edd5e649a2f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "feb8910a-9810-4d4c-99f8-7910cd4cdf46",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
