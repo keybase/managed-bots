@@ -6,16 +6,18 @@ import (
 	"time"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/keybase/managed-bots/base"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 )
 
+// OAuthRequest is a pending account connection. Requester is the Keybase
+// username and ConvID the conversation it was requested from; TokenIdentifier
+// and MsgID are unused.
 type OAuthRequest struct {
-	KeybaseUsername string
+	base.OAuthRequest
 	AccountNickname string
-	KeybaseConvID   chat1.ConvIDStr
-	IsComplete      bool
 }
 
 type Account struct {

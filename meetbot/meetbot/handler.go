@@ -56,12 +56,18 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	}
 
 	cmd := strings.TrimSpace(msg.Content.Text.Body)
+	if handled, err := base.HandleConfirmCmd(ctx, h.DebugOutput, h.kbc, h.db, msg, ConfirmCmd, h.HandleAuth); handled {
+		h.stats.Count("confirm")
+		return err
+	}
 	if strings.HasPrefix(cmd, "!meet") {
 		h.stats.Count("meet")
 		return h.meetHandler(ctx, msg)
 	}
 	return nil
 }
+
+const ConfirmCmd = "!meet confirm"
 
 func (h *Handler) meetHandler(ctx context.Context, msg chat1.MsgSummary) error {
 	retry := func() error {
@@ -91,8 +97,7 @@ func (h *Handler) meetHandlerInner(ctx context.Context, msg chat1.MsgSummary) er
 	identifier := base.IdentifierFromMsg(msg)
 	client, err := base.GetOAuthClient(ctx, identifier, msg, h.kbc, h.config, h.db,
 		base.GetOAuthOpts{
-			AuthMessageTemplate:    "Authorize me by clicking this link:\n%s",
-			OAuthOfflineAccessType: true,
+			AuthMessageTemplate: "Authorize me by clicking this link:\n%s",
 		})
 	if err != nil {
 		return err

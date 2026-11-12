@@ -68,22 +68,24 @@ func normalizeCtxErr(ctx context.Context, err error) error {
 }
 
 type BaseOAuthDB struct { //nolint
-	*DB
+	*OAuthStateDB
 }
 
 func NewBaseOAuthDB(db *sql.DB) *BaseOAuthDB {
 	return &BaseOAuthDB{
-		DB: NewDB(db),
+		OAuthStateDB: NewOAuthStateDB(NewDB(db)),
 	}
 }
 
+// GetState returns nil if state doesn't exist or has expired.
 func (d *BaseOAuthDB) GetState(ctx context.Context, state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
-	row := d.QueryRowContext(ctx, `SELECT identifier, conv_id, msg_id, is_complete
+	row := d.QueryRowContext(ctx, `SELECT identifier, requester, conv_id, msg_id, is_complete,
+		pending_token IS NOT NULL
 		FROM oauth_state
-		WHERE state = ?`, state)
-	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.ConvID,
-		&oauthState.MsgID, &oauthState.IsComplete)
+		WHERE state = ? AND ctime > NOW() - INTERVAL ? SECOND`, state, OAuthStateTTLSeconds)
+	err := row.Scan(&oauthState.TokenIdentifier, &oauthState.Requester, &oauthState.ConvID,
+		&oauthState.MsgID, &oauthState.IsComplete, &oauthState.IsPending)
 	switch err {
 	case nil:
 		return &oauthState, nil
@@ -96,20 +98,15 @@ func (d *BaseOAuthDB) GetState(ctx context.Context, state string) (*OAuthRequest
 
 func (d *BaseOAuthDB) PutState(ctx context.Context, state string, oauthState *OAuthRequest) error {
 	_, err := d.ExecContext(ctx, `INSERT INTO oauth_state
-		(state, identifier, conv_id, msg_id)
-		VALUES (?, ?, ?, ?)
+		(state, identifier, requester, conv_id, msg_id, ctime)
+		VALUES (?, ?, ?, ?, ?, NOW())
 		ON DUPLICATE KEY UPDATE
 		identifier=VALUES(identifier),
+		requester=VALUES(requester),
 		conv_id=VALUES(conv_id),
-		msg_id=VALUES(msg_id)
-	`, state, oauthState.TokenIdentifier, oauthState.ConvID, oauthState.MsgID)
-	return err
-}
-
-func (d *BaseOAuthDB) CompleteState(ctx context.Context, state string) error {
-	_, err := d.ExecContext(ctx, `UPDATE oauth_state
-		SET is_complete=true
-		WHERE state = ?`, state)
+		msg_id=VALUES(msg_id),
+		ctime=VALUES(ctime)
+	`, state, oauthState.TokenIdentifier, oauthState.Requester, oauthState.ConvID, oauthState.MsgID)
 	return err
 }
 

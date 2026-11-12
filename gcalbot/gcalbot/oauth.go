@@ -3,11 +3,6 @@ package gcalbot
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
-	"time"
-
-	"google.golang.org/api/calendar/v3"
 
 	"github.com/keybase/managed-bots/base"
 
@@ -15,134 +10,19 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func (h *HTTPSrv) oauthHandler(w http.ResponseWriter, r *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			base.LogOAuthError(h.DebugOutput, "oauthHandler", err)
-			h.showOAuthError(w)
-		}
-	}()
+// The browser side of connecting a Google account is a base.OAuthFlow served
+// at oauthPath. The account is only connected once the requester sends
+// "!gcal confirm <code>" from Keybase (handleConfirm).
 
-	if r.URL == nil {
-		err = fmt.Errorf("r.URL == nil")
-		return
-	}
+const oauthPath = "/gcalbot/oauth"
 
-	query := r.URL.Query()
-	state := query.Get("state")
-	// WithoutCancel: the browser may close after the redirect; DB writes and
-	// Keybase messaging triggered by OAuth completion must finish regardless.
-	ctx := context.WithoutCancel(r.Context())
+const ConfirmCmd = "!gcal confirm"
 
-	req, err := h.db.GetState(ctx, state)
-	if err != nil {
-		err = fmt.Errorf("could not get state %q: %v", state, err)
-		return
-	} else if req == nil {
-		// no state is found
-		h.showOAuthError(w)
-		return
-	}
+const retryConnectCmd = "Run `!gcal accounts connect` again to get a new link."
 
-	if req.IsComplete {
-		_, err = w.Write(base.MakeOAuthHTML("gcalbot", "success",
-			`<div class="success"> Success! </div>
-		<div>You can now close this page and return to the Keybase app.</div>`,
-			"/gcalbot/image/logo"))
-		if err != nil {
-			h.Errorf("oauthHandler: unable to write: %v", err)
-		}
-		return
-	}
-
-	code := query.Get("code")
-	if code == "" {
-		// no code is provided
-		h.showOAuthError(w)
-		return
-	}
-	token, err := h.oauth.Exchange(ctx, code)
-	if err != nil {
-		return
-	}
-
-	account := Account{
-		KeybaseUsername: req.KeybaseUsername,
-		AccountNickname: req.AccountNickname,
-		Token:           *token,
-	}
-	err = h.db.InsertAccount(ctx, account)
-	if err != nil {
-		return
-	}
-	if err = h.db.CompleteState(ctx, state); err != nil {
-		return
-	}
-
-	conv, err := h.kbc.GetConversation(req.KeybaseConvID)
-	if err != nil {
-		return
-	}
-
-	// if account was created in a 1on1 conv, create default subscription to invites & 5 minute reminder for primary calendar
-	if base.IsDirectPrivateMessage(h.kbc.GetUsername(), req.KeybaseUsername, conv.Channel) {
-		var srv *calendar.Service
-		srv, err = h.handler.GetCalendarService(ctx, &account)
-		if err != nil {
-			return
-		}
-
-		var primaryCalendar *calendar.Calendar
-		primaryCalendar, err = srv.Calendars.Get("primary").Do()
-		if err != nil {
-			return
-		}
-
-		err = h.handler.createSubscription(ctx, &account, Subscription{
-			CalendarID:    primaryCalendar.Id,
-			KeybaseConvID: req.KeybaseConvID,
-			Type:          SubscriptionTypeInvite,
-		})
-		if err != nil {
-			return
-		}
-		err = h.handler.createSubscription(ctx, &account, Subscription{
-			CalendarID:     primaryCalendar.Id,
-			KeybaseConvID:  req.KeybaseConvID,
-			DurationBefore: GetDurationFromMinutes(5),
-			Type:           SubscriptionTypeReminder,
-		})
-		if err != nil {
-			return
-		}
-	}
-
-	// Set the auth cookie directly so the token is never exposed in the redirect URL.
-	loginToken := base.MakeLoginToken(h.handler.tokenSecret, req.KeybaseUsername+":"+string(req.KeybaseConvID))
-	http.SetCookie(w, &http.Cookie{
-		Name:     "auth",
-		Value:    fmt.Sprintf("%s:%s:%s", req.KeybaseUsername, req.KeybaseConvID, loginToken),
-		Expires:  time.Now().Add(base.LoginTokenMaxAge),
-		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteLaxMode,
-	})
-
-	redirectQuery := url.Values{}
-	redirectQuery.Add("account", req.AccountNickname)
-	redirectQuery.Add("conv_id", string(req.KeybaseConvID))
-	path := fmt.Sprintf("/gcalbot?%s", redirectQuery.Encode())
-
-	http.Redirect(w, r, path, http.StatusSeeOther)
-}
-
-func (h *HTTPSrv) showOAuthError(w http.ResponseWriter) {
-	if _, err := w.Write(base.MakeOAuthHTML("gcalbot", "error",
-		"Unable to complete request, please try running the bot command again!",
-		"/gcalbot/image/logo")); err != nil {
-		h.Errorf("oauthHandler: unable to write: %v", err)
-	}
+func newOAuthFlow(debug *base.DebugOutput, oauthConfig *oauth2.Config, db *DB, botUsername string) *base.OAuthFlow {
+	return base.NewOAuthFlow(debug, oauthConfig, oauthFlowStorage{DB: db}, ConfirmCmd, botUsername,
+		"gcalbot", "/gcalbot/image/logo", oauthPath, oauth2.AccessTypeOffline)
 }
 
 func (h *Handler) requestOAuth(ctx context.Context, msg chat1.MsgSummary, accountNickname string) error {
@@ -152,17 +32,15 @@ func (h *Handler) requestOAuth(ctx context.Context, msg chat1.MsgSummary, accoun
 	}
 
 	err = h.db.PutState(ctx, state, OAuthRequest{
-		KeybaseUsername: msg.Sender.Username,
+		OAuthRequest:    base.OAuthRequest{Requester: msg.Sender.Username, ConvID: msg.ConvID},
 		AccountNickname: accountNickname,
-		KeybaseConvID:   msg.ConvID,
 	})
 	if err != nil {
 		return err
 	}
 
-	authURL := h.oauth.AuthCodeURL(state, oauth2.ApprovalForce, oauth2.AccessTypeOffline)
 	_, err = h.kbc.SendMessageByTlfName(msg.Sender.Username,
-		"Visit %s to connect a Google account as '%s'.", authURL, accountNickname)
+		"Visit %s to connect a Google account as '%s'.", base.OAuthStartURL(h.oauth, state), accountNickname)
 	if err != nil {
 		return err
 	}
@@ -173,4 +51,84 @@ func (h *Handler) requestOAuth(ctx context.Context, msg chat1.MsgSummary, accoun
 	}
 
 	return nil
+}
+
+// handleConfirm connects the Google account once the requester sends the code
+// shown after authorizing.
+func (h *Handler) handleConfirm(ctx context.Context, msg chat1.MsgSummary, code string) error {
+	if code == "" {
+		h.ChatEcho(msg.ConvID, "%s", base.ConfirmUsageMsg(ConfirmCmd))
+		return nil
+	}
+
+	var account Account
+	var req *OAuthRequest
+	confirmed, err := base.ConfirmPendingOAuth(ctx, h.db, msg.Sender.Username, code,
+		func(ctx context.Context, state string, token *oauth2.Token) (err error) {
+			if req, err = h.db.GetState(ctx, state); err != nil {
+				return err
+			} else if req == nil {
+				return fmt.Errorf("state expired before the account was saved")
+			}
+			account = Account{
+				KeybaseUsername: req.Requester,
+				AccountNickname: req.AccountNickname,
+				Token:           *token,
+			}
+			return h.db.InsertAccount(ctx, account)
+		})
+	if err != nil {
+		h.Errorf("handleConfirm: %v", err)
+		h.ChatEcho(msg.ConvID, "%s", base.ConfirmSaveFailedMsg)
+		return nil
+	} else if !confirmed {
+		h.ChatEcho(msg.ConvID, "%s", base.ConfirmNoMatchMsg(retryConnectCmd))
+		return nil
+	}
+
+	// The account is connected; the default subscriptions are best effort.
+	if err := h.createDefaultSubscriptions(ctx, &account, req.ConvID); err != nil {
+		h.Errorf("handleConfirm: unable to create default subscriptions: %v", err)
+		h.ChatEcho(msg.ConvID, "Connected a Google account as '%s', but I couldn't set up notifications. "+
+			"Send `!gcal configure` in a conversation to set them up there.", req.AccountNickname)
+		return nil
+	}
+	h.ChatEcho(msg.ConvID, "Connected a Google account as '%s'. Send `!gcal configure` in a conversation to set up notifications there.",
+		req.AccountNickname)
+	return nil
+}
+
+// createDefaultSubscriptions subscribes a 1on1 conv to invites and a 5 minute
+// reminder for the account's primary calendar.
+func (h *Handler) createDefaultSubscriptions(ctx context.Context, account *Account, convID chat1.ConvIDStr) error {
+	conv, err := h.kbc.GetConversation(convID)
+	if err != nil {
+		return err
+	}
+	if !base.IsDirectPrivateMessage(h.kbc.GetUsername(), account.KeybaseUsername, conv.Channel) {
+		return nil
+	}
+
+	srv, err := h.GetCalendarService(ctx, account)
+	if err != nil {
+		return err
+	}
+	primaryCalendar, err := srv.Calendars.Get("primary").Do()
+	if err != nil {
+		return err
+	}
+
+	if err := h.createSubscription(ctx, account, Subscription{
+		CalendarID:    primaryCalendar.Id,
+		KeybaseConvID: convID,
+		Type:          SubscriptionTypeInvite,
+	}); err != nil {
+		return err
+	}
+	return h.createSubscription(ctx, account, Subscription{
+		CalendarID:     primaryCalendar.Id,
+		KeybaseConvID:  convID,
+		DurationBefore: GetDurationFromMinutes(5),
+		Type:           SubscriptionTypeReminder,
+	})
 }

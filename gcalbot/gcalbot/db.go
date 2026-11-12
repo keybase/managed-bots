@@ -14,28 +14,34 @@ import (
 type DB struct {
 	*base.DB
 	*base.DebugOutput
+	// pending-token and confirmation steps of the OAuth flow
+	*base.OAuthStateDB
 }
 
 func NewDB(
 	db *sql.DB,
 	debugConfig *base.ChatDebugOutputConfig,
 ) *DB {
+	baseDB := base.NewDB(db)
 	return &DB{
-		DB:          base.NewDB(db),
-		DebugOutput: base.NewDebugOutput("DB", debugConfig),
+		DB:           baseDB,
+		DebugOutput:  base.NewDebugOutput("DB", debugConfig),
+		OAuthStateDB: base.NewOAuthStateDB(baseDB),
 	}
 }
 
 // OAuth state
+
+// GetState returns nil if state doesn't exist or has expired.
 func (d *DB) GetState(ctx context.Context, state string) (*OAuthRequest, error) {
 	var oauthState OAuthRequest
 	row := d.QueryRowContext(ctx, `
-		SELECT keybase_username, account_nickname, keybase_conv_id, is_complete
+		SELECT requester, account_nickname, keybase_conv_id, is_complete, pending_token IS NOT NULL
 		FROM oauth_state
-		WHERE state = ?
-	`, state)
-	err := row.Scan(&oauthState.KeybaseUsername, &oauthState.AccountNickname, &oauthState.KeybaseConvID,
-		&oauthState.IsComplete)
+		WHERE state = ? AND ctime > NOW() - INTERVAL ? SECOND
+	`, state, base.OAuthStateTTLSeconds)
+	err := row.Scan(&oauthState.Requester, &oauthState.AccountNickname, &oauthState.ConvID,
+		&oauthState.IsComplete, &oauthState.IsPending)
 	switch err {
 	case nil:
 		return &oauthState, nil
@@ -49,23 +55,28 @@ func (d *DB) GetState(ctx context.Context, state string) (*OAuthRequest, error) 
 func (d *DB) PutState(ctx context.Context, state string, oauthState OAuthRequest) error {
 	_, err := d.ExecContext(ctx, `
 		INSERT INTO oauth_state
-		(state, keybase_username, account_nickname, keybase_conv_id)
-		VALUES (?, ?, ?, ?)
+		(state, requester, account_nickname, keybase_conv_id, ctime)
+		VALUES (?, ?, ?, ?, NOW())
 		ON DUPLICATE KEY UPDATE
-		keybase_username=VALUES(keybase_username),
+		requester=VALUES(requester),
 		account_nickname=VALUES(account_nickname),
-		keybase_conv_id=VALUES(keybase_conv_id)
-	`, state, oauthState.KeybaseUsername, oauthState.AccountNickname, oauthState.KeybaseConvID)
+		keybase_conv_id=VALUES(keybase_conv_id),
+		ctime=VALUES(ctime)
+	`, state, oauthState.Requester, oauthState.AccountNickname, oauthState.ConvID)
 	return err
 }
 
-func (d *DB) CompleteState(ctx context.Context, state string) error {
-	_, err := d.ExecContext(ctx, `
-		UPDATE oauth_state
-		SET is_complete = true
-		WHERE state = ?
-	`, state)
-	return err
+// oauthFlowStorage adapts DB to base.OAuthFlowStorage.
+type oauthFlowStorage struct {
+	*DB
+}
+
+func (s oauthFlowStorage) GetState(ctx context.Context, state string) (*base.OAuthRequest, error) {
+	req, err := s.DB.GetState(ctx, state)
+	if err != nil || req == nil {
+		return nil, err
+	}
+	return &req.OAuthRequest, nil
 }
 
 // Account

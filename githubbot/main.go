@@ -123,6 +123,7 @@ Examples:%s
 			Name:        "github list",
 			Description: "List subscriptions for the current conversation.",
 		},
+		base.ConfirmCommandAdvertisement(githubbot.ConfirmCmd),
 		base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 	}
 	return kbchat.Advertisement{

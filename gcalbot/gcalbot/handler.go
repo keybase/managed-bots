@@ -74,6 +74,11 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 		return nil
 	}
 
+	if code, ok := base.ParseConfirmCmd(cmd, ConfirmCmd); ok {
+		h.stats.Count("confirm")
+		return h.handleConfirm(ctx, msg, code)
+	}
+
 	tokens, userErr, err := base.SplitTokens(cmd)
 	if err != nil {
 		return err

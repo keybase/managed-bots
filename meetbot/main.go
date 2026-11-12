@@ -60,6 +60,7 @@ func (s *BotServer) makeAdvertisement() kbchat.Advertisement {
 						Name:        "meet",
 						Description: "New Google Meet",
 					},
+					base.ConfirmCommandAdvertisement(meetbot.ConfirmCmd),
 					base.GetFeedbackCommandAdvertisement(s.kbc.GetUsername()),
 				},
 			},

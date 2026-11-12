@@ -42,8 +42,8 @@ func NewHTTPSrv(
 		handler:     handler,
 		credentials: credentials,
 	}
-	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, h.handler.HandleAuth,
-		"zoombot", base.Images["logo"], "/zoombot")
+	h.OAuthHTTPSrv = base.NewOAuthHTTPSrv(stats, kbc, debugConfig, oauthConfig, h.db, ConfirmCmd,
+		"zoombot", base.Images["logo"], "/zoombot", oauth2.AccessTypeOffline)
 	http.HandleFunc("/zoombot", h.healthCheckHandler)
 	http.HandleFunc("/zoombot/deauthorize", h.zoomDeauthorize)
 	http.HandleFunc("/zoombot/support", h.supportHandler)
