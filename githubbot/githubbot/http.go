@@ -63,8 +63,7 @@ func validateWebhook(w http.ResponseWriter, r *http.Request, secret string) ([]b
 func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := validateWebhook(w, r, h.secret)
 	if err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			h.Debug("webhook payload too large (%s)", r.Header.Get("X-GitHub-Delivery"))
 			h.Stats.Count("webhook - payload too large")
 			w.WriteHeader(http.StatusRequestEntityTooLarge)
