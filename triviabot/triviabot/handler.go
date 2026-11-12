@@ -35,15 +35,30 @@ func NewHandler(stats *base.StatsRegistry, kbc *kbchat.API, debugConfig *base.Ch
 	}
 }
 
-func (h *Handler) handleStart(msg chat1.MsgSummary) {
+// startSession registers a new session for convID. It returns nil if one is
+// already running, so the caller can reply without holding the lock.
+func (h *Handler) startSession(convID chat1.ConvIDStr) (*session, chan struct{}) {
 	h.Lock()
 	defer h.Unlock()
-	convID := msg.ConvID
+	if _, ok := h.sessions[convID]; ok {
+		return nil, nil
+	}
 	session := newSession(h.kbc, h.debugConfig, h.db, convID)
 	doneCb := session.start(0)
 	h.sessions[convID] = session
+	return session, doneCb
+}
+
+func (h *Handler) handleStart(msg chat1.MsgSummary) {
+	convID := msg.ConvID
+	session, doneCb := h.startSession(convID)
+	if session == nil {
+		h.ChatEcho(convID, "A trivia session is already running, use `!trivia end` to stop it first")
+		return
+	}
 	base.GoWithRecover(h.DebugOutput, func() {
 		<-doneCb
+		h.removeSession(convID, session)
 		h.ChatEcho(convID, "Session complete, here are the top players")
 		// context.Background() because this goroutine outlives the original request context
 		err := h.handleTop(context.Background(), convID)
@@ -51,6 +66,16 @@ func (h *Handler) handleStart(msg chat1.MsgSummary) {
 			h.ChatErrorf(msg.ConvID, "%s", err.Error())
 		}
 	})
+}
+
+// removeSession drops a finished session from the map so its answer channel
+// is no longer used. Only the entry for this exact session is removed.
+func (h *Handler) removeSession(convID chat1.ConvIDStr, session *session) {
+	h.Lock()
+	defer h.Unlock()
+	if h.sessions[convID] == session {
+		delete(h.sessions, convID)
+	}
 }
 
 func (h *Handler) handleStop(msg chat1.MsgSummary) {
@@ -101,10 +126,16 @@ func (h *Handler) handleAnswer(convID chat1.ConvIDStr, reaction chat1.MessageRea
 		h.Debug("handleAnswer: no session for convID: %s", convID)
 		return
 	}
-	session.answerCh <- answer{
+	// Never block here: this runs on the chat listener, and a full queue means
+	// the session is no longer reading answers.
+	select {
+	case session.answerCh <- answer{
 		selection: base.EmojiToNumber(reaction.Body) - 1,
 		msgID:     reaction.MessageID,
 		username:  sender,
+	}:
+	default:
+		h.Debug("handleAnswer: answer queue full for convID: %s, dropping", convID)
 	}
 }
 

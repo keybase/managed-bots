@@ -18,6 +18,9 @@ import (
 
 var eligibleCategories = []int{9, 10, 11, 12, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27}
 
+// httpClient bounds every opentdb call so a stalled API can't hang a session.
+var httpClient = &http.Client{Timeout: 15 * time.Second}
+
 type apiQuestion struct {
 	Category         string
 	Difficulty       string
@@ -123,7 +126,7 @@ func (s *session) getCategory() int {
 }
 
 func (s *session) getAPIToken() (string, error) {
-	resp, err := http.Get("https://opentdb.com/api_token.php?command=request")
+	resp, err := httpClient.Get("https://opentdb.com/api_token.php?command=request")
 	if err != nil {
 		return "", err
 	}
@@ -174,11 +177,13 @@ func (s *session) getNextQuestion() error {
 	}
 	var apiResp apiResponse
 	getQuestion := func(token string) error {
+		category := s.getCategory()
 		url := fmt.Sprintf("https://opentdb.com/api.php?amount=1&category=%d&token=%s&type=multiple",
-			s.getCategory(), token)
-		s.Debug("getNextQuestion: url: %s", url)
+			category, token)
+		// Don't log the URL: it carries the session token.
+		s.Debug("getNextQuestion: category: %d", category)
 		//nolint:gosec // URL is constructed from trusted API base and validated token
-		resp, err := http.Get(url)
+		resp, err := httpClient.Get(url)
 		if err != nil {
 			return err
 		}
