@@ -2,7 +2,9 @@ package meetbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/keybase/go-keybase-chat-bot/kbchat"
@@ -78,19 +80,26 @@ func (h *Handler) meetHandler(ctx context.Context, msg chat1.MsgSummary) error {
 		return h.meetHandlerInner(ctx, msg)
 	}
 	err := h.meetHandlerInner(ctx, msg)
-	switch err.(type) {
-	case nil, base.OAuthRequiredError:
+	if _, needsOAuth := err.(base.OAuthRequiredError); err == nil || needsOAuth {
 		return nil
-	case *googleapi.Error:
+	}
+	if isTokenRejected(err) {
 		h.Errorf("unable to get service %v, deleting credentials and retrying", err)
 		return retry()
-	default:
-		if base.ShouldRetryAuth(err) {
-			h.Errorf("unable to get service %v, deleting credentials and retrying", err)
-			return retry()
-		}
-		return err
 	}
+	// Transient failures (5xx, quota) don't mean the stored token is bad, so keep
+	// it; the next command retries with the same credentials.
+	return fmt.Errorf("unable to reach Google Calendar, stored credentials kept: %w", err)
+}
+
+// isTokenRejected reports whether err means the team's stored Google token is
+// itself unusable, as opposed to a transient or permission error.
+func isTokenRejected(err error) bool {
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) && apiErr.Code == http.StatusUnauthorized {
+		return true
+	}
+	return base.ShouldRetryAuth(err)
 }
 
 func (h *Handler) meetHandlerInner(ctx context.Context, msg chat1.MsgSummary) error {
