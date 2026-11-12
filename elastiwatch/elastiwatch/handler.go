@@ -100,12 +100,14 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 	}
 
 	// Only allow commands from the configured team
-	if msg.Channel.Name != h.team {
+	if !isConfiguredTeam(msg.Channel, h.team) {
 		h.ChatEcho(msg.ConvID, "This bot is not configured for this team")
 		return nil
 	}
 
-	// All elastiwatch commands require writer permissions
+	// All elastiwatch commands require writer permissions. The team check
+	// above means IsAtLeastWriter only sees team conversations, where it does
+	// a real role lookup; it would let every non-team conversation through.
 	if ok, err := base.IsAtLeastWriter(h.kbc, msg.Sender.Username, msg.Channel); err != nil {
 		return err
 	} else if !ok {
@@ -129,4 +131,10 @@ func (h *Handler) HandleCommand(ctx context.Context, msg chat1.MsgSummary) error
 
 func (h *Handler) HandleNewConv(context.Context, chat1.ConvSummary) error {
 	return nil
+}
+
+// isConfiguredTeam reports whether channel is the configured team. The name
+// alone is not enough: a non-team conversation can use the same name.
+func isConfiguredTeam(channel chat1.ChatChannel, team string) bool {
+	return channel.MembersType == "team" && channel.Name == team
 }
