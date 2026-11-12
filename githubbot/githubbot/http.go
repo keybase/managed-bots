@@ -2,6 +2,7 @@ package githubbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -49,9 +50,26 @@ func (h *HTTPSrv) handleHealthCheck(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-func (h *HTTPSrv) handleWebhook(_ http.ResponseWriter, r *http.Request) {
-	payload, err := github.ValidatePayload(r, []byte(h.secret))
+// maxWebhookBodyBytes is GitHub's own maximum webhook payload size.
+const maxWebhookBodyBytes = 25 * 1024 * 1024
+
+// validateWebhook reads and authenticates a webhook body. The read is capped
+// so an oversized body fails with *http.MaxBytesError instead of being buffered.
+func validateWebhook(w http.ResponseWriter, r *http.Request, secret string) ([]byte, error) {
+	base.LimitRequestBody(w, r, maxWebhookBodyBytes)
+	return github.ValidatePayload(r, []byte(secret))
+}
+
+func (h *HTTPSrv) handleWebhook(w http.ResponseWriter, r *http.Request) {
+	payload, err := validateWebhook(w, r, h.secret)
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			h.Debug("webhook payload too large (%s)", r.Header.Get("X-GitHub-Delivery"))
+			h.Stats.Count("webhook - payload too large")
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+			return
+		}
 		h.Debug("Error validating payload (%s): %v\n", r.Header.Get("X-GitHub-Delivery"), err)
 		h.Stats.Count("webhook - invalid payload")
 		return
